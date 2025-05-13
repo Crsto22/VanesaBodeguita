@@ -1,42 +1,66 @@
 import React from 'react';
 import { Bell, Menu, X } from 'lucide-react';
 import Logo from '../assets/Logo.svg';
+import { useAuth } from '../context/AuthContext';
 
-const Header = ({ menuOpen, setMenuOpen, userName, notifications }) => {
+const Header = ({ menuOpen, setMenuOpen, notifications }) => {
+  const { currentUser, userData } = useAuth();
+  
+  // Get user initial for avatar
+  const userInitial = (userData?.nombre?.charAt(0) || currentUser?.email?.charAt(0))?.toUpperCase();
+  const displayName = userData?.nombre || currentUser?.email;
+
   return (
-    <header className="sticky top-0 z-10 bg-white shadow-sm">
-      <div className="flex h-16 items-center justify-between px-4">
-        {/* Logo y botón de menú */}
-        <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-10 bg-white backdrop-blur-sm bg-opacity-90 border-b border-gray-200">
+      <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-4">
+        <div className="flex items-center gap-4">
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="rounded-full p-2 text-gray-500 transition-all hover:bg-gray-100"
-            aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
+            className="rounded-lg p-2 text-gray-500 transition-all hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200"
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
           >
-            {menuOpen ? (
-              <X className="h-6 w-6" />
-            ) : (
-              <Menu className="h-6 w-6" />
-            )}
+            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
           <img src={Logo} alt="Logo" className="h-8 w-auto" />
         </div>
 
-        {/* Notificaciones y perfil */}
-        <div className="flex items-center gap-3">
-          <button className="relative rounded-full bg-gray-100 p-2 transition-all hover:bg-gray-200">
+        <div className="flex items-center gap-4">
+          <button 
+            className="relative rounded-lg bg-gray-100 p-2 transition-all hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-200"
+            aria-label="Notifications"
+          >
             <Bell className="h-5 w-5 text-gray-700" />
             {notifications > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white ring-2 ring-white">
-                {notifications}
+              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white ring-1 ring-white">
+                {notifications > 9 ? '9+' : notifications}
               </span>
             )}
           </button>
-          <button className="relative h-9 w-9 overflow-hidden rounded-full bg-[#45923a] text-white ring-2 ring-white">
-            <span className="flex h-full w-full items-center justify-center text-sm font-medium">
-              {userName.charAt(0).toUpperCase()}
-            </span>
-          </button>
+          
+          <div className="flex items-center gap-3">
+            <div className="hidden md:flex flex-col items-end">
+              <span className="text-sm font-medium text-gray-900">
+                {displayName}
+              </span>
+              <span className="text-xs text-gray-500">
+                {userData?.role || 'User'}
+              </span>
+            </div>
+            
+            <div className="relative group">
+              <button 
+                className="h-9 w-9 overflow-hidden rounded-full bg-[#45923a] text-white ring-1 ring-gray-200 transition-all hover:ring-2 focus:outline-none focus:ring-2 focus:ring-[#45923a]"
+                aria-label="User profile"
+              >
+                <span className="flex h-full w-full items-center justify-center text-sm font-medium">
+                  {userInitial}
+                </span>
+              </button>
+              <div className="absolute top-full right-0 mt-1 w-48 rounded-lg bg-white shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 border border-gray-200">
+                {/* User menu dropdown content would go here */}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </header>

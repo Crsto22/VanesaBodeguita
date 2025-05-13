@@ -3,33 +3,28 @@ import { useNavigate } from 'react-router-dom';
 import { Home, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const Sidebar = ({ isOpen, setIsOpen, userName, quickAccessOptions, onOptionClick, logo }) => {
-  // Estado para controlar la animación
+const Sidebar = ({ isOpen, setIsOpen, quickAccessOptions, onOptionClick, logo }) => {
   const [animateIn, setAnimateIn] = useState(false);
-  const { logout } = useAuth();
+  const { currentUser, userData, logout } = useAuth();
   const navigate = useNavigate();
   
-  // Efecto para manejar la animación cuando cambia isOpen
   useEffect(() => {
     if (isOpen) {
-      // Pequeño retraso para asegurar que el componente esté renderizado
       setTimeout(() => setAnimateIn(true), 10);
     } else {
       setAnimateIn(false);
     }
   }, [isOpen]);
 
-  // Función para cerrar sesión
   const handleLogout = async () => {
     try {
       await logout();
-      navigate('/');
+      navigate('/login');
     } catch (err) {
-      console.error('Error al cerrar sesión:', err);
+      console.error('Logout error:', err);
     }
   };
 
-  // Si no está abierto, no renderizamos nada
   if (!isOpen) return null;
 
   return (
@@ -43,18 +38,18 @@ const Sidebar = ({ isOpen, setIsOpen, userName, quickAccessOptions, onOptionClic
         }`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Cabecera del menú con logo y perfil */}
         <div className="bg-gradient-to-br from-[#45923a] to-[#3d8033] px-6 py-8 text-white">
           <div className="mb-4 flex justify-center">
             <img src={logo} alt="Logo" className="h-20 w-auto" />
           </div>
           <div className="flex flex-col items-center">
             <h3 className="text-lg font-medium">Bienvenido</h3>
-            <p className="text-sm text-white/80">{userName}</p>
+            <p className="text-sm text-white/80">
+              {userData?.nombre || currentUser?.email}
+            </p>
           </div>
         </div>
         
-        {/* Opciones del menú */}
         <nav className="p-4">
           <ul className="space-y-2">
             <li>
