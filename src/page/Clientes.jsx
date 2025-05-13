@@ -20,7 +20,7 @@ import {
     ShoppingBag,
     DollarSign,
     TruckIcon,
-    ShoppingCart ,
+    ShoppingCart,
     CreditCard,
     Truck,
     Package,
@@ -28,6 +28,7 @@ import {
 import Sidebar from '../components/Sidebar';
 import Logo from '../assets/Logo.svg';
 import Header from '../components/Header';
+import IconoClientes from "../assets/IconoClientes.svg"
 // Colores personalizados
 const COLORS = {
     primary: '#45923a', // Verde
@@ -45,12 +46,12 @@ const Clientes = () => {
 
     // Opciones del menú principal - Accesos rápidos con iconos más específicos
     const quickAccessOptions = [
-    { id: 'ventas', title: 'Ventas', icon: <ShoppingCart className="h-6 w-6" />, color: 'bg-emerald-500', description: 'Registrar ventas y ver historial' },
-    { id: 'deudas', title: 'Pagar Deudas', icon: <CreditCard className="h-6 w-6" />, color: 'bg-amber-500', description: 'Gestionar pagos pendientes' },
-    { id: 'clientes', title: 'Clientes', icon: <Users className="h-6 w-6" />, color: 'bg-blue-500', description: 'Administrar base de clientes' },
-    { id: 'proveedores', title: 'Proveedores', icon: <Truck className="h-6 w-6" />, color: 'bg-violet-500', description: 'Contactos y pedidos' },
-    { id: 'productos', title: 'Productos', icon: <Package className="h-6 w-6" />, color: 'bg-rose-500', description: 'Inventario y catálogo' },
-     ];
+        { id: 'ventas', title: 'Ventas', icon: <ShoppingCart className="h-6 w-6" />, color: 'bg-emerald-500', description: 'Registrar ventas y ver historial' },
+        { id: 'deudas', title: 'Pagar Deudas', icon: <CreditCard className="h-6 w-6" />, color: 'bg-amber-500', description: 'Gestionar pagos pendientes' },
+        { id: 'clientes', title: 'Clientes', icon: <Users className="h-6 w-6" />, color: 'bg-blue-500', description: 'Administrar base de clientes' },
+        { id: 'proveedores', title: 'Proveedores', icon: <Truck className="h-6 w-6" />, color: 'bg-violet-500', description: 'Contactos y pedidos' },
+        { id: 'productos', title: 'Productos', icon: <Package className="h-6 w-6" />, color: 'bg-rose-500', description: 'Inventario y catálogo' },
+    ];
 
     // Datos de clientes
     const [clients] = useState([
@@ -186,19 +187,29 @@ const Clientes = () => {
             {/* Contenido principal */}
             <main className="px-3 pb-16 pt-3">
                 {/* Header con barra de búsqueda y acciones */}
-                <div className="relative mb-3 overflow-hidden rounded-3xl bg-gradient-to-br from-[#45923a] to-[#34722c] p-6 text-white shadow-lg">
-                    <div className="flex justify-between items-start ">
-                        <div>
-                            <h1 className="mb-1 text-2xl font-bold">Gestión de Clientes</h1>
-                        </div>
-                        <button
-                            className=" bg-[#ffa40c] hover:bg-gray-100 font-semibold py-2 px-7 rounded-full shadow-md transition duration-300"
-                            title="Agregar nuevo cliente"
-                        >
-                            <UserRoundPlus size={18} strokeWidth={3} />
-                        </button>
-                    </div>
-                </div>
+<div className="relative mb-3 overflow-hidden rounded-3xl bg-gradient-to-br from-[#45923a] to-[#34722c] p-6 text-white shadow-lg">
+  {/* Background Image */}
+  <img
+    src={IconoClientes}
+    alt="Clients Icon"
+    className="absolute right-0 top-1/2 -translate-y-1/2 w-28 h-28 object-contain z-0"
+  />
+
+  {/* Content */}
+  <div className="relative  flex justify-between items-center">
+    {/* Text and Button Column */}
+    <div className="flex flex-col">
+      <h1 className="mb-2 text-xl font-bold">Gestión de Clientes</h1>
+      <button
+        className="bg-[#ffa40c] font-semibold py-2 px-4 rounded-full shadow-md transition duration-300 flex items-center gap-2 w-fit"
+        title="Agregar nuevo cliente"
+      >
+        <UserRoundPlus size={18} strokeWidth={3} />
+        Nuevo Cliente
+      </button>
+    </div>
+  </div>
+</div>
                 <div className="relative mb-3">
                     <div className="relative ">
                         <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-gray-400" />

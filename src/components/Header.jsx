@@ -66,7 +66,6 @@ const Header = ({ menuOpen, setMenuOpen, notifications }) => {
                 </span>
               </button>
               <div className="absolute top-full right-0 mt-1 w-48 rounded-lg bg-white shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 border border-gray-200">
-                {/* User menu dropdown content would go here */}
               </div>
             </div>
           </div>
