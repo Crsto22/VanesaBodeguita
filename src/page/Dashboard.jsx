@@ -16,7 +16,7 @@ import Logo from '../assets/Logo.svg';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import { useAuth } from '../context/AuthContext';
-
+import IconoInicio from "../assets/IconoInicio.svg"
 const Dashboard = () => {
   const navigate = useNavigate();
   const { currentUser, userData } = useAuth();
@@ -98,11 +98,20 @@ const Dashboard = () => {
       {/* Contenido principal */}
       <main className="px-3 pb-12 pt-4">
         {/* Hero section con saludo y buscador */}
-        <div className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-[#45923a] to-[#3d8033] p-6 text-white shadow-lg">
-          <h1 className="mb-1 text-2xl font-bold">¡Hola, {userData?.nombre || currentUser?.email}!</h1>
-          <p className="mb- text-white/80">¿Qué te gustaría hacer hoy?</p>
-        </div>
+<div className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-[#45923a] to-[#3d8033] p-6 text-white shadow-lg">
+  {/* Background Image */}
+  <img
+    src={IconoInicio}
+    alt="Background Icon"
+    className="absolute right-0 top-1/2 -translate-y-1/2  w-32 h-32 object-contain z-0"
+  />
 
+  {/* Text Content */}
+  <div className="relative z-10">
+    <h1 className="mb-1 text-xl font-bold">¡Hola, {userData?.nombre || currentUser?.email}!</h1>
+    <p className="mb-4 text-white/80">¿Qué te gustaría hacer hoy?</p>
+  </div>
+</div>
         {/* Accesos rápidos destacados */}
         <div className="px-1">
           <h2 className="mb-5 flex items-center text-xl font-bold text-gray-800">
