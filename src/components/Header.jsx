@@ -1,6 +1,6 @@
 import React from 'react';
 import { Bell, Menu, X } from 'lucide-react';
-import Logo from '../assets/logo.svg';
+import Logo from '../assets/Logo.svg';
 
 const Header = ({ menuOpen, setMenuOpen, userName, notifications }) => {
   return (
