@@ -11,7 +11,7 @@ import {
   Search,
   ArrowRight
 } from 'lucide-react';
-import Logo from '../assets/logo.svg';
+import Logo from '../assets/Logo.svg';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header'; // Asegúrate de que la ruta sea correcta
 

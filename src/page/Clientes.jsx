@@ -26,7 +26,7 @@ import {
     Package,
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
-import Logo from '../assets/logo.svg';
+import Logo from '../assets/Logo.svg';
 import Header from '../components/Header';
 // Colores personalizados
 const COLORS = {
