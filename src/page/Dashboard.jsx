@@ -103,11 +103,11 @@ const Dashboard = () => {
   <img
     src={IconoInicio}
     alt="Background Icon"
-    className="absolute right-0 top-1/2 -translate-y-1/2  w-28 h-28 object-contain z-0"
+    className="absolute right-0 top-1/2 -translate-y-1/2  w-28 h-28 object-contain "
   />
 
   {/* Text Content */}
-  <div className="relative z-10">
+  <div className="relative ">
     <h1 className="mb-1 text-xl font-bold">¡Hola, {userData?.nombre || currentUser?.email}!</h1>
     <p className="mb-4 text-white/80">¿Qué te gustaría hacer hoy?</p>
   </div>
