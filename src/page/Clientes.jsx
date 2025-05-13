@@ -19,7 +19,11 @@ import {
     Users,
     ShoppingBag,
     DollarSign,
-    TruckIcon
+    TruckIcon,
+    ShoppingCart ,
+    CreditCard,
+    Truck,
+    Package,
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Logo from '../assets/logo.svg';
@@ -41,12 +45,12 @@ const Clientes = () => {
 
     // Opciones del menú principal - Accesos rápidos con iconos más específicos
     const quickAccessOptions = [
-        { id: 'ventas', title: 'Ventas', icon: <ShoppingBag className="h-5 w-5" />, color: COLORS.primary, description: 'Registrar ventas y ver historial' },
-        { id: 'deudas', title: 'Pagar Deudas', icon: <DollarSign className="h-5 w-5" />, color: COLORS.secondary, description: 'Gestionar pagos pendientes' },
-        { id: 'clientes', title: 'Clientes', icon: <Users className="h-5 w-5" />, color: COLORS.primary, description: 'Administrar base de clientes' },
-        { id: 'proveedores', title: 'Proveedores', icon: <TruckIcon className="h-5 w-5" />, color: COLORS.secondary, description: 'Contactos y pedidos' },
-        { id: 'productos', title: 'Productos', icon: <ShoppingBag className="h-5 w-5" />, color: COLORS.primary, description: 'Inventario y catálogo' },
-    ];
+    { id: 'ventas', title: 'Ventas', icon: <ShoppingCart className="h-6 w-6" />, color: 'bg-emerald-500', description: 'Registrar ventas y ver historial' },
+    { id: 'deudas', title: 'Pagar Deudas', icon: <CreditCard className="h-6 w-6" />, color: 'bg-amber-500', description: 'Gestionar pagos pendientes' },
+    { id: 'clientes', title: 'Clientes', icon: <Users className="h-6 w-6" />, color: 'bg-blue-500', description: 'Administrar base de clientes' },
+    { id: 'proveedores', title: 'Proveedores', icon: <Truck className="h-6 w-6" />, color: 'bg-violet-500', description: 'Contactos y pedidos' },
+    { id: 'productos', title: 'Productos', icon: <Package className="h-6 w-6" />, color: 'bg-rose-500', description: 'Inventario y catálogo' },
+     ];
 
     // Datos de clientes
     const [clients] = useState([

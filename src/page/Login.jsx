@@ -1,33 +1,111 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Lock, Eye, EyeOff, ChevronRight } from 'lucide-react';
-// Asegúrate de que este archivo existe en tu proyecto
+import { useNavigate } from 'react-router-dom';
+import { Mail, Lock, Eye, EyeOff, ChevronRight, X } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import Logo from '../assets/logo.svg';
+
+const Toast = ({ message, onClose }) => {
+  const [isExiting, setIsExiting] = useState(false);
+
+  useEffect(() => {
+    // Start exit animation after 2.5s
+    const exitTimer = setTimeout(() => {
+      setIsExiting(true);
+    }, 2500);
+
+    // Remove toast after animation completes (300ms animation duration)
+    const removeTimer = setTimeout(() => {
+      onClose();
+    }, 2800);
+
+    return () => {
+      clearTimeout(exitTimer);
+      clearTimeout(removeTimer);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className={`alert alert-error flex items-center justify-between rounded-lg shadow-lg p-4 max-w-sm w-full transform transition-all duration-300 ${
+        isExiting ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'
+      }`}
+    >
+      <span className="text-sm text-white">{message}</span>
+      <button
+        onClick={onClose}
+        className="btn btn-ghost btn-sm p-1 hover:bg-red-700/20 rounded-full"
+        aria-label="Cerrar notificación"
+      >
+        <X className="h-4 w-4 text-white" />
+      </button>
+    </div>
+  );
+};
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [toasts, setToasts] = useState([]);
   const [appear, setAppear] = useState(false);
+  const { signIn, currentUser } = useAuth();
+  const navigate = useNavigate();
 
-  // Animación de aparición al cargar
+  // Redirect if already logged in
+  useEffect(() => {
+    if (currentUser) {
+      navigate('/dashboard');
+    }
+  }, [currentUser, navigate]);
+
+  // Animation on mount
   useEffect(() => {
     setAppear(true);
   }, []);
 
-  const handleSubmit = (e) => {
+  // Add a new toast
+  const addToast = (message) => {
+    const id = Date.now(); // Unique ID for each toast
+    setToasts((prev) => [...prev, { id, message }]);
+  };
+
+  // Remove a toast by ID
+  const removeToast = (id) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simulación de envío (reemplazar con lógica real)
-    setTimeout(() => {
-      console.log('Login attempt with:', { email, password });
+
+    try {
+      await signIn(email, password);
+      navigate('/dashboard');
+    } catch (err) {
+      const errorMessage =
+        err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found'
+          ? 'Correo incorrecto'
+          : 'Correo o contraseña incorrectos';
+      addToast(errorMessage);
+    } finally {
       setIsLoading(false);
-      // Aquí deberías agregar la lógica de autenticación real
-    }, 1500);
+    }
   };
 
   return (
     <div className="flex min-h-screen w-full flex-col items-center justify-center bg-white px-4 py-12">
+      {/* Toast Container */}
+      <div className="toast toast-top toast-center fixed z-50">
+        {toasts.map((toast) => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            onClose={() => removeToast(toast.id)}
+          />
+        ))}
+      </div>
+
       {/* Contenedor principal con animación */}
       <div 
         className={`w-full max-w-md transform rounded-2xl bg-white p-8 transition-all duration-700 ease-out ${
@@ -142,7 +220,6 @@ const Login = () => {
               )}
             </button>
           </div>
-
         </form>
       </div>
       
