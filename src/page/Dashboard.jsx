@@ -103,7 +103,7 @@ const Dashboard = () => {
   <img
     src={IconoInicio}
     alt="Background Icon"
-    className="absolute right-0 top-1/2 -translate-y-1/2  w-32 h-32 object-contain z-0"
+    className="absolute right-0 top-1/2 -translate-y-1/2  w-28 h-28 object-contain z-0"
   />
 
   {/* Text Content */}
