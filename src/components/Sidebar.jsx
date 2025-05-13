@@ -25,6 +25,12 @@ const Sidebar = ({ isOpen, setIsOpen, quickAccessOptions, onOptionClick, logo })
     }
   };
 
+  // Función mejorada para manejar la navegación
+  const handleNavigation = (path) => {
+    navigate(path);
+    setIsOpen(false); // Cierra el sidebar al seleccionar una opción
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -53,19 +59,19 @@ const Sidebar = ({ isOpen, setIsOpen, quickAccessOptions, onOptionClick, logo })
         <nav className="p-4">
           <ul className="space-y-2">
             <li>
-              <a 
-                href="#" 
-                className="flex items-center rounded-xl bg-[#45923a]/10 p-3 font-medium text-[#45923a] transition-all hover:bg-[#45923a]/15"
+              <button
+                onClick={() => handleNavigation('/')}
+                className="flex w-full items-center rounded-xl bg-[#45923a]/10 p-3 font-medium text-[#45923a] transition-all hover:bg-[#45923a]/15"
               >
                 <Home className="mr-3 h-5 w-5" />
                 <span>Inicio</span>
-              </a>
+              </button>
             </li>
 
             {quickAccessOptions.map((option) => (
               <li key={option.id}>
                 <button 
-                  onClick={() => onOptionClick(option.id)}
+                  onClick={() => handleNavigation(option.path)}
                   className="flex w-full items-center rounded-xl p-3 transition-all hover:bg-gray-100"
                 >
                   <span className={`mr-3 flex h-8 w-8 items-center justify-center rounded-lg ${option.color} text-white`}>

@@ -1,7 +1,8 @@
 import React from 'react';
-import { Bell, Menu, X } from 'lucide-react';
+import { Bell, Menu, X, Home } from 'lucide-react';
 import Logo from '../assets/Logo.svg';
 import { useAuth } from '../context/AuthContext';
+import { Link } from 'react-router-dom';
 
 const Header = ({ menuOpen, setMenuOpen, notifications }) => {
   const { currentUser, userData } = useAuth();
@@ -24,7 +25,15 @@ const Header = ({ menuOpen, setMenuOpen, notifications }) => {
           <img src={Logo} alt="Logo" className="h-8 w-auto" />
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <Link
+            to="/"
+            className="rounded-lg p-2 text-[#45923a] transition-all hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 group"
+            aria-label="Ir a inicio"
+          >
+            <Home className="h-5 w-5 group-hover:scale-110 transition-transform" />
+          </Link>
+          
           <button 
             className="relative rounded-lg bg-gray-100 p-2 transition-all hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-200"
             aria-label="Notifications"
