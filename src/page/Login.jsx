@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ChevronRight, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import Logo from '../assets/Logo.svg';
-
 const Toast = ({ message, onClose }) => {
   const [isExiting, setIsExiting] = useState(false);
 
