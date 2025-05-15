@@ -4,7 +4,6 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors }) => {
   const scannerRef = useRef(null);
-  const scannerContainerRef = useRef(null);
   const [error, setError] = useState('');
   const [isScanning, setIsScanning] = useState(false);
 
@@ -12,7 +11,7 @@ const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors 
     let html5QrCode = null;
 
     if (isOpen) {
-      // Initialize scanner with barcode-only formats
+      // Initialize scanner
       html5QrCode = new Html5Qrcode('barcode-scanner', {
         formatsToSupport: [
           Html5QrcodeSupportedFormats.EAN_13,
@@ -43,7 +42,6 @@ const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors 
               experimentalFeatures: { useBarCodeDetectorIfSupported: true },
             },
             (decodedText) => {
-              // On success, pass barcode, stop scanner, and close
               onBarcodeScanned(decodedText);
               stopScanner();
               onClose();
@@ -56,47 +54,38 @@ const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors 
         }
       };
 
-      // Reset scanner container and start
-      if (scannerContainerRef.current) {
-        scannerContainerRef.current.innerHTML = '';
-      }
       startScanner();
     }
 
-    // Cleanup on close or unmount
+    // Cleanup
     return () => {
-      if (html5QrCode) {
-        html5QrCode
-          .stop()
-          .then(() => {
+      if (html5QrCode && isScanning) {
+        try {
+          html5QrCode.stop().then(() => {
             html5QrCode.clear();
             scannerRef.current = null;
-            if (scannerContainerRef.current) {
-              scannerContainerRef.current.innerHTML = '';
-            }
-          })
-          .catch((err) => console.error('Error stopping scanner:', err));
+            setIsScanning(false);
+          });
+        } catch (err) {
+          console.error('Error stopping scanner:', err);
+        }
       }
     };
   }, [isOpen, onBarcodeScanned, onClose]);
 
   const stopScanner = () => {
-    if (scannerRef.current) {
-      scannerRef.current
-        .stop()
-        .then(() => {
+    if (scannerRef.current && isScanning) {
+      try {
+        scannerRef.current.stop().then(() => {
           scannerRef.current.clear();
           scannerRef.current = null;
-          if (scannerContainerRef.current) {
-            scannerContainerRef.current.innerHTML = '';
-          }
-          setIsScanning(false);
-        })
-        .catch((err) => {
-          console.error('Error stopping scanner:', err);
-          setError('Error al detener el escáner.');
           setIsScanning(false);
         });
+      } catch (err) {
+        console.error('Error stopping scanner:', err);
+        setError('Error al detener el escáner.');
+        setIsScanning(false);
+      }
     }
   };
 
@@ -140,10 +129,7 @@ const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors 
                 <p className="text-red-800 text-sm text-center">{error}</p>
               </div>
             ) : (
-              <div
-                ref={scannerContainerRef}
-                className="relative w-full max-w-lg h-80 rounded-lg overflow-hidden bg-gray-900"
-              >
+              <div className="relative w-full max-w-lg h-80 rounded-lg overflow-hidden bg-gray-900">
                 <div id="barcode-scanner" className="w-full h-full" />
                 {isScanning && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

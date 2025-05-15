@@ -308,7 +308,6 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                 </button>
               </div>
             </div>
-            {/* Imagen en columna */}
             <div>
               <label htmlFor="imagen" className="block text-sm font-medium text-gray-700 mb-1">
                 Imagen (opcional)
@@ -322,15 +321,11 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                 disabled={isSubmitting}
               />
             </div>
-            
-            {/* Vista previa de imagen si existe */}
             {formData.imagen && (
               <div className="mt-1 mb-3">
                 <img src={formData.imagen} alt="Vista previa" className="h-16 w-16 object-cover rounded-lg" />
               </div>
             )}
-
-            {/* Botón para mostrar/ocultar campos adicionales */}
             <div className="mt-2">
               <button
                 type="button"
@@ -350,11 +345,8 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                 )}
               </button>
             </div>
-
-            {/* Campos adicionales (opcionales) */}
             {showAdditionalFields && (
               <>
-                {/* Marca y Fecha vencimiento en fila */}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="col-span-1">
                     <label htmlFor="marca" className="block text-sm font-medium text-gray-700 mb-1">
@@ -388,8 +380,6 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                 </div>
               </>
             )}
-
-            {/* Botones */}
             <div className="grid grid-cols-2 gap-2 mt-4">
               <button
                 type="button"
