@@ -9,7 +9,6 @@ import {
     Users,
     ShoppingBag,
     DollarSign,
-    TruckIcon,
     ShoppingCart,
     CreditCard,
     Truck,
@@ -19,6 +18,7 @@ import {
     Mail,
     UserPen,
     UserRoundPlus,
+    X
 } from 'lucide-react';
 import IconoClienteNoEncontrado from '../assets/Clientes/IconoClienteNoEncontrado.svg';
 import Sidebar from '../components/Sidebar';
@@ -164,45 +164,94 @@ const Clientes = () => {
         }
     };
 
+    // Función para cerrar el toast manualmente
+    const closeToast = () => {
+        setToast(prev => ({ ...prev, visible: false }));
+    };
+
+    // Componente de esqueleto para cada tarjeta de cliente durante la carga
+    const ClienteSkeleton = () => (
+        <div className="relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow">
+            <div className="p-4">
+                <div className="mb-3 flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-full bg-gray-200 animate-pulse"></div>
+                    <div className="space-y-2">
+                        <div className="h-4 w-36 rounded bg-gray-200 animate-pulse"></div>
+                        <div className="flex items-center gap-1">
+                            <div className="h-2 w-2 rounded-full bg-gray-200 animate-pulse"></div>
+                            <div className="h-3 w-24 rounded bg-gray-200 animate-pulse"></div>
+                        </div>
+                    </div>
+                </div>
+                <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-lg bg-gray-200 animate-pulse"></div>
+                        <div className="h-4 w-48 rounded bg-gray-200 animate-pulse"></div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-lg bg-gray-200 animate-pulse"></div>
+                        <div className="h-4 w-32 rounded bg-gray-200 animate-pulse"></div>
+                    </div>
+                </div>
+                <div className="mt-4 flex justify-between border-t border-gray-100 pt-3">
+                    <div className="h-8 w-24 rounded-lg bg-gray-200 animate-pulse"></div>
+                    <div className="flex">
+                        <div className="h-8 w-10 rounded-l-lg bg-gray-200 animate-pulse"></div>
+                        <div className="h-8 w-10 rounded-r-lg bg-gray-200 animate-pulse"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
     return (
         <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
             {/* Toast */}
             {toast.visible && (
-                <div className="toast  toast-center toast-top mt-14 fixed z-50">
-                    <div 
-                        className="max-w-xs bg-green-600 rounded-xl shadow-lg dark:bg-neutral-800 dark:border-neutral-700" 
-                        role="alert" 
-                        tabIndex="-1" 
-                        aria-labelledby="hs-toast-success-example-label"
-                    >
-                        <div className="flex p-4">
-                            <div className="shrink-0">
-                                <svg 
-                                    className={`shrink-0 size-4 mt-0.5 ${toast.type === 'success' ? 'text-white' : 'text-red-500'}`} 
-                                    xmlns="http://www.w3.org/2000/svg" 
-                                    width="16" 
-                                    height="16" 
-                                    fill="currentColor" 
-                                    viewBox="0 0 16 16"
-                                >
-                                    {toast.type === 'success' ? (
-                                        <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"></path>
-                                    ) : (
-                                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16zM4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"></path>
-                                    )}
-                                </svg>
-                            </div>
-                            <div className="ms-3">
-                                <p 
-                                    id="hs-toast-success-example-label" 
-                                    className="text-sm text-white"
-                                >
-                                    {toast.message}
-                                </p>
-                            </div>
-                        </div>
+    <div className="fixed top-0 left-0 right-0 w-full z-50 rounded-b-xl overflow-hidden">
+        <div 
+            className={`w-full shadow-lg transform transition-all duration-300 ease-in-out ${
+                toast.visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
+            } ${
+                toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+            }`}
+            role="alert" 
+            tabIndex="-1" 
+            aria-labelledby="header-notification"
+        >
+            <div className="flex items-center justify-between p-5 max-w-3xl mx-auto">
+                <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                        <svg 
+                            className="w-4 h-4 text-white" 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            width="16" 
+                            height="16" 
+                            fill="currentColor" 
+                            viewBox="0 0 16 16"
+                        >
+                            <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+                        </svg>
+                    </div>
+                    <div className="ml-3">
+                        <p 
+                            id="header-notification" 
+                            className="text-sm text-white font-medium"
+                        >
+                            {toast.message}
+                        </p>
                     </div>
                 </div>
+                <button
+                    onClick={closeToast}
+                    className="text-white hover:text-gray-200 focus:outline-none"
+                    aria-label="Cerrar notificación"
+                >
+                    <X className="w-5 h-5" />
+                </button>
+            </div>
+        </div>
+    </div>
             )}
 
             {/* Header simplificado */}
@@ -282,14 +331,16 @@ const Clientes = () => {
                 {/* Contador de resultados */}
                 <div className="mb-3 flex items-center justify-between px-1">
                     <p className="text-sm text-gray-500">
-                        {filteredClients.length} {filteredClients.length === 1 ? 'cliente' : 'clientes'}
+                        {loading ? 'Cargando...' : `${filteredClients.length} ${filteredClients.length === 1 ? 'cliente' : 'clientes'}`}
                     </p>
                 </div>
 
                 {/* Lista de clientes estilo tarjetas para móvil */}
                 {loading ? (
-                    <div className="flex justify-center py-12">
-                        <p className="text-gray-500">Cargando clientes...</p>
+                    <div className="space-y-4">
+                        {[1, 2, 3, 4].map((item) => (
+                            <ClienteSkeleton key={item} />
+                        ))}
                     </div>
                 ) : (
                     <div className="space-y-4">

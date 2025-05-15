@@ -12,6 +12,7 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.1.6",
     "firebase": "^11.7.1",
+    "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.509.0",
     "movilvanebodega": "file:",
     "react": "^19.1.0",

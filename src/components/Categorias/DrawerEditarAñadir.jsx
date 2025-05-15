@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
-import IconoNewEditCliente from "../../assets/Clientes/IconoNewEditCliente.svg";
+import { X, Layers } from 'lucide-react';
+// Placeholder para el ícono (reemplaza con tu propio ícono)
+import IconoNewEditCategoria from '../../assets/Categorias/IconoNewEditCategoria.svg'; // Ajusta la ruta según tu estructura
 
 const DrawerEditarAñadir = ({ isOpen, onClose, isEditMode, initialData, onSubmit, colors }) => {
   const [formData, setFormData] = useState({
     nombre: initialData?.nombre || '',
-    telefono: initialData?.telefono || '',
-    correo: initialData?.correo || ''
+    descripcion: initialData?.descripcion || '',
+    color: initialData?.color || colors.primary
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({ nombre: '' });
@@ -16,13 +17,13 @@ const DrawerEditarAñadir = ({ isOpen, onClose, isEditMode, initialData, onSubmi
     if (isOpen) {
       setFormData({
         nombre: initialData?.nombre || '',
-        telefono: initialData?.telefono || '',
-        correo: initialData?.correo || ''
+        descripcion: initialData?.descripcion || '',
+        color: initialData?.color || colors.primary
       });
       setErrors({ nombre: '' });
       setLoading(false); // Reset loading state when drawer opens
     }
-  }, [isOpen, initialData]);
+  }, [isOpen, initialData, colors.primary]);
 
   // Handle form input changes and clear errors
   const handleChange = (e) => {
@@ -38,13 +39,17 @@ const DrawerEditarAñadir = ({ isOpen, onClose, isEditMode, initialData, onSubmi
     e.preventDefault();
     const trimmedNombre = formData.nombre.trim();
     if (!trimmedNombre) {
-      setErrors({ nombre: 'Nombre es obligatorio' });
+      setErrors({ nombre: 'El nombre es obligatorio' });
       return;
     }
     setErrors({ nombre: '' });
     setLoading(true);
     try {
-      await onSubmit({ ...formData, nombre: trimmedNombre });
+      await onSubmit({
+        nombre: trimmedNombre,
+        descripcion: formData.descripcion.trim(),
+        color: formData.color || ''
+      });
     } finally {
       setLoading(false);
     }
@@ -71,7 +76,7 @@ const DrawerEditarAñadir = ({ isOpen, onClose, isEditMode, initialData, onSubmi
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">
-              {isEditMode ? 'Editar Cliente' : 'Nuevo Cliente'}
+              {isEditMode ? 'Editar Categoría' : 'Nueva Categoría'}
             </h2>
             <button onClick={onClose} disabled={loading}>
               <X className="h-5 w-5 text-gray-500" />
@@ -82,7 +87,7 @@ const DrawerEditarAñadir = ({ isOpen, onClose, isEditMode, initialData, onSubmi
           <form onSubmit={handleSubmit} className="flex-1 flex flex-col space-y-4">
             <div>
               <label className="block text-sm font-medium" style={{ color: colors.primary }}>
-                Nombre
+                Nombre *
               </label>
               <input
                 type="text"
@@ -94,6 +99,7 @@ const DrawerEditarAñadir = ({ isOpen, onClose, isEditMode, initialData, onSubmi
                 }`}
                 disabled={loading}
                 aria-describedby={errors.nombre ? 'nombre-error' : undefined}
+                placeholder="Nombre de la categoría"
               />
               {errors.nombre && (
                 <p id="nombre-error" className="mt-1 text-sm text-red-500">
@@ -103,38 +109,48 @@ const DrawerEditarAñadir = ({ isOpen, onClose, isEditMode, initialData, onSubmi
             </div>
             <div>
               <label className="block text-sm font-medium" style={{ color: colors.primary }}>
-                Teléfono (opcional)
+                Descripción (opcional)
               </label>
-              <input
-                type="text"
-                name="telefono"
-                value={formData.telefono}
+              <textarea
+                name="descripcion"
+                value={formData.descripcion}
                 onChange={handleChange}
                 className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-gray-700 outline-none"
                 disabled={loading}
+                placeholder="Breve descripción de la categoría"
+                rows={3}
               />
             </div>
             <div>
               <label className="block text-sm font-medium" style={{ color: colors.primary }}>
-                Correo (opcional)
+                Color (opcional)
               </label>
-              <input
-                type="email"
-                name="correo"
-                value={formData.correo}
-                onChange={handleChange}
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-gray-700 outline-none"
-                disabled={loading}
-              />
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  name="color"
+                  value={formData.color}
+                  onChange={handleChange}
+                  className="h-10 w-10 rounded-full overflow-hidden cursor-pointer"
+                  disabled={loading}
+                />
+                <span className="text-sm text-gray-500">
+                  Selecciona un color para la categoría
+                </span>
+              </div>
             </div>
             {/* Icon below inputs */}
             <div className="flex justify-center">
-              <img
-                src={IconoNewEditCliente}
-                alt="Nuevo o editar cliente"
-                className="h-40 md:h-16 md:mt-0 mt-8"
-                style={{ color: colors.primary }}
-              />
+              {IconoNewEditCategoria ? (
+                <img
+                  src={IconoNewEditCategoria}
+                  alt="Nueva o editar categoría"
+                  className="h-40 md:h-16 md:mt-0 mt-8"
+                  style={{ color: colors.primary }}
+                />
+              ) : (
+                <Layers className="h-16 w-16 text-gray-300 mt-8" />
+              )}
             </div>
             <div className="flex gap-2 mt-auto">
               <button
