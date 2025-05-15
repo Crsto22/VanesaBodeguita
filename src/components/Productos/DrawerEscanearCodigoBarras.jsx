@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, ArrowLeft, AlertCircle } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-
+import IconoProductoCodigoBarras from '../../assets/Productos/IconoProductoCodigoBarras.svg'; // Adjust the path as needed
 const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors }) => {
   const scannerRef = useRef(null);
   const [error, setError] = useState('');
@@ -95,7 +95,7 @@ const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors 
   };
 
   return (
-    <>
+<>
       {isOpen && (
         <div className="fixed inset-0 bg-black/60 z-40" onClick={handleBack} />
       )}
@@ -155,6 +155,11 @@ const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors 
             {isScanning && !error && (
               <p className="mt-2 text-sm text-gray-500">Escaneando...</p>
             )}
+            <img
+              src={IconoProductoCodigoBarras}
+              alt="Icono de Código de Barras"
+              className="mt-4 w-40"
+            />
           </div>
         </div>
       </div>
