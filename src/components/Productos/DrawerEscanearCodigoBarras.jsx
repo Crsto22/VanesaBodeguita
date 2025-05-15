@@ -43,9 +43,11 @@ const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors 
               experimentalFeatures: { useBarCodeDetectorIfSupported: true },
             },
             (decodedText) => {
-              // On successful scan, pass barcode, stop scanner, and close
+              // On successful scan, pass barcode
               onBarcodeScanned(decodedText);
+              // Stop scanner immediately
               stopScanner();
+              // Close drawer
               onClose();
             },
             () => {} // Ignore NotFoundException
@@ -61,25 +63,16 @@ const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors 
 
     // Cleanup
     return () => {
-      if (html5QrCode && isScanning) {
-        try {
-          html5QrCode.stop().then(() => {
-            html5QrCode.clear();
-            scannerRef.current = null;
-            setIsScanning(false);
-          });
-        } catch (err) {
-          console.error('Error stopping scanner:', err);
-        }
-      }
+      stopScanner();
     };
-  }, [isOpen, onBarcodeScanned, onClose]);
+  }, [isOpen]);
 
   const stopScanner = () => {
     if (scannerRef.current && isScanning) {
       try {
         // Stop scanner and release camera
         scannerRef.current.stop().then(() => {
+          // Clear scanner
           scannerRef.current.clear();
           // Explicitly release camera stream
           const videoElement = document.querySelector('#barcode-scanner video');
@@ -90,6 +83,10 @@ const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors 
             videoElement.srcObject = null;
           }
           scannerRef.current = null;
+          setIsScanning(false);
+        }).catch((err) => {
+          console.error('Error stopping scanner:', err);
+          setError('Error al detener el escáner.');
           setIsScanning(false);
         });
       } catch (err) {
