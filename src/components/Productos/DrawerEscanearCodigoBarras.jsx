@@ -8,6 +8,36 @@ const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors 
   const [error, setError] = useState('');
   const [isScanning, setIsScanning] = useState(false);
 
+  const stopScanner = () => {
+    if (scannerRef.current && isScanning) {
+      try {
+        // Stop scanner and release camera
+        scannerRef.current.stop().then(() => {
+          // Clear scanner
+          scannerRef.current.clear();
+          // Explicitly release camera stream
+          const videoElement = document.querySelector('#barcode-scanner video');
+          if (videoElement && videoElement.srcObject) {
+            const stream = videoElement.srcObject;
+            const tracks = stream.getTracks();
+            tracks.forEach((track) => track.stop());
+            videoElement.srcObject = null;
+          }
+          scannerRef.current = null;
+          setIsScanning(false);
+        }).catch((err) => {
+          console.error('Error stopping scanner:', err);
+          setError('Error al detener el escáner.');
+          setIsScanning(false);
+        });
+      } catch (err) {
+        console.error('Error stopping scanner:', err);
+        setError('Error al detener el escáner.');
+        setIsScanning(false);
+      }
+    }
+  };
+
   useEffect(() => {
     let html5QrCode = null;
 
@@ -42,13 +72,30 @@ const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors 
               aspectRatio: window.innerWidth < 600 ? 1.0 : 3 / 1,
               experimentalFeatures: { useBarCodeDetectorIfSupported: true },
             },
-            (decodedText) => {
-              // On successful scan, pass barcode
-              onBarcodeScanned(decodedText);
-              // Stop scanner immediately
-              stopScanner();
-              // Close drawer
-              onClose();
+            async (decodedText) => {
+              try {
+                // Pass barcode to parent
+                onBarcodeScanned(decodedText);
+                // Stop scanner immediately
+                await scannerRef.current.stop();
+                scannerRef.current.clear();
+                // Explicitly release camera stream
+                const videoElement = document.querySelector('#barcode-scanner video');
+                if (videoElement && videoElement.srcObject) {
+                  const stream = videoElement.srcObject;
+                  const tracks = stream.getTracks();
+                  tracks.forEach((track) => track.stop());
+                  videoElement.srcObject = null;
+                }
+                scannerRef.current = null;
+                setIsScanning(false);
+                // Close drawer after ensuring camera is stopped
+                onClose();
+              } catch (err) {
+                console.error('Error during scan cleanup:', err);
+                setError('Error al procesar el código escaneado.');
+                setIsScanning(false);
+              }
             },
             () => {} // Ignore NotFoundException
           );
@@ -66,36 +113,6 @@ const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors 
       stopScanner();
     };
   }, [isOpen]);
-
-  const stopScanner = () => {
-    if (scannerRef.current && isScanning) {
-      try {
-        // Stop scanner and release camera
-        scannerRef.current.stop().then(() => {
-          // Clear scanner
-          scannerRef.current.clear();
-          // Explicitly release camera stream
-          const videoElement = document.querySelector('#barcode-scanner video');
-          if (videoElement && videoElement.srcObject) {
-            const stream = videoElement.srcObject;
-            const tracks = stream.getTracks();
-            tracks.forEach((track) => track.stop());
-            videoElement.srcObject = null;
-          }
-          scannerRef.current = null;
-          setIsScanning(false);
-        }).catch((err) => {
-          console.error('Error stopping scanner:', err);
-          setError('Error al detener el escáner.');
-          setIsScanning(false);
-        });
-      } catch (err) {
-        console.error('Error stopping scanner:', err);
-        setError('Error al detener el escáner.');
-        setIsScanning(false);
-      }
-    }
-  };
 
   const handleBack = () => {
     stopScanner();
