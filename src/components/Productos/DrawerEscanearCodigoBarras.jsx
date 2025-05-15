@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, ArrowLeft } from 'lucide-react';
+import { X, ArrowLeft, AlertCircle } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors }) => {
@@ -12,7 +12,7 @@ const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors 
     let html5QrCode = null;
 
     if (isOpen) {
-      // Initialize scanner
+      // Initialize scanner with barcode-only formats
       html5QrCode = new Html5Qrcode('barcode-scanner', {
         formatsToSupport: [
           Html5QrcodeSupportedFormats.EAN_13,
@@ -38,7 +38,7 @@ const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors 
             { facingMode: 'environment' },
             {
               fps: 15,
-              qrbox: { width: 300, height: 120 }, // Larger scan area for barcodes
+              qrbox: { width: 300, height: 120 },
               aspectRatio: window.innerWidth < 600 ? 1.0 : 3/1,
               experimentalFeatures: { useBarCodeDetectorIfSupported: true },
             },
@@ -48,25 +48,32 @@ const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors 
               stopScanner();
               onClose();
             },
-            () => {} // Ignore NotFoundException errors
+            () => {} // Ignore NotFoundException
           );
         } catch (err) {
-          setError('No se pudo iniciar la cámara. Por favor, permite el acceso a la cámara.');
+          setError('No se pudo iniciar la cámara. Por favor, permite el acceso a la cámara o verifica tu dispositivo.');
           setIsScanning(false);
         }
       };
 
+      // Reset scanner container and start
+      if (scannerContainerRef.current) {
+        scannerContainerRef.current.innerHTML = '';
+      }
       startScanner();
     }
 
-    // Cleanup function
+    // Cleanup on close or unmount
     return () => {
-      if (html5QrCode && isScanning) {
+      if (html5QrCode) {
         html5QrCode
           .stop()
           .then(() => {
             html5QrCode.clear();
             scannerRef.current = null;
+            if (scannerContainerRef.current) {
+              scannerContainerRef.current.innerHTML = '';
+            }
           })
           .catch((err) => console.error('Error stopping scanner:', err));
       }
@@ -74,12 +81,15 @@ const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors 
   }, [isOpen, onBarcodeScanned, onClose]);
 
   const stopScanner = () => {
-    if (scannerRef.current && isScanning) {
+    if (scannerRef.current) {
       scannerRef.current
         .stop()
         .then(() => {
           scannerRef.current.clear();
           scannerRef.current = null;
+          if (scannerContainerRef.current) {
+            scannerContainerRef.current.innerHTML = '';
+          }
           setIsScanning(false);
         })
         .catch((err) => {
@@ -141,7 +151,7 @@ const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors 
                       className="w-[300px] h-[120px] border-2 border-red-500 rounded-md bg-transparent"
                       style={{
                         boxShadow: '0 0 20px rgba(255, 0, 0, 0.3)',
-                        background: 'rgba(0, 0, 0, 0.4)', // Semi-transparent overlay
+                        background: 'rgba(0, 0, 0, 0.4)',
                       }}
                     >
                       <div className="absolute top-0 left-0 w-8 h-2 border-t-2 border-l-2 border-red-500" />

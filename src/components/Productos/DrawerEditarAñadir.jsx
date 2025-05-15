@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Package, Barcode, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Barcode, ChevronDown, ChevronUp } from 'lucide-react';
 import DrawerEscanearCodigoBarras from './DrawerEscanearCodigoBarras';
 
 const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData, onSubmit, colors, categorias }) => {
@@ -33,7 +33,6 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
         fecha_vencimiento: initialData.fecha_vencimiento || '',
         imagen: initialData.imagen || '',
       });
-      // Mostrar campos adicionales solo si hay datos en marca o fecha_vencimiento
       if (initialData.marca || initialData.fecha_vencimiento) {
         setShowAdditionalFields(true);
       } else {
@@ -121,7 +120,6 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
     }
   };
 
-  // Determinar las etiquetas según el tipo de unidad
   const precioLabel = formData.tipo_unidad === 'kilogramo' ? 'Precio por kilo' : 'Precio';
   const stockLabel = formData.tipo_unidad === 'kilogramo' ? 'Stock (kilogramos)' : 'Stock';
   const stockPlaceholder = formData.tipo_unidad === 'kilogramo' ? 'Ej. 2.5' : 'Ej. 8';
@@ -135,10 +133,10 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
         className={`fixed inset-0 top-[6.25%] bg-white rounded-t-2xl shadow-lg z-50 transform transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-y-0' : 'translate-y-full'
         }`}
-        style={{ 
-          maxHeight: '93.75vh', 
+        style={{
+          maxHeight: '93.75vh',
           overflowY: 'auto',
-          '--tw-ring-color': colors.primary 
+          '--tw-ring-color': colors.primary,
         }}
       >
         <div className="p-4">
@@ -151,7 +149,6 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
             </button>
           </div>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3">
-            {/* Nombre en columna (obligatorio) */}
             <div>
               <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 mb-1">
                 Nombre *
@@ -170,8 +167,6 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
               />
               {errors.nombre && <p className="mt-1 text-xs text-red-500">{errors.nombre}</p>}
             </div>
-
-            {/* Categoría en columna (obligatorio) */}
             <div>
               <label htmlFor="categoria_ref" className="block text-sm font-medium text-gray-700 mb-1">
                 Categoría *
@@ -201,8 +196,6 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
               </select>
               {errors.categoria_ref && <p className="mt-1 text-xs text-red-500">{errors.categoria_ref}</p>}
             </div>
-
-            {/* Tipo de unidad y Precio en fila (ambos obligatorios) */}
             <div className="grid grid-cols-2 gap-2">
               <div className="col-span-1">
                 <label htmlFor="tipo_unidad" className="block text-sm font-medium text-gray-700 mb-1">
@@ -240,8 +233,6 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                 {errors.precio && <p className="mt-1 text-xs text-red-500">{errors.precio}</p>}
               </div>
             </div>
-
-            {/* Stock con acciones rápidas (obligatorio) */}
             <div>
               <label htmlFor="stock" className="block text-sm font-medium text-gray-700 mb-1">
                 {stockLabel} *
@@ -263,24 +254,24 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                   />
                 </div>
                 <div className="col-span-3 grid grid-cols-3 gap-1">
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => handleStockQuickAction(formData.tipo_unidad === 'kilogramo' ? 0.5 : 5)}
                     className="rounded px-2 py-1 bg-gray-100 text-xs border border-gray-300"
                     disabled={isSubmitting}
                   >
                     {formData.tipo_unidad === 'kilogramo' ? '+0.5' : '+5'}
                   </button>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => handleStockQuickAction(formData.tipo_unidad === 'kilogramo' ? 1 : 10)}
                     className="rounded px-2 py-1 bg-gray-100 text-xs border border-gray-300"
                     disabled={isSubmitting}
                   >
                     {formData.tipo_unidad === 'kilogramo' ? '+1' : '+10'}
                   </button>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => handleStockQuickAction(formData.tipo_unidad === 'kilogramo' ? 2 : 20)}
                     className="rounded px-2 py-1 bg-gray-100 text-xs border border-gray-300"
                     disabled={isSubmitting}
@@ -291,8 +282,6 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
               </div>
               {errors.stock && <p className="mt-1 text-xs text-red-500">{errors.stock}</p>}
             </div>
-
-            {/* Código de barras con botón de escanear (opcional) */}
             <div>
               <label htmlFor="codigo_barras" className="block text-sm font-medium text-gray-700 mb-1">
                 Código de Barras (opcional)
@@ -312,14 +301,13 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                   type="button"
                   onClick={handleScanBarcode}
                   className="flex items-center justify-center rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 text-sm"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isScannerOpen}
                 >
                   <Barcode className="h-5 w-5" />
                   <span className="ml-1">Escanear</span>
                 </button>
               </div>
             </div>
-            
             {/* Imagen en columna */}
             <div>
               <label htmlFor="imagen" className="block text-sm font-medium text-gray-700 mb-1">
