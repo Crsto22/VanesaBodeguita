@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, ArrowLeft, AlertCircle } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import IconoProductoCodigoBarras from '../../assets/Productos/IconoProductoCodigoBarras.svg'; // Adjust the path as needed
+import IconoProductoCodigoBarras from '../../assets/Productos/IconoProductoCodigoBarras.svg';
+
 const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors }) => {
   const scannerRef = useRef(null);
   const [error, setError] = useState('');
@@ -38,10 +39,11 @@ const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors 
             {
               fps: 15,
               qrbox: { width: 300, height: 120 },
-              aspectRatio: window.innerWidth < 600 ? 1.0 : 3/1,
+              aspectRatio: window.innerWidth < 600 ? 1.0 : 3 / 1,
               experimentalFeatures: { useBarCodeDetectorIfSupported: true },
             },
             (decodedText) => {
+              // On successful scan, pass barcode, stop scanner, and close
               onBarcodeScanned(decodedText);
               stopScanner();
               onClose();
@@ -76,8 +78,17 @@ const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors 
   const stopScanner = () => {
     if (scannerRef.current && isScanning) {
       try {
+        // Stop scanner and release camera
         scannerRef.current.stop().then(() => {
           scannerRef.current.clear();
+          // Explicitly release camera stream
+          const videoElement = document.querySelector('#barcode-scanner video');
+          if (videoElement && videoElement.srcObject) {
+            const stream = videoElement.srcObject;
+            const tracks = stream.getTracks();
+            tracks.forEach((track) => track.stop());
+            videoElement.srcObject = null;
+          }
           scannerRef.current = null;
           setIsScanning(false);
         });
@@ -95,7 +106,7 @@ const DrawerEscanearCodigoBarras = ({ isOpen, onClose, onBarcodeScanned, colors 
   };
 
   return (
-<>
+    <>
       {isOpen && (
         <div className="fixed inset-0 bg-black/60 z-40" onClick={handleBack} />
       )}

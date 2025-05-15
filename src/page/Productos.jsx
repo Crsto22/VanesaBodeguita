@@ -16,6 +16,7 @@ import {
   PlusCircle,
   PackagePlus,
   Layers,
+  Barcode,
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
@@ -532,7 +533,7 @@ const Productos = () => {
                             </span>
                           </div>
                           <div className="mt-2 flex justify-between items-center">
-                            <div className="text-lg font-semibold text-[#45923a]">${product.precio.toFixed(2)}</div>
+                            <div className="text-lg font-semibold text-[#45923a]">S/{product.precio.toFixed(2)}</div>
                             <div
                               className={`text-xs font-medium px-2 py-1 rounded-full ${
                                 product.stock > 20
@@ -549,7 +550,7 @@ const Productos = () => {
                       </div>
                       <div className="mt-4 flex justify-between items-center border-t border-gray-100 pt-3">
                         <div className="flex items-center">
-                          <Tag className="h-4 w-4 text-gray-400 mr-1" />
+                          <Barcode className="h-4 w-4 text-gray-400 mr-1" />
                           <span className="text-xs text-gray-500">{product.codigo_barras || 'Sin código'}</span>
                         </div>
                         <div className="flex">
