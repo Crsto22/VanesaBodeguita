@@ -206,14 +206,16 @@ const EscanerCodigoBarras = () => {
                 {scannedProduct.nombre}
               </h2>
               <p className="text-sm text-gray-600">
-                Precio: S/ {scannedProduct.has_precio_alternativo ? scannedProduct.precio_alternativo : scannedProduct.precio}
-                {scannedProduct.has_precio_alternativo && (
+                Precio normal: S/ {scannedProduct.precio}
+              </p>
+              {scannedProduct.has_precio_alternativo && (
+                <p className="text-sm text-gray-600">
+                  Precio alternativo: S/ {scannedProduct.precio_alternativo}{' '}
                   <span className="text-xs text-gray-500">
-                    {' '}
                     (Motivo: {scannedProduct.motivo_precio_alternativo})
                   </span>
-                )}
-              </p>
+                </p>
+              )}
               <button
                 onClick={handleScanAgain}
                 className="mt-4 px-4 py-2 bg-[#45923a] text-white rounded-full transition-colors"
