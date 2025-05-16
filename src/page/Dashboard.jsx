@@ -4,7 +4,7 @@ import {
   ShoppingCart,
   CreditCard,
   Users,
-  Truck,
+  Barcode,
   Package,
   Bell,
   Menu,
@@ -51,12 +51,12 @@ const Dashboard = () => {
       path: '/clientes'
     },
     { 
-      id: 'proveedores', 
-      title: 'Proveedores', 
-      icon: <Truck className="h-6 w-6" />, 
+      id: 'escaner', 
+      title: 'Escáner de Códigos', 
+      icon: <Barcode className="h-6 w-6" />, 
       color: 'bg-violet-500', 
-      description: 'Contactos y pedidos',
-      path: '/proveedores'
+      description: 'Consultar precios por código de barras',
+      path: '/escaner'
     },
     { 
       id: 'productos', 

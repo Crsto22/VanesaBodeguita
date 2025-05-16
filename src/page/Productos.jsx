@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Search,
   Plus,
@@ -17,6 +17,7 @@ import {
   PackagePlus,
   Layers,
   Barcode,
+  ArrowLeftRight,
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
@@ -57,8 +58,8 @@ const Productos = () => {
   });
   const [showDeleteDrawer, setShowDeleteDrawer] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState(null);
-  const [productosAsociados, setProductosAsociados] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [productosAsociadosPorCategoria, setProductosAsociadosPorCategoria] = useState({});
 
   // Drawer states para productos
   const [showProductDrawer, setShowProductDrawer] = useState(false);
@@ -73,6 +74,10 @@ const Productos = () => {
     marca: '',
     fecha_vencimiento: '',
     imagen: '',
+    retornable: false,
+    has_precio_alternativo: false,
+    precio_alternativo: '',
+    motivo_precio_alternativo: '',
   });
   const [showDeleteProductDrawer, setShowDeleteProductDrawer] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
@@ -92,6 +97,37 @@ const Productos = () => {
     eliminarProducto,
     obtenerProductoPorId,
   } = useProducts();
+
+  // Obtener el conteo de productos asociados por categoría
+  useEffect(() => {
+    const fetchProductosAsociados = async () => {
+      if (categorias.length === 0) {
+        setProductosAsociadosPorCategoria({});
+        return;
+      }
+
+      const conteoPorCategoria = {};
+      try {
+        for (const categoria of categorias) {
+          const productosQuery = query(
+            collection(db, 'productos'),
+            where('categoria_ref', '==', categoria.id),
+            where('estado', '==', 'activo')
+          );
+          const productosSnapshot = await getDocs(productosQuery);
+          conteoPorCategoria[categoria.id] = productosSnapshot.size;
+        }
+        setProductosAsociadosPorCategoria(conteoPorCategoria);
+      } catch (error) {
+        console.error('Error al obtener productos asociados:', error);
+        setProductosAsociadosPorCategoria({});
+      }
+    };
+
+    if (!loading && categorias.length > 0) {
+      fetchProductosAsociados();
+    }
+  }, [categorias, loading]);
 
   // Opciones del menú principal - Accesos rápidos
   const quickAccessOptions = [
@@ -206,6 +242,10 @@ const Productos = () => {
       marca: '',
       fecha_vencimiento: '',
       imagen: '',
+      retornable: false,
+      has_precio_alternativo: false,
+      precio_alternativo: '',
+      motivo_precio_alternativo: '',
     });
     setShowProductDrawer(true);
   };
@@ -224,6 +264,10 @@ const Productos = () => {
         marca: product.marca || '',
         fecha_vencimiento: product.fecha_vencimiento || '',
         imagen: product.imagen || '',
+        retornable: product.retornable || false,
+        has_precio_alternativo: !!product.precio_alternativo || !!product.motivo_precio_alternativo,
+        precio_alternativo: product.precio_alternativo ? product.precio_alternativo.toString() : '',
+        motivo_precio_alternativo: product.motivo_precio_alternativo || '',
       });
       setShowProductDrawer(true);
     }
@@ -271,6 +315,10 @@ const Productos = () => {
         marca: '',
         fecha_vencimiento: '',
         imagen: '',
+        retornable: false,
+        has_precio_alternativo: false,
+        precio_alternativo: '',
+        motivo_precio_alternativo: '',
       });
     } catch (error) {
       console.error('Error al guardar producto:', error);
@@ -311,17 +359,10 @@ const Productos = () => {
   const handleDeleteCategory = async (category) => {
     try {
       setCategoryToDelete(category);
-      setProductosAsociados(null);
       setShowDeleteDrawer(true);
-      const productosQuery = query(
-        collection(db, 'productos'),
-        where('categoria_ref', '==', category.id) // Ajustado para string ID
-      );
-      const productosSnapshot = await getDocs(productosQuery);
-      setProductosAsociados(productosSnapshot.size);
     } catch (error) {
-      console.error('Error al verificar productos asociados:', error);
-      alert('Error al verificar productos asociados. Intenta de nuevo.');
+      console.error('Error al preparar eliminación de categoría:', error);
+      alert('Error al preparar la eliminación de la categoría. Intenta de nuevo.');
       setShowDeleteDrawer(false);
     }
   };
@@ -333,7 +374,6 @@ const Productos = () => {
         await eliminarCategoria(categoryToDelete.id);
         setShowDeleteDrawer(false);
         setCategoryToDelete(null);
-        setProductosAsociados(null);
       } catch (error) {
         console.error('Error al eliminar categoría:', error);
         alert('Error al eliminar la categoría. Intenta de nuevo.');
@@ -532,26 +572,49 @@ const Productos = () => {
                               {obtenerCategoriaPorId(product.categoria_ref)?.nombre || 'Sin categoría'}
                             </span>
                           </div>
-                          <div className="mt-2 flex justify-between items-center">
-                            <div className="text-lg font-semibold text-[#45923a]">S/{product.precio.toFixed(2)}</div>
-                            <div
-                              className={`text-xs font-medium px-2 py-1 rounded-full ${
-                                product.stock > 20
-                                  ? 'bg-green-100 text-green-800'
-                                  : product.stock > 5
-                                  ? 'bg-amber-100 text-amber-800'
-                                  : 'bg-red-100 text-red-800'
-                              }`}
-                            >
-                              {product.stock} en stock
+                          <div className="mt-2 flex flex-col">
+                            <div className="flex justify-between items-center">
+                              <div className="text-lg font-semibold text-[#45923a]">
+                                S/{product.precio.toFixed(2)}
+                                {product.tipo_unidad === 'kilogramo' && ' por kg'}
+                              </div>
+                              <div
+                                className={`text-xs font-medium px-2 py-1 rounded-full ${
+                                  product.stock > 20
+                                    ? 'bg-green-100 text-green-800'
+                                    : product.stock > 5
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : 'bg-red-100 text-red-800'
+                                }`}
+                              >
+                                {product.stock} {product.tipo_unidad === 'kilogramo' ? 'kg' : ''} en stock
+                              </div>
                             </div>
+                            {product.has_precio_alternativo && product.precio_alternativo && (
+                              <div className="mt-1 text-sm text-[#ffa40c]">
+                                Precio Alternativo: S/{parseFloat(product.precio_alternativo).toFixed(2)}
+                                {product.motivo_precio_alternativo && (
+                                  <span className="text-xs text-gray-500 ml-1">
+                                    ({product.motivo_precio_alternativo})
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
                       <div className="mt-4 flex justify-between items-center border-t border-gray-100 pt-3">
-                        <div className="flex items-center">
-                          <Barcode className="h-4 w-4 text-gray-400 mr-1" />
-                          <span className="text-xs text-gray-500">{product.codigo_barras || 'Sin código'}</span>
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center">
+                            <Barcode className="h-4 w-4 text-gray-400 mr-1" />
+                            <span className="text-xs text-gray-500">{product.codigo_barras || 'Sin código'}</span>
+                          </div>
+                          {product.retornable && (
+                            <div className="flex items-center bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">
+                              <ArrowLeftRight className="h-3.5 w-3.5 mr-1" />
+                              Retornable
+                            </div>
+                          )}
                         </div>
                         <div className="flex">
                           <button
@@ -624,7 +687,9 @@ const Productos = () => {
                       </div>
                       <div className="mt-4 flex justify-between items-center border-t border-gray-100 pt-3">
                         <div className="text-sm text-gray-500">
-                          {productosAsociados === null ? 'Verificando...' : `${productosAsociados} productos`}
+                          {productosAsociadosPorCategoria[category.id] !== undefined
+                            ? `${productosAsociadosPorCategoria[category.id]} productos`
+                            : '0 productos'}
                         </div>
                         <div className="flex">
                           <button
@@ -647,7 +712,7 @@ const Productos = () => {
                 ))
               ) : (
                 <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white py-12 text-center">
- <div className="mb-4 flex items-center justify-center">
+                  <div className="mb-4 flex items-center justify-center">
                     <img src={IconoProductoNoEncontrado} alt="Producto no encontrado" className="h-32" />
                   </div>
                   <h3 className="mb-2 text-lg font-medium text-gray-900">No se encontraron categorías</h3>
@@ -681,7 +746,7 @@ const Productos = () => {
         onClose={() => setShowDeleteDrawer(false)}
         onConfirm={confirmDeleteCategory}
         categoryName={categoryToDelete?.nombre || ''}
-        productosAsociados={productosAsociados}
+        productosAsociados={categoryToDelete ? productosAsociadosPorCategoria[categoryToDelete.id] || 0 : 0}
         colors={COLORS}
         loading={deleteLoading}
       />

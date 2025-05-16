@@ -13,6 +13,10 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
     marca: '',
     fecha_vencimiento: '',
     imagen: '',
+    retornable: false,
+    has_precio_alternativo: false,
+    precio_alternativo: '',
+    motivo_precio_alternativo: '',
   });
   const [imagenFile, setImagenFile] = useState(null);
   const [errors, setErrors] = useState({});
@@ -32,6 +36,10 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
         marca: initialData.marca || '',
         fecha_vencimiento: initialData.fecha_vencimiento || '',
         imagen: initialData.imagen || '',
+        retornable: initialData.retornable || false,
+        has_precio_alternativo: !!initialData.precio_alternativo || !!initialData.motivo_precio_alternativo,
+        precio_alternativo: initialData.precio_alternativo || '',
+        motivo_precio_alternativo: initialData.motivo_precio_alternativo || '',
       });
       if (initialData.marca || initialData.fecha_vencimiento) {
         setShowAdditionalFields(true);
@@ -51,15 +59,18 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
     if (!formData.stock || isNaN(formData.stock) || formData.stock < 0) {
       newErrors.stock = 'El stock debe ser un número mayor o igual a 0';
     }
+    if (formData.has_precio_alternativo && formData.precio_alternativo && (isNaN(formData.precio_alternativo) || formData.precio_alternativo <= 0)) {
+      newErrors.precio_alternativo = 'El precio alternativo debe ser un número mayor a 0';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: type === 'checkbox' ? checked : value,
     }));
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
@@ -74,7 +85,7 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
   };
 
   const handleStockQuickAction = (amount) => {
-    const currentStock = parseInt(formData.stock || '0', 10);
+    const currentStock = parseFloat(formData.stock || '0');
     const newStock = currentStock + amount;
     setFormData((prev) => ({
       ...prev,
@@ -107,7 +118,9 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
         {
           ...formData,
           precio: parseFloat(formData.precio),
-          stock: parseInt(formData.stock, 10),
+          stock: parseFloat(formData.stock),
+          precio_alternativo: formData.has_precio_alternativo && formData.precio_alternativo ? parseFloat(formData.precio_alternativo) : null,
+          motivo_precio_alternativo: formData.has_precio_alternativo ? formData.motivo_precio_alternativo || null : null,
         },
         imagenFile
       );
@@ -233,6 +246,65 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                 {errors.precio && <p className="mt-1 text-xs text-red-500">{errors.precio}</p>}
               </div>
             </div>
+            {formData.tipo_unidad === 'unidad' && (
+              <div>
+                <label htmlFor="has_precio_alternativo" className="block text-sm font-medium text-gray-700 mb-1">
+                  ¿Incluir Precio Alternativo?
+                </label>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="has_precio_alternativo"
+                    name="has_precio_alternativo"
+                    checked={formData.has_precio_alternativo}
+                    onChange={handleChange}
+                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-opacity-50"
+                    disabled={isSubmitting}
+                  />
+                  <label htmlFor="has_precio_alternativo" className="ml-2 text-sm text-gray-700">
+                    Sí
+                  </label>
+                </div>
+              </div>
+            )}
+            {formData.tipo_unidad === 'unidad' && formData.has_precio_alternativo && (
+              <>
+                <div>
+                  <label htmlFor="precio_alternativo" className="block text-sm font-medium text-gray-700 mb-1">
+                    Precio Alternativo (opcional)
+                  </label>
+                  <input
+                    type="number"
+                    id="precio_alternativo"
+                    name="precio_alternativo"
+                    value={formData.precio_alternativo}
+                    onChange={handleChange}
+                    className={`w-full rounded-lg border px-3 py-2 text-sm ${
+                      errors.precio_alternativo ? 'border-red-500' : 'border-gray-300'
+                    } focus:outline-none focus:ring-2 focus:ring-opacity-50`}
+                    placeholder="Ej. 0.8"
+                    step="0.01"
+                    disabled={isSubmitting}
+                  />
+                  {errors.precio_alternativo && <p className="mt-1 text-xs text-red-500">{errors.precio_alternativo}</p>}
+                </div>
+                <div>
+                  <label htmlFor="motivo_precio_alternativo" className="block text-sm font-medium text-gray-700 mb-1">
+                    Motivo del Precio Alternativo (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    id="motivo_precio_alternativo"
+                    name="motivo_precio_alternativo"
+                    value={formData.motivo_precio_alternativo}
+                    onChange={handleChange}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-opacity-50"
+                    placeholder="Ej. Bebida helada"
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </>
+            )}
             <div>
               <label htmlFor="stock" className="block text-sm font-medium text-gray-700 mb-1">
                 {stockLabel} *
@@ -281,6 +353,25 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                 </div>
               </div>
               {errors.stock && <p className="mt-1 text-xs text-red-500">{errors.stock}</p>}
+            </div>
+            <div>
+              <label htmlFor="retornable" className="block text-sm font-medium text-gray-700 mb-1">
+                ¿Producto Retornable?
+              </label>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="retornable"
+                  name="retornable"
+                  checked={formData.retornable}
+                  onChange={handleChange}
+                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-opacity-50"
+                  disabled={isSubmitting}
+                />
+                <label htmlFor="retornable" className="ml-2 text-sm text-gray-700">
+                  Sí
+                </label>
+              </div>
             </div>
             <div>
               <label htmlFor="codigo_barras" className="block text-sm font-medium text-gray-700 mb-1">

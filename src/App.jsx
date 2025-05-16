@@ -8,43 +8,52 @@ import { ClientesProvider } from './context/ClientesContext';
 import { ProductProvider } from './context/ProductContext';
 import ProtectedRoute from './context/ProtectedRoute';
 import Productos from './page/Productos';
+import EscanerCodigoBarras from './page/EscanerCodigoBarras';
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <ClientesProvider>
           <ProductProvider>
-          <Routes>
-            <Route path="/">
-              <Route index element={<Login />} />
+            <Routes>
+              <Route path="/">
+                <Route index element={<Login />} />
+                <Route
+                  path="dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="clientes"
+                  element={
+                    <ProtectedRoute>
+                      <Clientes />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="*" element={<h1>404 - Página no encontrada</h1>} />
+              </Route>
               <Route
-                path="dashboard"
+                path="productos"
                 element={
                   <ProtectedRoute>
-                    <Dashboard />
+                    <Productos />
                   </ProtectedRoute>
                 }
               />
               <Route
-                path="clientes"
+                path="escaner"
                 element={
                   <ProtectedRoute>
-                    <Clientes />
+                    <EscanerCodigoBarras />
                   </ProtectedRoute>
                 }
-              />
-              <Route path="*" element={<h1>404 - Página no encontrada</h1>} />
-            </Route>
-            <Route
-              path="productos"
-              element={
-                <ProtectedRoute>
-                  <Productos />
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-           </ProductProvider>
+                />                 
+            </Routes>
+          </ProductProvider>
         </ClientesProvider>
       </BrowserRouter>
     </AuthProvider>
