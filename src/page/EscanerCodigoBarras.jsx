@@ -244,7 +244,7 @@ const EscanerCodigoBarras = () => {
 
               <button
                 onClick={handleScanAgain}
-                className="w-full py-3 bg-indigo-600 text-white rounded-xl font-medium flex items-center justify-center transition hover:bg-indigo-700 shadow-sm"
+                className="w-full py-3 bg-[#45923a] text-white rounded-xl font-medium flex items-center justify-center transition hover:bg-indigo-700 shadow-sm"
               >
                 <RefreshCw className="h-5 w-5 mr-2" />
                 Escanear otro producto

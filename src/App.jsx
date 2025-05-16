@@ -9,6 +9,7 @@ import { ProductProvider } from './context/ProductContext';
 import ProtectedRoute from './context/ProtectedRoute';
 import Productos from './page/Productos';
 import EscanerCodigoBarras from './page/EscanerCodigoBarras';
+import Ventas from './page/Ventas';
 function App() {
   return (
     <AuthProvider>
@@ -51,7 +52,15 @@ function App() {
                     <EscanerCodigoBarras />
                   </ProtectedRoute>
                 }
-                />                 
+                />   
+              <Route
+                path="ventas"
+                element={
+                  <ProtectedRoute>
+                    <Ventas />
+                  </ProtectedRoute>
+                }
+              />              
             </Routes>
           </ProductProvider>
         </ClientesProvider>
