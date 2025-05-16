@@ -22,32 +22,34 @@ const EscanerCodigoBarras = () => {
   const [scannedProduct, setScannedProduct] = useState(null);
   const scannerRef = useRef(null);
 
-  const stopScanner = async () => {
-    if (!scannerRef.current || !isScanning) return;
-
-    try {
-      await scannerRef.current.stop();
-      scannerRef.current.clear();
-      
-      const videoElement = document.querySelector('#barcode-scanner video');
-      if (videoElement?.srcObject) {
-        const tracks = videoElement.srcObject.getTracks();
-        tracks.forEach(track => track.stop());
-        videoElement.srcObject = null;
+  const stopScanner = () => {
+    if (scannerRef.current && isScanning) {
+      try {
+        scannerRef.current.stop().then(() => {
+          scannerRef.current.clear();
+          const videoElement = document.querySelector('#barcode-scanner video');
+          if (videoElement && videoElement.srcObject) {
+            const stream = videoElement.srcObject;
+            const tracks = stream.getTracks();
+            tracks.forEach((track) => track.stop());
+            videoElement.srcObject = null;
+          }
+          scannerRef.current = null;
+          setIsScanning(false);
+        }).catch((err) => {
+          console.error('Error stopping scanner:', err);
+          setError('Error al detener el escáner.');
+          setIsScanning(false);
+        });
+      } catch (err) {
+        console.error('Error stopping scanner:', err);
+        setError('Error al detener el escáner.');
+        setIsScanning(false);
       }
-      
-      setIsScanning(false);
-    } catch (err) {
-      console.error('Error stopping scanner:', err);
-      setError('Error al detener el escáner.');
-      setIsScanning(false);
     }
   };
 
   const startScanner = async () => {
-    // Si ya hay un escáner activo, no hacer nada
-    if (isScanning) return;
-
     if (!scannerRef.current) {
       const html5QrCode = new Html5Qrcode('barcode-scanner', {
         formatsToSupport: [
@@ -84,8 +86,17 @@ const EscanerCodigoBarras = () => {
             const foundProduct = productos.find(
               (producto) => producto.codigo_barras === decodedText
             );
-            
-            await stopScanner();
+            await scannerRef.current.stop();
+            scannerRef.current.clear();
+            const videoElement = document.querySelector('#barcode-scanner video');
+            if (videoElement && videoElement.srcObject) {
+              const stream = videoElement.srcObject;
+              const tracks = stream.getTracks();
+              tracks.forEach((track) => track.stop());
+              videoElement.srcObject = null;
+            }
+            scannerRef.current = null;
+            setIsScanning(false);
 
             if (foundProduct) {
               setScannedProduct(foundProduct);
@@ -124,30 +135,23 @@ const EscanerCodigoBarras = () => {
   }, [currentUser, loading]);
 
   const handleBack = () => {
-    stopScanner();
-    navigate(-1);
+    stopScanner(); // Ensure camera is disabled
+    navigate(-1); // Navigate back to previous page
   };
 
   const goToHome = () => {
-    stopScanner();
-    navigate('/');
+    stopScanner(); // Disable camera
+    navigate('/'); // Navigate to home page
   };
 
   const goToProducts = () => {
-    stopScanner();
-    navigate('/productos');
+    stopScanner(); // Disable camera
+    navigate('/productos'); // Navigate to products page
   };
 
-  const handleScanAgain = async () => {
-    setScannedProduct(null);
-    setError('');
-    
-    await stopScanner();
-    
-    // Pequeña pausa antes de reiniciar
-    setTimeout(() => {
-      startScanner();
-    }, 300);
+  const handleScanAgain = () => {
+    setScannedProduct(null); // Reset scanned product
+    startScanner(); // Restart scanner
   };
 
   return (
@@ -192,7 +196,7 @@ const EscanerCodigoBarras = () => {
                 <RefreshCw className="h-5 w-5 mr-2" />
                 Escanear otro producto
               </button>
-              
+
               {!scannedProduct && (
                 <button
                   onClick={goToProducts}
@@ -213,7 +217,7 @@ const EscanerCodigoBarras = () => {
                   className="w-40 h-40 object-contain rounded-lg"
                 />
               </div>
-              
+
               <div className="bg-indigo-50 rounded-full px-4 py-1 mb-2">
                 <span className="text-xs font-medium text-indigo-600">Producto Escaneado</span>
               </div>
@@ -221,7 +225,7 @@ const EscanerCodigoBarras = () => {
               <h2 className="text-xl font-semibold text-gray-900 mb-2 text-center">
                 {scannedProduct.nombre}
               </h2>
-              
+
               <div className="w-full bg-gray-50 rounded-xl p-4 mb-6">
                 <div className="flex justify-between mb-4">
                   <span className="text-sm text-gray-500">Precio regular:</span>
@@ -230,7 +234,7 @@ const EscanerCodigoBarras = () => {
                     <span className="text-2xl font-bold text-indigo-600">{scannedProduct.precio}</span>
                   </div>
                 </div>
-                
+
                 {scannedProduct.has_precio_alternativo && (
                   <div className="flex justify-between pt-3 border-t border-gray-200">
                     <div className="flex flex-col">
@@ -243,7 +247,7 @@ const EscanerCodigoBarras = () => {
                   </div>
                 )}
               </div>
-              
+
               <button
                 onClick={handleScanAgain}
                 className="w-full py-3 bg-indigo-600 text-white rounded-xl font-medium flex items-center justify-center transition hover:bg-indigo-700 shadow-sm"
@@ -257,22 +261,25 @@ const EscanerCodigoBarras = () => {
           <>
             <div className="relative w-full aspect-square max-w-md rounded-2xl overflow-hidden bg-black shadow-md mt-4 border-2 border-indigo-500">
               <div id="barcode-scanner" className="w-full h-full" />
-              
+
               {isScanning && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  {/* Scanner indicator */}
                   <div
                     className="w-[300px] h-[120px] border-2 border-indigo-400 rounded-md bg-transparent relative"
                     style={{
                       boxShadow: '0 0 20px rgba(79, 70, 229, 0.3)',
                     }}
                   >
-                    <div 
-                      className="absolute left-0 top-0 h-[2px] bg-indigo-400 w-full" 
-                      style={{ 
+                    {/* Scanning line animation */}
+                    <div
+                      className="absolute left-0 top-0 h-[2px] bg-indigo-400 w-full"
+                      style={{
                         animation: 'scanline 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                       }}
                     />
-                    
+
+                    {/* Corner elements */}
                     <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-indigo-400" />
                     <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-indigo-400" />
                     <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-indigo-400" />
@@ -280,7 +287,8 @@ const EscanerCodigoBarras = () => {
                   </div>
                 </div>
               )}
-              
+
+              {/* Scanning overlay with status */}
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
                 <div className="flex items-center">
                   {isScanning ? (
@@ -297,7 +305,7 @@ const EscanerCodigoBarras = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white rounded-2xl p-6 w-full mt-4 shadow-sm border border-gray-100">
               <div className="flex flex-col items-center text-center">
                 <div className="bg-indigo-50 rounded-full p-4 mb-4">
@@ -309,7 +317,7 @@ const EscanerCodigoBarras = () => {
                 <p className="text-sm text-gray-600 mb-6">
                   Alinea el código de barras del producto dentro del recuadro para escanearlo automáticamente.
                 </p>
-                
+
                 <img
                   src={IconoProductoCodigoBarras}
                   alt="Icono de Código de Barras"
@@ -320,7 +328,8 @@ const EscanerCodigoBarras = () => {
           </>
         )}
       </main>
-      
+
+      {/* Global CSS */}
       <style jsx global>{`
         @keyframes scanline {
           0% {
