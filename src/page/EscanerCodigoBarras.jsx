@@ -21,26 +21,22 @@ const EscanerCodigoBarras = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [scannedProduct, setScannedProduct] = useState(null);
   const scannerRef = useRef(null);
+  const scannerContainerRef = useRef(null);
 
-  const stopScanner = () => {
-    if (scannerRef.current && isScanning) {
+  const stopScanner = async () => {
+    if (scannerRef.current) {
       try {
-        scannerRef.current.stop().then(() => {
-          scannerRef.current.clear();
-          const videoElement = document.querySelector('#barcode-scanner video');
-          if (videoElement && videoElement.srcObject) {
-            const stream = videoElement.srcObject;
-            const tracks = stream.getTracks();
-            tracks.forEach((track) => track.stop());
-            videoElement.srcObject = null;
-          }
-          scannerRef.current = null;
-          setIsScanning(false);
-        }).catch((err) => {
-          console.error('Error stopping scanner:', err);
-          setError('Error al detener el escáner.');
-          setIsScanning(false);
-        });
+        await scannerRef.current.stop();
+        await scannerRef.current.clear();
+        const videoElement = document.querySelector('#barcode-scanner video');
+        if (videoElement && videoElement.srcObject) {
+          const stream = videoElement.srcObject;
+          const tracks = stream.getTracks();
+          tracks.forEach((track) => track.stop());
+          videoElement.srcObject = null;
+        }
+        scannerRef.current = null;
+        setIsScanning(false);
       } catch (err) {
         console.error('Error stopping scanner:', err);
         setError('Error al detener el escáner.');
@@ -50,7 +46,13 @@ const EscanerCodigoBarras = () => {
   };
 
   const startScanner = async () => {
-    stopScanner(); // Ensure any existing scanner is stopped
+    // Ensure any existing scanner is stopped
+    await stopScanner();
+
+    // Clear the scanner container
+    if (scannerContainerRef.current) {
+      scannerContainerRef.current.innerHTML = '';
+    }
 
     const html5QrCode = new Html5Qrcode('barcode-scanner', {
       formatsToSupport: [
@@ -72,7 +74,7 @@ const EscanerCodigoBarras = () => {
       setIsScanning(true);
       setError('');
       setScannedProduct(null);
-      await scannerRef.current.start(
+      await html5QrCode.start(
         { facingMode: 'environment' },
         {
           fps: 15,
@@ -82,22 +84,10 @@ const EscanerCodigoBarras = () => {
         },
         async (decodedText) => {
           try {
-            // Look up product by barcode
             const foundProduct = productos.find(
               (producto) => producto.codigo_barras === decodedText
             );
-            await scannerRef.current.stop();
-            scannerRef.current.clear();
-            const videoElement = document.querySelector('#barcode-scanner video');
-            if (videoElement && videoElement.srcObject) {
-              const stream = videoElement.srcObject;
-              const tracks = stream.getTracks();
-              tracks.forEach((track) => track.stop());
-              videoElement.srcObject = null;
-            }
-            scannerRef.current = null;
-            setIsScanning(false);
-
+            await stopScanner();
             if (foundProduct) {
               setScannedProduct(foundProduct);
             } else {
@@ -112,6 +102,7 @@ const EscanerCodigoBarras = () => {
         () => {} // Ignore NotFoundException
       );
     } catch (err) {
+      console.error('Error starting scanner:', err);
       setError('No se pudo iniciar la cámara. Por favor, permite el acceso a la cámara o verifica tu dispositivo.');
       setIsScanning(false);
     }
@@ -128,35 +119,34 @@ const EscanerCodigoBarras = () => {
       startScanner();
     }
 
-    // Cleanup
     return () => {
       stopScanner();
     };
   }, [currentUser, loading]);
 
   const handleBack = () => {
-    stopScanner(); // Ensure camera is disabled
-    navigate(-1); // Navigate back to previous page
+    stopScanner();
+    navigate(-1);
   };
 
   const goToHome = () => {
-    stopScanner(); // Disable camera
-    navigate('/'); // Navigate to home page
+    stopScanner();
+    navigate('/');
   };
 
   const goToProducts = () => {
-    stopScanner(); // Disable camera
-    navigate('/productos'); // Navigate to products page
+    stopScanner();
+    navigate('/productos');
   };
 
-  const handleScanAgain = () => {
-    setScannedProduct(null); // Reset scanned product
-    startScanner(); // Restart scanner
+  const handleScanAgain = async () => {
+    setScannedProduct(null);
+    setError('');
+    await startScanner();
   };
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans text-gray-900 flex flex-col">
-      {/* Header */}
       <header className="bg-white shadow-md sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4">
           <div className="flex justify-between h-16 items-center">
@@ -179,7 +169,6 @@ const EscanerCodigoBarras = () => {
         </div>
       </header>
 
-      {/* Main content area */}
       <main className="flex-1 flex flex-col items-center p-4 max-w-lg mx-auto w-full">
         {error ? (
           <div className="bg-red-50 border border-red-100 rounded-2xl p-6 flex flex-col items-center w-full mt-4 shadow-sm">
@@ -260,26 +249,22 @@ const EscanerCodigoBarras = () => {
         ) : (
           <>
             <div className="relative w-full aspect-square max-w-md rounded-2xl overflow-hidden bg-black shadow-md mt-4 border-2 border-indigo-500">
-              <div id="barcode-scanner" className="w-full h-full" />
+              <div id="barcode-scanner" ref={scannerContainerRef} className="w-full h-full" />
 
               {isScanning && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  {/* Scanner indicator */}
                   <div
                     className="w-[300px] h-[120px] border-2 border-indigo-400 rounded-md bg-transparent relative"
                     style={{
                       boxShadow: '0 0 20px rgba(79, 70, 229, 0.3)',
                     }}
                   >
-                    {/* Scanning line animation */}
                     <div
                       className="absolute left-0 top-0 h-[2px] bg-indigo-400 w-full"
                       style={{
                         animation: 'scanline 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                       }}
                     />
-
-                    {/* Corner elements */}
                     <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-indigo-400" />
                     <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-indigo-400" />
                     <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-indigo-400" />
@@ -288,7 +273,6 @@ const EscanerCodigoBarras = () => {
                 </div>
               )}
 
-              {/* Scanning overlay with status */}
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
                 <div className="flex items-center">
                   {isScanning ? (
@@ -329,7 +313,6 @@ const EscanerCodigoBarras = () => {
         )}
       </main>
 
-      {/* Global CSS */}
       <style jsx global>{`
         @keyframes scanline {
           0% {
