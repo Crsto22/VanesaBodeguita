@@ -18,6 +18,7 @@ import {
   Layers,
   Barcode,
   ArrowLeftRight,
+  X,
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
@@ -47,6 +48,7 @@ const Productos = () => {
   const [sortBy, setSortBy] = useState('nombre');
   const [sortOrder, setSortOrder] = useState('asc');
   const [activeTab, setActiveTab] = useState('productos');
+  const [toast, setToast] = useState({ message: '', type: '', visible: false });
 
   // Drawer states para categorías
   const [showCategoryDrawer, setShowCategoryDrawer] = useState(false);
@@ -97,6 +99,16 @@ const Productos = () => {
     eliminarProducto,
     obtenerProductoPorId,
   } = useProducts();
+
+  // Auto-dismiss toast after 3 seconds
+  useEffect(() => {
+    if (toast.visible) {
+      const timer = setTimeout(() => {
+        setToast(prev => ({ ...prev, visible: false }));
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast.visible]);
 
   // Obtener el conteo de productos asociados por categoría
   useEffect(() => {
@@ -283,11 +295,13 @@ const Productos = () => {
       setDeleteProductLoading(true);
       try {
         await eliminarProducto(productToDelete.id, productToDelete.imagen);
+        setToast({ message: 'Producto eliminado con éxito', type: 'success', visible: true });
         setShowDeleteProductDrawer(false);
         setProductToDelete(null);
       } catch (error) {
         console.error('Error al eliminar producto:', error);
-        alert('Error al eliminar el producto. Intenta de nuevo.');
+        setToast({ message: 'Error al eliminar producto', type: 'error', visible: true });
+        setShowDeleteProductDrawer(false);
       } finally {
         setDeleteProductLoading(false);
       }
@@ -297,11 +311,11 @@ const Productos = () => {
   const handleSaveProduct = async (productoData, imagenFile) => {
     try {
       if (productFormData.id) {
-        // Actualizar producto existente
         await actualizarProducto(productFormData.id, productoData, imagenFile);
+        setToast({ message: 'Producto actualizado con éxito', type: 'success', visible: true });
       } else {
-        // Crear nuevo producto
         await crearProducto(productoData, imagenFile);
+        setToast({ message: 'Producto creado con éxito', type: 'success', visible: true });
       }
       setShowProductDrawer(false);
       setProductFormData({
@@ -322,6 +336,7 @@ const Productos = () => {
       });
     } catch (error) {
       console.error('Error al guardar producto:', error);
+      setToast({ message: `Error al ${productFormData.id ? 'actualizar' : 'crear'} producto`, type: 'error', visible: true });
       throw error; // El drawer manejará el error
     }
   };
@@ -362,7 +377,7 @@ const Productos = () => {
       setShowDeleteDrawer(true);
     } catch (error) {
       console.error('Error al preparar eliminación de categoría:', error);
-      alert('Error al preparar la eliminación de la categoría. Intenta de nuevo.');
+      setToast({ message: 'Error al preparar eliminación de categoría', type: 'error', visible: true });
       setShowDeleteDrawer(false);
     }
   };
@@ -372,11 +387,13 @@ const Productos = () => {
       setDeleteLoading(true);
       try {
         await eliminarCategoria(categoryToDelete.id);
+        setToast({ message: 'Categoría eliminada con éxito', type: 'success', visible: true });
         setShowDeleteDrawer(false);
         setCategoryToDelete(null);
       } catch (error) {
         console.error('Error al eliminar categoría:', error);
-        alert('Error al eliminar la categoría. Intenta de nuevo.');
+        setToast({ message: 'Error al eliminar categoría', type: 'error', visible: true });
+        setShowDeleteDrawer(false);
       } finally {
         setDeleteLoading(false);
       }
@@ -387,8 +404,10 @@ const Productos = () => {
     try {
       if (categoryFormData.id) {
         await actualizarCategoria(categoryFormData.id, categoriaData);
+        setToast({ message: 'Categoría actualizada con éxito', type: 'success', visible: true });
       } else {
         await crearCategoria(categoriaData);
+        setToast({ message: 'Categoría creada con éxito', type: 'success', visible: true });
       }
       setShowCategoryDrawer(false);
       setCategoryFormData({
@@ -399,12 +418,66 @@ const Productos = () => {
       });
     } catch (error) {
       console.error('Error al guardar categoría:', error);
+      setToast({ message: `Error al ${categoryFormData.id ? 'actualizar' : 'crear'} categoría`, type: 'error', visible: true });
       throw error;
     }
   };
 
+  // Función para cerrar el toast manualmente
+  const closeToast = () => {
+    setToast(prev => ({ ...prev, visible: false }));
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
+      {/* Toast */}
+      {toast.visible && (
+        <div className="fixed top-0 left-0 right-0 w-full z-50 rounded-b-xl overflow-hidden">
+          <div 
+            className={`w-full shadow-lg transform transition-all duration-300 ease-in-out ${
+              toast.visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
+            } ${
+              toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+            }`}
+            role="alert" 
+            tabIndex="-1" 
+            aria-labelledby="header-notification"
+          >
+            <div className="flex items-center justify-between p-5 max-w-3xl mx-auto">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg 
+                    className="w-4 h-4 text-white" 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    width="16" 
+                    height="16" 
+                    fill="currentColor" 
+                    viewBox="0 0 16 16"
+                  >
+                    <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p 
+                    id="header-notification" 
+                    className="text-sm text-white font-medium"
+                  >
+                    {toast.message}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={closeToast}
+                className="text-white hover:text-gray-200 focus:outline-none"
+                aria-label="Cerrar notificación"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Header
         menuOpen={menuOpen}
         setMenuOpen={setMenuOpen}
@@ -574,7 +647,7 @@ const Productos = () => {
                           </div>
                           <div className="mt-2 flex flex-col">
                             <div className="flex justify-between items-center">
-                              <div className="text-lg font-semibold text-[#45923a]">
+                              <div className="text-lg font-bold text-[#45923a]">
                                 S/{product.precio.toFixed(2)}
                                 {product.tipo_unidad === 'kilogramo' && ' por kg'}
                               </div>
@@ -591,13 +664,8 @@ const Productos = () => {
                               </div>
                             </div>
                             {product.has_precio_alternativo && product.precio_alternativo && (
-                              <div className="mt-1 text-sm text-[#ffa40c]">
-                                Precio Alternativo: S/{parseFloat(product.precio_alternativo).toFixed(2)}
-                                {product.motivo_precio_alternativo && (
-                                  <span className="text-xs text-gray-500 ml-1">
-                                    ({product.motivo_precio_alternativo})
-                                  </span>
-                                )}
+                              <div className="mt-1 text-sm text-[#ffa40c] font-medium">
+                                Precio {product.motivo_precio_alternativo}: <span className="font-bold">S/{parseFloat(product.precio_alternativo).toFixed(2)}</span> 
                               </div>
                             )}
                           </div>
