@@ -150,8 +150,7 @@ const EscanerCodigoBarras = () => {
   };
 
   const handleScanAgain = () => {
-    stopScanner(); // Ensure camera is stopped
-    navigate(0); // Refresh the page at /escaner
+    startScanner(); // Restart scanner
   };
 
   return (
@@ -227,18 +226,24 @@ const EscanerCodigoBarras = () => {
               </h2>
               
               <div className="w-full bg-gray-50 rounded-xl p-4 mb-6">
-                <div className="flex justify-between mb-3">
+                <div className="flex justify-between mb-4">
                   <span className="text-sm text-gray-500">Precio regular:</span>
-                  <span className="text-lg font-medium text-gray-900">S/ {scannedProduct.precio}</span>
+                  <div className="flex items-end">
+                    <span className="text-sm text-indigo-600 mr-1 mb-1">S/</span>
+                    <span className="text-2xl font-bold text-indigo-600">{scannedProduct.precio}</span>
+                  </div>
                 </div>
                 
                 {scannedProduct.has_precio_alternativo && (
-                  <div className="flex justify-between">
+                  <div className="flex justify-between pt-3 border-t border-gray-200">
                     <div className="flex flex-col">
                       <span className="text-sm text-gray-500">Precio especial:</span>
                       <span className="text-xs text-gray-400">({scannedProduct.motivo_precio_alternativo})</span>
                     </div>
-                    <span className="text-lg font-medium text-green-600">S/ {scannedProduct.precio_alternativo}</span>
+                    <div className="flex items-end">
+                      <span className="text-sm text-green-600 mr-1 mb-1">S/</span>
+                      <span className="text-2xl font-bold text-green-600">{scannedProduct.precio_alternativo}</span>
+                    </div>
                   </div>
                 )}
               </div>
