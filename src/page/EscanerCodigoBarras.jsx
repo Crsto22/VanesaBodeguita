@@ -50,29 +50,31 @@ const EscanerCodigoBarras = () => {
   };
 
   const startScanner = async () => {
-    if (!scannerRef.current) {
-      const html5QrCode = new Html5Qrcode('barcode-scanner', {
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.CODE_93,
-          Html5QrcodeSupportedFormats.CODABAR,
-          Html5QrcodeSupportedFormats.ITF,
-        ],
-        verbose: false,
-      });
-      scannerRef.current = html5QrCode;
-    }
+    // Ensure any existing scanner is stopped before starting a new one
+    stopScanner();
+
+    // Initialize new scanner instance
+    const html5QrCode = new Html5Qrcode('barcode-scanner', {
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.CODE_93,
+        Html5QrcodeSupportedFormats.CODABAR,
+        Html5QrcodeSupportedFormats.ITF,
+      ],
+      verbose: false,
+    });
+    scannerRef.current = html5QrCode;
 
     try {
       setIsScanning(true);
       setError('');
       setScannedProduct(null);
-      await scannerRef.current.start(
+      await html5QrCode.start(
         { facingMode: 'environment' },
         {
           fps: 15,
@@ -150,7 +152,10 @@ const EscanerCodigoBarras = () => {
   };
 
   const handleScanAgain = () => {
-    startScanner(); // Restart scanner
+    // Add a small delay to ensure camera is fully released before restarting
+    setTimeout(() => {
+      startScanner(); // Restart scanner
+    }, 100);
   };
 
   return (
