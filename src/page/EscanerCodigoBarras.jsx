@@ -9,7 +9,8 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import IconoProductoCodigoBarras from '../assets/Productos/IconoProductoCodigoBarras.svg';
+import Escaner from '../assets/Productos/Escaner.svg';
+import EscanerNoEscaneo from '../assets/Productos/EscanerNoEscaneo.svg';
 import { useProducts } from '../context/ProductContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -172,15 +173,19 @@ const EscanerCodigoBarras = () => {
       <main className="flex-1 flex flex-col items-center p-4 max-w-lg mx-auto w-full">
         {error ? (
           <div className="bg-red-50 border border-red-100 rounded-2xl p-6 flex flex-col items-center w-full mt-4 shadow-sm">
-            <div className="bg-red-100 rounded-full p-3 mb-4">
-              <AlertCircle size={28} className="text-red-500" />
+            <div className=" p-3 mb-4">
+            <img
+                  src={EscanerNoEscaneo}
+                  alt="Icono de Código de Barras"
+                  className="w-32 "
+                />
             </div>
             <h2 className="text-lg font-medium text-gray-900 mb-2">Ocurrió un error</h2>
             <p className="text-sm text-gray-600 text-center mb-6">{error}</p>
             <div className="w-full flex flex-col gap-3">
               <button
                 onClick={handleScanAgain}
-                className="w-full py-3 bg-indigo-600 text-white rounded-xl font-medium flex items-center justify-center transition hover:bg-indigo-700 shadow-sm"
+                className="w-full py-3 bg-[#45923a] text-white rounded-xl font-medium flex items-center justify-center transition hover:bg-indigo-700 shadow-sm"
               >
                 <RefreshCw className="h-5 w-5 mr-2" />
                 Escanear otro producto
@@ -292,8 +297,12 @@ const EscanerCodigoBarras = () => {
 
             <div className="bg-white rounded-2xl p-6 w-full mt-4 shadow-sm border border-gray-100">
               <div className="flex flex-col items-center text-center">
-                <div className="bg-indigo-50 rounded-full p-4 mb-4">
-                  <Scan size={28} className="text-indigo-600" />
+                <div className=" p-4 mb-4">
+                <img
+                  src={Escaner}
+                  alt="Icono de Código de Barras"
+                  className="w-32 "
+                />
                 </div>
                 <h2 className="text-lg font-medium text-gray-900 mb-2">
                   Escáner de Código de Barras
@@ -302,11 +311,7 @@ const EscanerCodigoBarras = () => {
                   Alinea el código de barras del producto dentro del recuadro para escanearlo automáticamente.
                 </p>
 
-                <img
-                  src={IconoProductoCodigoBarras}
-                  alt="Icono de Código de Barras"
-                  className="w-32 opacity-70"
-                />
+               
               </div>
             </div>
           </>
