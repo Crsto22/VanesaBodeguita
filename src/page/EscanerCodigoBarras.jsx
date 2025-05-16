@@ -1,125 +1,39 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ShoppingCart,
-  CreditCard,
-  Users,
   Barcode,
-  Package,
-  Bell,
-  Menu,
-  X,
-  Search,
-  ArrowRight,
   ArrowLeft,
-  AlertCircle
+  AlertCircle,
+  Home
 } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import Logo from '../assets/Logo.svg';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
-import { useAuth } from '../context/AuthContext';
-import IconoInicio from "../assets/IconoInicio.svg";
 import IconoProductoCodigoBarras from '../assets/Productos/IconoProductoCodigoBarras.svg';
 
 const EscanerCodigoBarras = () => {
   const navigate = useNavigate();
-  const { currentUser, userData } = useAuth();
-  const [appear, setAppear] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [notifications] = useState(3);
-  const scannerRef = useRef(null);
   const [error, setError] = useState('');
   const [isScanning, setIsScanning] = useState(false);
+  const scannerRef = useRef(null);
 
-  // Opciones del menú principal - Accesos rápidos
-  const quickAccessOptions = [
-    { 
-      id: 'ventas', 
-      title: 'Ventas', 
-      icon: <ShoppingCart className="h-6 w-6" />, 
-      color: 'bg-emerald-500', 
-      description: 'Registrar ventas y ver historial',
-      path: '/ventas'
-    },
-    { 
-      id: 'deudas', 
-      title: 'Pagar Deudas', 
-      icon: <CreditCard className="h-6 w-6" />, 
-      color: 'bg-amber-500', 
-      description: 'Gestionar pagos pendientes',
-      path: '/deudas'
-    },
-    { 
-      id: 'clientes', 
-      title: 'Clientes', 
-      icon: <Users className="h-6 w-6" />, 
-      color: 'bg-blue-500', 
-      description: 'Administrar base de clientes',
-      path: '/clientes'
-    },
-    { 
-      id: 'escaner', 
-      title: 'Escáner de Códigos', 
-      icon: <Barcode className="h-6 w-6" />, 
-      color: 'bg-violet-500', 
-      description: 'Consultar precios por código de barras',
-      path: '/escaner'
-    },
-    { 
-      id: 'productos', 
-      title: 'Productos', 
-      icon: <Package className="h-6 w-6" />, 
-      color: 'bg-rose-500', 
-      description: 'Inventario y catálogo',
-      path: '/productos'
-    },
-  ];
-
-  // Función mejorada para detener el escáner y liberar la cámara por completo
-  const stopScanner = async () => {
+  const stopScanner = () => {
     if (scannerRef.current && isScanning) {
       try {
-        // Primero detenemos el escáner
-        await scannerRef.current.stop();
-        console.log('Scanner stopped');
-        
-        // Limpiamos el elemento del DOM
-        scannerRef.current.clear();
-        console.log('Scanner cleared');
-        
-        // Detenemos específicamente todos los tracks de video
-        const videoElements = document.querySelectorAll('video');
-        videoElements.forEach((video) => {
-          if (video.srcObject) {
-            const stream = video.srcObject;
+        scannerRef.current.stop().then(() => {
+          scannerRef.current.clear();
+          const videoElement = document.querySelector('#barcode-scanner video');
+          if (videoElement && videoElement.srcObject) {
+            const stream = videoElement.srcObject;
             const tracks = stream.getTracks();
-            tracks.forEach((track) => {
-              track.stop();
-              console.log('Track stopped:', track.kind);
-            });
-            video.srcObject = null;
-            console.log('Video source cleared');
+            tracks.forEach((track) => track.stop());
+            videoElement.srcObject = null;
           }
+          scannerRef.current = null;
+          setIsScanning(false);
+        }).catch((err) => {
+          console.error('Error stopping scanner:', err);
+          setError('Error al detener el escáner.');
+          setIsScanning(false);
         });
-        
-        // También buscamos específicamente el video del escáner
-        const videoElement = document.querySelector('#barcode-scanner video');
-        if (videoElement && videoElement.srcObject) {
-          const stream = videoElement.srcObject;
-          const tracks = stream.getTracks();
-          tracks.forEach((track) => {
-            track.stop();
-            console.log('Scanner track stopped:', track.kind);
-          });
-          videoElement.srcObject = null;
-          console.log('Scanner video source cleared');
-        }
-        
-        // Limpiamos la referencia
-        scannerRef.current = null;
-        setIsScanning(false);
-        console.log('Camera completely disabled');
       } catch (err) {
         console.error('Error stopping scanner:', err);
         setError('Error al detener el escáner.');
@@ -129,8 +43,6 @@ const EscanerCodigoBarras = () => {
   };
 
   useEffect(() => {
-    setAppear(true);
-
     // Initialize scanner
     const html5QrCode = new Html5Qrcode('barcode-scanner', {
       formatsToSupport: [
@@ -163,10 +75,20 @@ const EscanerCodigoBarras = () => {
           },
           async (decodedText) => {
             try {
-              // Handle scanned barcode
+              // Handle scanned barcode (you can modify this to handle the barcode data as needed)
               console.log('Barcode scanned:', decodedText);
-              await stopScanner();
-              // Aquí puedes agregar lógica para procesar el código de barras
+              await scannerRef.current.stop();
+              scannerRef.current.clear();
+              const videoElement = document.querySelector('#barcode-scanner video');
+              if (videoElement && videoElement.srcObject) {
+                const stream = videoElement.srcObject;
+                const tracks = stream.getTracks();
+                tracks.forEach((track) => track.stop());
+                videoElement.srcObject = null;
+              }
+              scannerRef.current = null;
+              setIsScanning(false);
+              // Optionally navigate or perform an action with decodedText
             } catch (err) {
               console.error('Error during scan cleanup:', err);
               setError('Error al procesar el código escaneado.');
@@ -183,77 +105,52 @@ const EscanerCodigoBarras = () => {
 
     startScanner();
 
-    // Cleanup on component unmount
+    // Cleanup
     return () => {
       stopScanner();
     };
   }, []);
 
-  // Función para manejar el botón de regresar
-  const handleBack = async () => {
-    console.log('Regresar: Deteniendo cámara antes de navegar');
-    // Aseguramos que la cámara se deshabilite completamente antes de navegar
-    await stopScanner();
-    // Esperamos un momento para asegurar que todos los recursos se liberen
-    setTimeout(() => {
-      console.log('Navegando a la página anterior');
-      navigate(-1); // Navigate back to previous page
-    }, 100);
+  const handleBack = () => {
+    stopScanner(); // Ensure camera is disabled
+    navigate(-1); // Navigate back to previous page
   };
 
-  const handleOptionClick = async (path) => {
-    console.log('Navegando a otra opción: Deteniendo cámara');
-    // Aseguramos que el escáner se detenga antes de navegar
-    await stopScanner();
-    navigate(path);
-    setMenuOpen(false);
+  const goToHome = () => {
+    stopScanner(); // Disable camera
+    navigate('/'); // Navigate to home page
   };
-
-  // Añadimos listeners para detectar cuando el componente pierde el foco
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden && isScanning) {
-        console.log('Página oculta: Deteniendo cámara');
-        stopScanner();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [isScanning]);
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
-      {/* Header component */}
-      <Header
-        menuOpen={menuOpen}
-        setMenuOpen={setMenuOpen}
-        notifications={notifications}
-      />
-
-      {/* Sidebar component */}
-      <Sidebar
-        isOpen={menuOpen}
-        setIsOpen={setMenuOpen}
-        quickAccessOptions={quickAccessOptions}
-        onOptionClick={handleOptionClick}
-        logo={Logo}
-      />
+      {/* Simple header with back button */}
+      <div className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16 items-center">
+            <div className="flex items-center">
+              <button
+                onClick={handleBack}
+                className="flex items-center text-sm font-medium text-gray-700 hover:text-gray-900"
+              >
+                <ArrowLeft className="h-5 w-5 mr-1" />
+                Regresar
+              </button>
+            </div>
+            <div>
+              <button
+                onClick={goToHome}
+                className="flex btn items-center px-4 py-2 bg-[#45923a] text-white rounded-full transition-colors"
+              >
+                <Home className="h-5 w-5 mr-2" />
+                Regresar al inicio
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Main content area */}
-      <div className="min-h-screen bg-white flex flex-col">
-        <div className="p-4 flex items-center justify-between">
-          <button
-            onClick={handleBack}
-            className="flex items-center text-sm font-medium text-gray-700 hover:text-gray-900"
-          >
-            <ArrowLeft className="h-5 w-5 mr-1" />
-            Regresar
-          </button>
-        </div>
+      <div className="min-h-screen bg-white flex flex-col p-4">
         <div className="flex-1 flex flex-col items-center justify-center px-4">
           {error ? (
             <div className="bg-red-100 p-4 rounded-lg flex flex-col items-center">
