@@ -187,14 +187,24 @@ const EscanerCodigoBarras = () => {
             </div>
             <h2 className="text-lg font-medium text-gray-900 mb-2">Ocurrió un error</h2>
             <p className="text-sm text-gray-600 text-center mb-6">{error}</p>
-            {!scannedProduct && (
+            <div className="w-full flex flex-col gap-3">
               <button
-                onClick={goToProducts}
-                className="w-full py-3 bg-indigo-600 text-white rounded-xl font-medium transition hover:bg-indigo-700 shadow-sm"
+                onClick={handleScanAgain}
+                className="w-full py-3 bg-indigo-600 text-white rounded-xl font-medium flex items-center justify-center transition hover:bg-indigo-700 shadow-sm"
               >
-                Gestionar Productos
+                <RefreshCw className="h-5 w-5 mr-2" />
+                Escanear otro producto
               </button>
-            )}
+              
+              {!scannedProduct && (
+                <button
+                  onClick={goToProducts}
+                  className="w-full py-3 bg-white border border-gray-300 text-gray-700 rounded-xl font-medium transition hover:bg-gray-50 shadow-sm"
+                >
+                  Gestionar Productos
+                </button>
+              )}
+            </div>
           </div>
         ) : scannedProduct ? (
           <div className="w-full bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-4">
