@@ -50,31 +50,29 @@ const EscanerCodigoBarras = () => {
   };
 
   const startScanner = async () => {
-    // Ensure any existing scanner is stopped before starting a new one
-    stopScanner();
-
-    // Initialize new scanner instance
-    const html5QrCode = new Html5Qrcode('barcode-scanner', {
-      formatsToSupport: [
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E,
-        Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.CODE_39,
-        Html5QrcodeSupportedFormats.CODE_93,
-        Html5QrcodeSupportedFormats.CODABAR,
-        Html5QrcodeSupportedFormats.ITF,
-      ],
-      verbose: false,
-    });
-    scannerRef.current = html5QrCode;
+    if (!scannerRef.current) {
+      const html5QrCode = new Html5Qrcode('barcode-scanner', {
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.CODE_93,
+          Html5QrcodeSupportedFormats.CODABAR,
+          Html5QrcodeSupportedFormats.ITF,
+        ],
+        verbose: false,
+      });
+      scannerRef.current = html5QrCode;
+    }
 
     try {
       setIsScanning(true);
       setError('');
       setScannedProduct(null);
-      await html5QrCode.start(
+      await scannerRef.current.start(
         { facingMode: 'environment' },
         {
           fps: 15,
@@ -152,10 +150,8 @@ const EscanerCodigoBarras = () => {
   };
 
   const handleScanAgain = () => {
-    // Add a small delay to ensure camera is fully released before restarting
-    setTimeout(() => {
-      startScanner(); // Restart scanner
-    }, 100);
+    stopScanner(); // Ensure camera is stopped
+    navigate(0); // Refresh the page at /escaner
   };
 
   return (
