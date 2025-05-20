@@ -1,436 +1,542 @@
+
 import React, { useState, useEffect } from 'react';
-import {
-    ShoppingCart,
-    CreditCard,
-    Users,
-    Barcode,
-    Package,
-    Bell,
-    Menu,
-    X,
-    Search,
-    ArrowRight,
-    Plus,
-    Calendar,
-    DollarSign,
-    FileText,
-    ShoppingBag,
-    Tag
-} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { ShoppingCart, CreditCard, Users, Barcode, Package, User, PlusCircle, ScanBarcode, X, Milk, Minus, Plus } from 'lucide-react';
+import Logo from '../assets/Logo.svg';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
-import IconoVentas from '../assets/Ventas/VentaNueva.svg'; // Assuming you'd have similar icons
-import Logo from '../assets/Logo.svg';
-// Colores personalizados
-const COLORS = {
-    primary: '#45923a', // Verde
-    secondary: '#ffa40c', // Naranja/Ámbar
-};
+import { useAuth } from '../context/AuthContext';
+import { useClientes } from '../context/ClientesContext';
+import { useVentas } from '../context/VentasContext';
+import ProductoNinguno from '../assets/Ventas/ProductoNinguno.svg';
+import ClientesDrawer from '../components/Ventas/ClientesDrawer';
+import ProductosDrawer from '../components/Ventas/ProductosDrawer';
+import ConfirmarVentaDrawer from '../components/Ventas/ConfirmarVentaDrawer';
 
 const Ventas = () => {
-    // Estados básicos
-    const navigate = useNavigate();
-    const [appear, setAppear] = useState(false);
-    const [menuOpen, setMenuOpen] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [userName] = useState('Usuario');
-    const [notifications] = useState(3);
-    const [loading, setLoading] = useState(true);
-    const [toast, setToast] = useState({ message: '', type: '', visible: false });
-    
-    // Estado para ventas recientes
-    const [ventas, setVentas] = useState([]);
+  const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const { clientes, obtenerClientePorId, loading: clientesLoading } = useClientes();
+  const { crearVenta } = useVentas();
+  const [appear, setAppear] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [notifications] = useState(3);
+  const [drawerClientesOpen, setDrawerClientesOpen] = useState(false);
+  const [drawerProductosOpen, setDrawerProductosOpen] = useState(false);
+  const [drawerConfirmarOpen, setDrawerConfirmarOpen] = useState(false);
+  const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
+  const [selectedProductos, setSelectedProductos] = useState([]);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-    // Opciones del menú principal - Accesos rápidos
-    const quickAccessOptions = [
-        { 
-            id: 'ventas', 
-            title: 'Ventas', 
-            icon: <ShoppingCart className="h-6 w-6" />, 
-            color: 'bg-emerald-500', 
-            description: 'Registrar ventas y ver historial',
-            path: '/ventas'
-        },
-        { 
-            id: 'deudas', 
-            title: 'Pagar Deudas', 
-            icon: <CreditCard className="h-6 w-6" />, 
-            color: 'bg-amber-500', 
-            description: 'Gestionar pagos pendientes',
-            path: '/deudas'
-        },
-        { 
-            id: 'clientes', 
-            title: 'Clientes', 
-            icon: <Users className="h-6 w-6" />, 
-            color: 'bg-blue-500', 
-            description: 'Administrar base de clientes',
-            path: '/clientes'
-        },
-        { 
-            id: 'escaner', 
-            title: 'Escáner de Códigos', 
-            icon: <Barcode className="h-6 w-6" />, 
-            color: 'bg-violet-500', 
-            description: 'Consultar precios por código de barras',
-            path: '/escaner'
-        },
-        { 
-            id: 'productos', 
-            title: 'Productos', 
-            icon: <Package className="h-6 w-6" />, 
-            color: 'bg-rose-500', 
-            description: 'Inventario y catálogo',
-            path: '/productos'
-        },
-    ];
+  // Opciones del menú principal - Accesos rápidos
+  const quickAccessOptions = [
+    {
+      id: 'ventas',
+      title: 'Ventas',
+      icon: <ShoppingCart className="h-6 w-6" />,
+      color: 'bg-emerald-500',
+      description: 'Registrar ventas y ver historial',
+      path: '/ventas',
+    },
+    {
+      id: 'deudas',
+      title: 'Pagar Deudas',
+      icon: <CreditCard className="h-6 w-6" />,
+      color: 'bg-amber-500',
+      description: 'Gestionar pagos pendientes',
+      path: '/deudas',
+    },
+    {
+      id: 'clientes',
+      title: 'Clientes',
+      icon: <Users className="h-6 w-6" />,
+      color: 'bg-blue-500',
+      description: 'Administrar base de clientes',
+      path: '/clientes',
+    },
+    {
+      id: 'escaner',
+      title: 'Escáner de Códigos',
+      icon: <Barcode className="h-6 w-6" />,
+      color: 'bg-violet-500',
+      description: 'Consultar precios por código de barras',
+      path: '/escaner',
+    },
+    {
+      id: 'productos',
+      title: 'Productos',
+      icon: <Package className="h-6 w-6" />,
+      color: 'bg-rose-500',
+      description: 'Inventario y catálogo',
+      path: '/productos',
+    },
+  ];
 
-    // Datos de muestra para ventas recientes
-    const ventasMuestra = [
-        {
-            id: 'V001',
-            cliente: 'María González',
-            fecha: '16/05/2025',
-            total: 4850.50,
-            estado: 'Completada',
-            productos: 7
-        },
-        {
-            id: 'V002',
-            cliente: 'Juan Pérez',
-            fecha: '15/05/2025',
-            total: 1250.75,
-            estado: 'Completada',
-            productos: 3
-        },
-        {
-            id: 'V003',
-            cliente: 'Ana López',
-            fecha: '14/05/2025',
-            total: 3540.00,
-            estado: 'Pendiente',
-            productos: 5
-        },
-        {
-            id: 'V004',
-            cliente: 'Carlos Ramírez',
-            fecha: '13/05/2025',
-            total: 890.25,
-            estado: 'Completada',
-            productos: 2
+  // Animación de entrada
+  useEffect(() => {
+    setAppear(true);
+  }, []);
+
+  // Inicializar estado desde localStorage
+  useEffect(() => {
+    try {
+      const ventaGuardada = localStorage.getItem('ventaEnProgreso');
+      if (ventaGuardada) {
+        const { clienteSeleccionado, selectedProductos } = JSON.parse(ventaGuardada);
+        if (clienteSeleccionado && clienteSeleccionado.id) {
+          const clienteActual = obtenerClientePorId(clienteSeleccionado.id);
+          if (clienteActual) {
+            setClienteSeleccionado(clienteActual);
+          }
         }
-    ];
-
-    // Estadísticas resumidas
-    const estadisticas = [
-        { titulo: 'Ventas Hoy', valor: '$9,850.50', icono: <DollarSign className="h-6 w-6" />, color: 'bg-green-100 text-green-600' },
-        { titulo: 'Ventas Mes', valor: '$45,320.75', icono: <Calendar className="h-6 w-6" />, color: 'bg-blue-100 text-blue-600' },
-        { titulo: 'Productos Vendidos', valor: '127', icono: <ShoppingBag className="h-6 w-6" />, color: 'bg-amber-100 text-amber-600' }
-    ];
-
-    // Filtrar ventas según término de búsqueda
-    const filteredSales = ventasMuestra.filter(venta => {
-        const matchesSearch =
-            venta.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            venta.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            venta.fecha.includes(searchTerm);
-        return matchesSearch;
-    });
-
-    // Efecto para simular la carga de datos
-    useEffect(() => {
-        setAppear(true);
-        
-        // Simular carga de datos
-        const timer = setTimeout(() => {
-            setVentas(ventasMuestra);
-            setLoading(false);
-        }, 1500);
-        
-        return () => clearTimeout(timer);
-    }, []);
-
-    // Auto-dismiss toast after 3 seconds
-    useEffect(() => {
-        if (toast.visible) {
-            const timer = setTimeout(() => {
-                setToast(prev => ({ ...prev, visible: false }));
-            }, 3000);
-            return () => clearTimeout(timer);
+        if (Array.isArray(selectedProductos) && selectedProductos.length > 0) {
+          setSelectedProductos(
+            selectedProductos.filter(
+              (p) =>
+                p.id &&
+                p.nombre &&
+                typeof p.cantidad === 'number' &&
+                typeof p.precio_unitario === 'number' &&
+                typeof p.subtotal === 'string'
+            )
+          );
         }
-    }, [toast.visible]);
+      }
+    } catch (err) {
+      console.error('Error al recuperar datos de localStorage:', err);
+      localStorage.removeItem('ventaEnProgreso');
+    }
+  }, [obtenerClientePorId]);
 
-    // Función para manejar la selección de opciones
-    const handleOptionClick = (path) => {
-        navigate(path);
-        setMenuOpen(false);
-    };
+  // Guardar estado en localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        'ventaEnProgreso',
+        JSON.stringify({
+          clienteSeleccionado,
+          selectedProductos,
+        })
+      );
+    } catch (err) {
+      console.error('Error al guardar en localStorage:', err);
+    }
+  }, [clienteSeleccionado, selectedProductos]);
 
-    // Función para registrar nueva venta
-    const handleNewSale = () => {
-        navigate('/ventas/nueva');
-    };
+  // Sincronizar clienteSeleccionado
+  useEffect(() => {
+    if (clienteSeleccionado && !clientesLoading) {
+      const clienteActual = obtenerClientePorId(clienteSeleccionado.id);
+      if (!clienteActual) {
+        setError('El cliente seleccionado ya no está disponible');
+        setClienteSeleccionado(null);
+      } else if (
+        clienteActual.nombre !== clienteSeleccionado.nombre ||
+        clienteActual.telefono !== clienteSeleccionado.telefono
+      ) {
+        setClienteSeleccionado(clienteActual);
+      }
+    }
+  }, [clientes, clientesLoading, clienteSeleccionado, obtenerClientePorId]);
 
-    // Función para ver detalle de venta
-    const handleViewSaleDetail = (ventaId) => {
-        navigate(`/ventas/${ventaId}`);
-    };
+  const handleOptionClick = (path) => {
+    navigate(path);
+    setMenuOpen(false);
+  };
 
-    // Función para cerrar el toast manualmente
-    const closeToast = () => {
-        setToast(prev => ({ ...prev, visible: false }));
-    };
+  const handleSelectCliente = (cliente) => {
+    if (!cliente || !cliente.id) {
+      setError('Cliente inválido seleccionado');
+      console.error('Invalid client selected:', cliente);
+      return;
+    }
+    console.log('Selected client:', cliente);
+    setClienteSeleccionado(cliente);
+    setDrawerClientesOpen(false);
+    setError('');
+  };
 
-    // Componente de esqueleto para cada tarjeta de venta durante la carga
-    const VentaSkeleton = () => (
-        <div className="relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow">
-            <div className="p-4">
-                <div className="mb-3 flex items-center justify-between">
-                    <div className="space-y-2">
-                        <div className="h-4 w-36 rounded bg-gray-200 animate-pulse"></div>
-                        <div className="flex items-center gap-1">
-                            <div className="h-2 w-2 rounded-full bg-gray-200 animate-pulse"></div>
-                            <div className="h-3 w-24 rounded bg-gray-200 animate-pulse"></div>
-                        </div>
-                    </div>
-                    <div className="h-12 w-24 rounded-lg bg-gray-200 animate-pulse"></div>
-                </div>
-                <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-lg bg-gray-200 animate-pulse"></div>
-                        <div className="h-4 w-48 rounded bg-gray-200 animate-pulse"></div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-lg bg-gray-200 animate-pulse"></div>
-                        <div className="h-4 w-32 rounded bg-gray-200 animate-pulse"></div>
-                    </div>
-                </div>
-                <div className="mt-4 flex justify-between border-t border-gray-100 pt-3">
-                    <div className="h-8 w-24 rounded-lg bg-gray-200 animate-pulse"></div>
-                    <div className="h-8 w-24 rounded-lg bg-gray-200 animate-pulse"></div>
-                </div>
+  const handleRemoveCliente = (e) => {
+    e.stopPropagation();
+    console.log('Removing client:', clienteSeleccionado);
+    setClienteSeleccionado(null);
+  };
+
+  const handleSelectProducto = (producto) => {
+    setSelectedProductos((prev) => [...prev, producto]);
+    setDrawerProductosOpen(false);
+  };
+
+  const handleRemoveProducto = (index) => {
+    setSelectedProductos((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateCantidad = (index, nuevaCantidad) => {
+    if (nuevaCantidad < 1) return;
+    setSelectedProductos((prev) =>
+      prev.map((p, i) =>
+        i === index
+          ? {
+              ...p,
+              cantidad: nuevaCantidad,
+              subtotal: (nuevaCantidad * p.precio_unitario).toFixed(2),
+              cantidad_retornable: p.retornable && p.tipo_unidad !== 'kilogramo' ? nuevaCantidad : 0,
+            }
+          : p
+      )
+    );
+  };
+
+  const handleUpdatePrecio = (index, nuevoPrecio) => {
+    const precio = parseFloat(nuevoPrecio);
+    if (isNaN(precio) || precio <= 0) {
+      setError('El precio debe ser un número positivo');
+      return;
+    }
+    setSelectedProductos((prev) =>
+      prev.map((p, i) =>
+        i === index
+          ? {
+              ...p,
+              precio_unitario: precio,
+              subtotal: (p.cantidad * precio).toFixed(2),
+            }
+          : p
+      )
+    );
+    setError('');
+  };
+
+  const handleFractionPrice = (index, fraction) => {
+    setSelectedProductos((prev) =>
+      prev.map((p, i) =>
+        i === index && p.tipo_unidad === 'kilogramo'
+          ? {
+              ...p,
+              precio_unitario: parseFloat((p.precio_referencia * fraction).toFixed(2)),
+              subtotal: parseFloat((p.cantidad * p.precio_referencia * fraction).toFixed(2)),
+            }
+          : p
+      )
+    );
+  };
+
+  const handleUpdateRetornables = (index, retornablesDevueltos) => {
+    setSelectedProductos((prev) =>
+      prev.map((p, i) =>
+        i === index
+          ? {
+              ...p,
+              cantidad_retornable: retornablesDevueltos,
+            }
+          : p
+      )
+    );
+  };
+
+  const handleRegistrarVenta = () => {
+    setError('');
+    if (selectedProductos.length === 0) {
+      setError('Debe seleccionar al menos un producto');
+      return;
+    }
+    const hasOwedRetornables = selectedProductos.some((p) => p.retornable && p.cantidad_retornable > 0);
+    if (hasOwedRetornables && !clienteSeleccionado) {
+      setError('Se requiere un cliente registrado para productos retornables con botellas pendientes');
+      return;
+    }
+    setDrawerConfirmarOpen(true);
+  };
+
+  const handleConfirmarVenta = async ({ estado, montoPagado, historialPagos, notas }) => {
+    try {
+      const total = calcularTotal();
+      const ventaData = {
+        cliente_ref: clienteSeleccionado ? clienteSeleccionado.id : null,
+        nombre_cliente: clienteSeleccionado ? clienteSeleccionado.nombre : 'Cliente Genérico',
+        productos: selectedProductos.map((p) => ({
+          producto_ref: p.id,
+          nombre: p.nombre,
+          cantidad: p.cantidad,
+          precio_unitario: parseFloat(p.precio_unitario),
+          subtotal: parseFloat(p.subtotal),
+          retornable: p.retornable,
+          cantidad_retornable: p.cantidad_retornable,
+        })),
+        notas: notas || '',
+        estado,
+        monto_pagado: montoPagado,
+        monto_pendiente: total - montoPagado,
+        historial_pagos: historialPagos,
+      };
+      console.log('Venta Data to be sent:', ventaData);
+      const ventaId = await crearVenta(ventaData);
+      setSuccess(`Venta registrada con éxito (ID: ${ventaId})`);
+      setClienteSeleccionado(null);
+      setSelectedProductos([]);
+      localStorage.removeItem('ventaEnProgreso');
+      setDrawerConfirmarOpen(false);
+    } catch (error) {
+      setError(`Error al registrar venta: ${error.message}`);
+    }
+  };
+
+  const calcularTotal = () => {
+    return selectedProductos.reduce((sum, p) => sum + parseFloat(p.subtotal), 0);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
+      <Header menuOpen={menuOpen} setMenuOpen={setMenuOpen} notifications={notifications} />
+      <Sidebar
+        isOpen={menuOpen}
+        setIsOpen={setMenuOpen}
+        quickAccessOptions={quickAccessOptions}
+        onOptionClick={handleOptionClick}
+        logo={Logo}
+      />
+      <main className="pt-3 px-1 pb-8">
+        <div className={`transition-opacity duration-500 ${appear ? 'opacity-100' : 'opacity-0'}`}>
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md text-sm flex justify-between items-center">
+              {error}
+              <button
+                onClick={() => setError('')}
+                className="text-red-700 hover:text-red-900"
+                aria-label="Cerrar error"
+              >
+                <X size={14} />
+              </button>
             </div>
-        </div>
-    );
-
-    return (
-        <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
-            {/* Toast */}
-            {toast.visible && (
-                <div className="fixed top-0 left-0 right-0 w-full z-50 rounded-b-xl overflow-hidden">
-                    <div 
-                        className={`w-full shadow-lg transform transition-all duration-300 ease-in-out ${
-                            toast.visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
-                        } ${
-                            toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
-                        }`}
-                        role="alert" 
-                        tabIndex="-1" 
-                        aria-labelledby="header-notification"
-                    >
-                        <div className="flex items-center justify-between p-5 max-w-3xl mx-auto">
-                            <div className="flex items-center">
-                                <div className="flex-shrink-0">
-                                    <svg 
-                                        className="w-4 h-4 text-white" 
-                                        xmlns="http://www.w3.org/2000/svg" 
-                                        width="16" 
-                                        height="16" 
-                                        fill="currentColor" 
-                                        viewBox="0 0 16 16"
-                                    >
-                                        <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
-                                    </svg>
-                                </div>
-                                <div className="ml-3">
-                                    <p 
-                                        id="header-notification" 
-                                        className="text-sm text-white font-medium"
-                                    >
-                                        {toast.message}
-                                    </p>
-                                </div>
-                            </div>
+          )}
+          {success && (
+            <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-md text-sm flex justify-between items-center">
+              {success}
+              <button
+                onClick={() => setSuccess('')}
+                className="text-green-700 hover:text-green-900"
+                aria-label="Cerrar éxito"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+          <div className="flex flex-row justify-center gap-2 sm:gap-6 mb-4">
+            <div className="relative">
+              <button
+                className={`flex btn rounded-full flex-row items-center justify-center p-3 border-none text-white shadow-md transition-all ${
+                  clienteSeleccionado ? 'bg-[#ffa40c] hover:bg-[#e69500] pr-10' : 'bg-[#ffa40c] hover:bg-[#e69500]'
+                }`}
+                onClick={() => setDrawerClientesOpen(true)}
+                disabled={clientesLoading}
+              >
+                <User size={17} className="flex-shrink-0" />
+                <span className="text-sm truncate max-w-[150px]">
+                  {clientesLoading
+                    ? 'Cargando clientes...'
+                    : clienteSeleccionado
+                    ? clienteSeleccionado.nombre
+                    : 'Cliente Genérico'}
+                </span>
+              </button>
+              {clienteSeleccionado && (
+                <button
+                  onClick={handleRemoveCliente}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 rounded-full hover:bg-[#ffc157] transition-colors z-10"
+                  aria-label="Quitar cliente"
+                >
+                  <X size={14} strokeWidth={2.5} className="text-white" />
+                </button>
+              )}
+            </div>
+            <button
+              className="btn border-none btn-soft rounded-full flex flex-row items-center justify-center p-3 sm:p-4 bg-[#45923a] hover:bg-[#3a7d30] text-white shadow-md transition-all"
+              onClick={() => setDrawerProductosOpen(true)}
+            >
+              <PlusCircle size={17} />
+              <span className="text-sm sm:text-base font-medium">Producto</span>
+            </button>
+            <button
+              className="flex btn btn-dash border-none rounded-full flex-row items-center justify-center p-3 sm:p-4 bg-gray-200 hover:bg-gray-300 shadow-md transition-all"
+              onClick={() => navigate('/escaner')}
+            >
+              <ScanBarcode strokeWidth={2.5} size={20} />
+            </button>
+          </div>
+          <div className="flex flex-col h-96 p-1">
+            <div className="flex-1 rounded-lg bg-white shadow-md p-4 sm:p-6 flex flex-col border border-dashed border-gray-300">
+              {selectedProductos.length === 0 ? (
+                <div className="flex flex-col items-center justify-center text-center max-w-md flex-1">
+                  <div className="flex items-center justify-center mb-4">
+                    <img src={ProductoNinguno} className="h-32 rounded-2xl text-gray-400" alt="Sin productos" />
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-medium text-gray-800 mb-2">
+                    No se ha agregado ningún producto
+                  </h3>
+                  <p className="text-sm sm:text-base text-gray-500">
+                    Busque el producto o escanee el código de barras para agregar productos a la venta.
+                  </p>
+                </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto">
+                  <ul className="divide-y divide-gray-200">
+                    {selectedProductos.map((producto, index) => (
+                      <li key={index} className="py-4 flex items-center">
+                        <div className="flex-shrink-0 h-14 w-14 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden shadow-sm">
+                          {producto.imagen ? (
+                            <img src={producto.imagen} alt={producto.nombre} className="object-cover w-full h-full" />
+                          ) : (
+                            <Package className="h-7 w-7 text-gray-400" />
+                          )}
+                        </div>
+                        <div className="ml-4 flex-1">
+                          <div className="flex justify-between items-center">
+                            <p className="text-sm font-medium text-gray-900">{producto.nombre}</p>
                             <button
-                                onClick={closeToast}
-                                className="text-white hover:text-gray-200 focus:outline-none"
-                                aria-label="Cerrar notificación"
+                              onClick={() => handleRemoveProducto(index)}
+                              className="p-1 rounded-full hover:bg-gray-200"
+                              aria-label="Quitar producto"
                             >
-                                <X className="w-5 h-5" />
+                              <X size={16} strokeWidth={2.5} className="text-gray-500" />
                             </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Header simplificado */}
-            <Header
-                menuOpen={menuOpen}
-                setMenuOpen={setMenuOpen}
-                userName={userName}
-                notifications={notifications}
-            />
-
-            {/* Sidebar */}
-            <Sidebar
-                isOpen={menuOpen}
-                setIsOpen={setMenuOpen}
-                userName={userName}
-                quickAccessOptions={quickAccessOptions}
-                onOptionClick={handleOptionClick}
-                logo={Logo}
-            />
-
-            {/* Contenido principal */}
-            <main className="px-3 pb-16 pt-3">
-                {/* Header con barra de búsqueda y acciones */}
-                <div className="relative mb-3 overflow-hidden rounded-3xl bg-gradient-to-br from-[#45923a] to-[#34722c] p-6 text-white shadow-lg">
-                    <img
-                        src={IconoVentas || "https://via.placeholder.com/150"}
-                        alt="Sales Icon"
-                        className="absolute right-0 top-1/2 -translate-y-1/2 w-28 h-28 object-contain z-0"
-                    />
-                    <div className="relative flex justify-between items-center">
-                        <div className="flex flex-col">
-                            <h1 className="mb-2 text-xl font-bold">Gestión de Ventas</h1>
-                            <button
-                                onClick={handleNewSale}
-                                className="bg-[#ffa40c] font-semibold py-2 px-4 rounded-full shadow-md transition duration-300 flex items-center gap-2 w-fit"
-                                title="Registrar nueva venta"
-                            >
-                                <Plus size={18} strokeWidth={3} />
-                                Nueva Venta
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Tarjetas de estadísticas */}
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                    {estadisticas.map((stat, index) => (
-                        <div key={index} className="bg-white rounded-xl p-3 shadow">
-                            <div className={`w-10 h-10 rounded-lg ${stat.color} flex items-center justify-center mb-2`}>
-                                {stat.icono}
-                            </div>
-                            <p className="text-xs text-gray-500">{stat.titulo}</p>
-                            <p className="text-lg font-bold">{stat.valor}</p>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Barra de búsqueda */}
-                <div className="relative mb-3">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Buscar venta..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full rounded-full border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm outline-none transition-all duration-300 focus:border-[#45923a]"
-                        />
-                    </div>
-                </div>
-
-                {/* Contador de resultados */}
-                <div className="mb-3 flex items-center justify-between px-1">
-                    <p className="text-sm text-gray-500">
-                        {loading ? 'Cargando...' : `${filteredSales.length} ${filteredSales.length === 1 ? 'venta' : 'ventas'}`}
-                    </p>
-                </div>
-
-                {/* Lista de ventas estilo tarjetas para móvil */}
-                {loading ? (
-                    <div className="space-y-4">
-                        {[1, 2, 3, 4].map((item) => (
-                            <VentaSkeleton key={item} />
-                        ))}
-                    </div>
-                ) : (
-                    <div className="space-y-4">
-                        {filteredSales.length > 0 ? (
-                            filteredSales.map((venta) => (
-                                <div
-                                    key={venta.id}
-                                    className="relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow"
-                                >
-                                    <div className="p-4">
-                                        <div className="mb-3 flex items-center justify-between">
-                                            <div>
-                                                <h3 className="font-medium text-gray-900">Venta #{venta.id}</h3>
-                                                <div className="flex items-center gap-1">
-                                                    <span className={`inline-block h-2 w-2 rounded-full ${venta.estado === 'Completada' ? 'bg-green-500' : 'bg-amber-500'}`}></span>
-                                                    <p className="text-xs text-gray-500">{venta.estado}</p>
-                                                </div>
-                                            </div>
-                                            <div className="bg-[#45923a]/10 text-[#45923a] font-bold rounded-lg py-2 px-3">
-                                                ${venta.total.toLocaleString('es-MX')}
-                                            </div>
-                                        </div>
-                                        <div className="space-y-2 text-sm">
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100">
-                                                    <Users className="h-4 w-4 text-gray-500" />
-                                                </div>
-                                                <span className="text-gray-700">{venta.cliente}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100">
-                                                    <Calendar className="h-4 w-4 text-gray-500" />
-                                                </div>
-                                                <span className="text-gray-700">{venta.fecha}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100">
-                                                    <Tag className="h-4 w-4 text-gray-500" />
-                                                </div>
-                                                <span className="text-gray-700">{venta.productos} productos</span>
-                                            </div>
-                                        </div>
-                                        <div className="mt-4 flex justify-between border-t border-gray-100 pt-3">
-                                            <div className="flex items-center gap-1 text-gray-500 text-sm">
-                                                <FileText className="h-4 w-4" />
-                                                <span>Ticket #{venta.id.replace('V', 'T')}</span>
-                                            </div>
-                                            <button
-                                                onClick={() => handleViewSaleDetail(venta.id)}
-                                                className="flex items-center gap-1 bg-blue-600 text-white rounded-lg px-3 py-2 text-sm font-medium"
-                                            >
-                                                <span>Ver detalle</span>
-                                                <ArrowRight size={16} />
-                                            </button>
-                                        </div>
-                                    </div>
+                          </div>
+                          {producto.tipo_unidad === 'kilogramo' && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              Precio por kg: S/{producto.precio_referencia.toFixed(2)}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-3 mt-2">
+                            {producto.tipo_unidad === 'kilogramo' ? (
+                              <>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={producto.precio_unitario}
+                                  onChange={(e) => handleUpdatePrecio(index, parseFloat(e.target.value) || 0)}
+                                  className="w-20 p-2 border border-gray-300 rounded-md text-sm shadow-sm"
+                                  placeholder="Precio unitario"
+                                />
+                                <div className="flex gap-1">
+                                  <button
+                                    onClick={() => handleFractionPrice(index, 0.25)}
+                                    className="px-2 py-1 text-xs font-medium text-white bg-[#45923a] hover:bg-[#3a7d30] rounded-md"
+                                  >
+                                    1/4
+                                  </button>
+                                  <button
+                                    onClick={() => handleFractionPrice(index, 0.5)}
+                                    className="px-2 py-1 text-xs font-medium text-white bg-[#45923a] hover:bg-[#3a7d30] rounded-md"
+                                  >
+                                    1/2
+                                  </button>
+                                  <button
+                                    onClick={() => handleFractionPrice(index, 0.75)}
+                                    className="px-2 py-1 text-xs font-medium text-white bg-[#45923a] hover:bg-[#3a7d30] rounded-md"
+                                  >
+                                    3/4
+                                  </button>
                                 </div>
-                            ))
-                        ) : (
-                            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white py-12 text-center">
-                                <div className="mb-4 flex items-center justify-center">
-                                    <ShoppingCart
-                                        size={80}
-                                        className="text-gray-300"
-                                    />
-                                </div>
-                                <h3 className="mb-2 text-lg font-medium text-gray-900">No se encontraron ventas</h3>
-                                <p className="mb-6 max-w-xs text-sm text-gray-500">
-                                    No hay registros que coincidan con tu búsqueda. Prueba con otros filtros o registra una nueva venta.
-                                </p>
+                              </>
+                            ) : (
+                              <div className="flex items-center border border-gray-300 rounded-md shadow-sm">
                                 <button
-                                    onClick={handleNewSale}
-                                    className="flex items-center gap-2 rounded-lg px-5 py-3 text-sm font-medium text-white shadow-md"
-                                    style={{ backgroundColor: COLORS.secondary }}
+                                  onClick={() => handleUpdateCantidad(index, producto.cantidad - 1)}
+                                  className="p-2 text-gray-600 bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
+                                  disabled={producto.cantidad <= 1}
                                 >
-                                    <Plus className="h-5 w-5" />
-                                    Nueva Venta
+                                  <Minus size={18} />
                                 </button>
+                                <span className="px-3 text-sm font-medium text-gray-700">{producto.cantidad}</span>
+                                <button
+                                  onClick={() => handleUpdateCantidad(index, producto.cantidad + 1)}
+                                  className="p-2 text-gray-600 bg-gray-50 hover:bg-gray-100"
+                                >
+                                  <Plus size={18} />
+                                </button>
+                              </div>
+                            )}
+                            {producto.tipo_unidad !== 'kilogramo' && (
+                              <>
+                                <span className="text-sm text-gray-600">x</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={producto.precio_unitario}
+                                  onChange={(e) => handleUpdatePrecio(index, parseFloat(e.target.value) || 0)}
+                                  className="w-20 p-2 border border-gray-300 rounded-md text-sm shadow-sm"
+                                  placeholder="Precio unitario"
+                                />
+                              </>
+                            )}
+                            <span className="text-sm font-bold text-[#45923a]">
+                              = S/{producto.subtotal}
+                            </span>
+                          </div>
+                          {producto.retornable && (
+                            <div className="mt-2 flex items-center gap-2">
+                              <Milk size={16} className="text-blue-600" />
+                              <span className="text-xs text-gray-600">Debe:</span>
+                              <select
+                                value={producto.cantidad_retornable}
+                                onChange={(e) => handleUpdateRetornables(index, parseInt(e.target.value) || 0)}
+                                className="p-1 border border-gray-300 rounded-md text-sm shadow-sm"
+                              >
+                                {[...Array(producto.cantidad + 1)].map((_, i) => (
+                                  <option key={i} value={i}>
+                                    {i} {i === 1 ? 'botella' : 'botellas'}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
-                        )}
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-4 p-4 bg-gray-50 rounded-lg shadow-sm border border-gray-100">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-700">Total:</span>
+                      <span className="text-lg font-bold text-[#45923a]">S/{calcularTotal().toFixed(2)}</span>
                     </div>
-                )}
-            </main>
+                  </div>
+                  <button
+                    onClick={handleRegistrarVenta}
+                    className="mt-4 w-full py-3 bg-[#45923a] hover:bg-[#3a7d30] text-white font-medium rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md"
+                  >
+                    <ShoppingCart size={20} />
+                    Registrar Venta
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-    );
+      </main>
+      <ClientesDrawer
+        isOpen={drawerClientesOpen}
+        onClose={() => setDrawerClientesOpen(false)}
+        onSelectCliente={handleSelectCliente}
+      />
+      <ProductosDrawer
+        isOpen={drawerProductosOpen}
+        onClose={() => setDrawerProductosOpen(false)}
+        onSelectProducto={handleSelectProducto}
+      />
+      <ConfirmarVentaDrawer
+        isOpen={drawerConfirmarOpen}
+        onClose={() => setDrawerConfirmarOpen(false)}
+        onConfirm={handleConfirmarVenta}
+        clienteSeleccionado={clienteSeleccionado}
+        setClienteSeleccionado={setClienteSeleccionado}
+        total={calcularTotal()}
+        currentUser={currentUser}
+        clientesLoading={clientesLoading}
+      />
+    </div>
+  );
 };
 
 export default Ventas;

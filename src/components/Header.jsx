@@ -27,7 +27,7 @@ const Header = ({ menuOpen, setMenuOpen, notifications }) => {
 
         <div className="flex items-center gap-3">
           <Link
-            to="/"
+            to="/dashboard"
             className="rounded-lg p-2 text-[#45923a] transition-all hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 group"
             aria-label="Ir a inicio"
           >

@@ -47,7 +47,7 @@ const Clientes = () => {
     const [currentClient, setCurrentClient] = useState(null);
     const [deleting, setDeleting] = useState(false);
     const [toast, setToast] = useState({ message: '', type: '', visible: false });
-
+const [appear, setAppear] = useState(false);
     // Obtener datos del contexto
     const { clientes, loading, crearCliente, actualizarCliente, eliminarCliente } = useClientes();
 
@@ -70,6 +70,10 @@ const Clientes = () => {
         { id: 'productos', title: 'Productos', icon: <Package className="h-6 w-6" />, color: 'bg-rose-500', description: 'Inventario y catálogo' },
     ];
 
+     useEffect(() => {
+        setAppear(true);
+      }, []);
+    
     // SVG de WhatsApp para usar en los botones
     const WhatsAppIcon = () => (
         <svg
@@ -155,10 +159,10 @@ const Clientes = () => {
             }
             setDrawerOpen(false);
         } catch (error) {
-            setToast({ 
-                message: `Error al ${isEditMode ? 'actualizar' : 'crear'} cliente`, 
-                type: 'error', 
-                visible: true 
+            setToast({
+                message: `Error al ${isEditMode ? 'actualizar' : 'crear'} cliente`,
+                type: 'error',
+                visible: true
             });
             throw error; // Re-throw to let DrawerEditarAñadir handle loading state
         }
@@ -208,50 +212,48 @@ const Clientes = () => {
         <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
             {/* Toast */}
             {toast.visible && (
-    <div className="fixed top-0 left-0 right-0 w-full z-50 rounded-b-xl overflow-hidden">
-        <div 
-            className={`w-full shadow-lg transform transition-all duration-300 ease-in-out ${
-                toast.visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
-            } ${
-                toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
-            }`}
-            role="alert" 
-            tabIndex="-1" 
-            aria-labelledby="header-notification"
-        >
-            <div className="flex items-center justify-between p-5 max-w-3xl mx-auto">
-                <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                        <svg 
-                            className="w-4 h-4 text-white" 
-                            xmlns="http://www.w3.org/2000/svg" 
-                            width="16" 
-                            height="16" 
-                            fill="currentColor" 
-                            viewBox="0 0 16 16"
-                        >
-                            <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
-                        </svg>
-                    </div>
-                    <div className="ml-3">
-                        <p 
-                            id="header-notification" 
-                            className="text-sm text-white font-medium"
-                        >
-                            {toast.message}
-                        </p>
+                <div className="fixed top-0 left-0 right-0 w-full z-50 rounded-b-xl overflow-hidden">
+                    <div
+                        className={`w-full shadow-lg transform transition-all duration-300 ease-in-out ${toast.visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
+                            } ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+                            }`}
+                        role="alert"
+                        tabIndex="-1"
+                        aria-labelledby="header-notification"
+                    >
+                        <div className="flex items-center justify-between p-5 max-w-3xl mx-auto">
+                            <div className="flex items-center">
+                                <div className="flex-shrink-0">
+                                    <svg
+                                        className="w-4 h-4 text-white"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        width="16"
+                                        height="16"
+                                        fill="currentColor"
+                                        viewBox="0 0 16 16"
+                                    >
+                                        <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z" />
+                                    </svg>
+                                </div>
+                                <div className="ml-3">
+                                    <p
+                                        id="header-notification"
+                                        className="text-sm text-white font-medium"
+                                    >
+                                        {toast.message}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={closeToast}
+                                className="text-white hover:text-gray-200 focus:outline-none"
+                                aria-label="Cerrar notificación"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
                     </div>
                 </div>
-                <button
-                    onClick={closeToast}
-                    className="text-white hover:text-gray-200 focus:outline-none"
-                    aria-label="Cerrar notificación"
-                >
-                    <X className="w-5 h-5" />
-                </button>
-            </div>
-        </div>
-    </div>
             )}
 
             {/* Header simplificado */}
@@ -294,148 +296,151 @@ const Clientes = () => {
 
             {/* Contenido principal */}
             <main className="px-3 pb-16 pt-3">
-                {/* Header con barra de búsqueda y acciones */}
-                <div className="relative mb-3 overflow-hidden rounded-3xl bg-gradient-to-br from-[#45923a] to-[#34722c] p-6 text-white shadow-lg">
-                    <img
-                        src={IconoClientes}
-                        alt="Clients Icon"
-                        className="absolute right-0 top-1/2 -translate-y-1/2 w-28 h-28 object-contain z-0"
-                    />
-                    <div className="relative flex justify-between items-center">
-                        <div className="flex flex-col">
-                            <h1 className="mb-2 text-xl font-bold">Gestión de Clientes</h1>
-                            <button
-                                onClick={handleAddClient}
-                                className="bg-[#ffa40c] font-semibold py-2 px-4 rounded-full shadow-md transition duration-300 flex items-center gap-2 w-fit"
-                                title="Agregar nuevo cliente"
-                            >
-                                <UserRoundPlus size={18} strokeWidth={3} />
-                                Nuevo Cliente
-                            </button>
+                <div className={`transition-opacity duration-500 ${appear ? 'opacity-100' : 'opacity-0'}`}>
+
+                    {/* Header con barra de búsqueda y acciones */}
+                    <div className="relative mb-3 overflow-hidden rounded-3xl bg-gradient-to-br from-[#45923a] to-[#34722c] p-6 text-white shadow-lg">
+                        <img
+                            src={IconoClientes}
+                            alt="Clients Icon"
+                            className="absolute right-0 top-1/2 -translate-y-1/2 w-28 h-28 object-contain z-0"
+                        />
+                        <div className="relative flex justify-between items-center">
+                            <div className="flex flex-col">
+                                <h1 className="mb-2 text-xl font-bold">Gestión de Clientes</h1>
+                                <button
+                                    onClick={handleAddClient}
+                                    className="bg-[#ffa40c] font-semibold py-2 px-4 rounded-full shadow-md transition duration-300 flex items-center gap-2 w-fit"
+                                    title="Agregar nuevo cliente"
+                                >
+                                    <UserRoundPlus size={18} strokeWidth={3} />
+                                    Nuevo Cliente
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div className="relative mb-3">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Buscar cliente..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full rounded-full border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm outline-none transition-all duration-300 focus:border-[#45923a]"
-                        />
+                    <div className="relative mb-3">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Buscar cliente..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full rounded-full border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm outline-none transition-all duration-300 focus:border-[#45923a]"
+                            />
+                        </div>
                     </div>
-                </div>
 
-                {/* Contador de resultados */}
-                <div className="mb-3 flex items-center justify-between px-1">
-                    <p className="text-sm text-gray-500">
-                        {loading ? 'Cargando...' : `${filteredClients.length} ${filteredClients.length === 1 ? 'cliente' : 'clientes'}`}
-                    </p>
-                </div>
-
-                {/* Lista de clientes estilo tarjetas para móvil */}
-                {loading ? (
-                    <div className="space-y-4">
-                        {[1, 2, 3, 4].map((item) => (
-                            <ClienteSkeleton key={item} />
-                        ))}
+                    {/* Contador de resultados */}
+                    <div className="mb-3 flex items-center justify-between px-1">
+                        <p className="text-sm text-gray-500">
+                            {loading ? 'Cargando...' : `${filteredClients.length} ${filteredClients.length === 1 ? 'cliente' : 'clientes'}`}
+                        </p>
                     </div>
-                ) : (
-                    <div className="space-y-4">
-                        {filteredClients.length > 0 ? (
-                            filteredClients.map((client) => (
-                                <div
-                                    key={client.id}
-                                    className="relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow"
-                                >
-                                    <div className="p-4">
-                                        <div className="mb-3 flex items-center gap-3">
-                                            <div className="flex h-12 w-12 items-center justify-center rounded-full text-white bg-[#ffa40c]">
-                                                <User className="h-6 w-6" />
-                                            </div>
-                                            <div>
-                                                <h3 className="font-medium text-gray-900">{client.nombre}</h3>
-                                                <div className="flex items-center gap-1">
-                                                    <span className="inline-block h-2 w-2 rounded-full bg-[#45923a]"></span>
-                                                    <p className="text-xs text-gray-500">Cliente activo</p>
+
+                    {/* Lista de clientes estilo tarjetas para móvil */}
+                    {loading ? (
+                        <div className="space-y-4">
+                            {[1, 2, 3, 4].map((item) => (
+                                <ClienteSkeleton key={item} />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {filteredClients.length > 0 ? (
+                                filteredClients.map((client) => (
+                                    <div
+                                        key={client.id}
+                                        className="relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow"
+                                    >
+                                        <div className="p-4">
+                                            <div className="mb-3 flex items-center gap-3">
+                                                <div className="flex h-12 w-12 items-center justify-center rounded-full text-white bg-[#ffa40c]">
+                                                    <User className="h-6 w-6" />
                                                 </div>
-                                            </div>
-                                        </div>
-                                        <div className="space-y-2 text-sm">
-                                            {client.correo && (
-                                                <div className="flex items-center gap-2">
-                                                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100">
-                                                        <Mail className="h-4 w-4 text-gray-500" />
+                                                <div>
+                                                    <h3 className="font-medium text-gray-900">{client.nombre}</h3>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="inline-block h-2 w-2 rounded-full bg-[#45923a]"></span>
+                                                        <p className="text-xs text-gray-500">Cliente activo</p>
                                                     </div>
-                                                    <span className="text-gray-700">{client.correo}</span>
                                                 </div>
-                                            )}
-                                            {client.telefono && (
-                                                <div className="flex items-center gap-2">
-                                                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100">
-                                                        <Phone className="h-4 w-4 text-gray-500" />
+                                            </div>
+                                            <div className="space-y-2 text-sm">
+                                                {client.correo && (
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100">
+                                                            <Mail className="h-4 w-4 text-gray-500" />
+                                                        </div>
+                                                        <span className="text-gray-700">{client.correo}</span>
                                                     </div>
-                                                    <span className="text-gray-700">{client.telefono}</span>
+                                                )}
+                                                {client.telefono && (
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100">
+                                                            <Phone className="h-4 w-4 text-gray-500" />
+                                                        </div>
+                                                        <span className="text-gray-700">{client.telefono}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="mt-4 flex justify-between border-t border-gray-100 pt-3">
+                                                {client.telefono && (
+                                                    <button
+                                                        onClick={() => openWhatsApp(client.telefono)}
+                                                        className="flex items-center gap-1 bg-[#2eb843] text-white rounded-lg px-3 py-2 text-sm font-medium"
+                                                    >
+                                                        <WhatsAppIcon className="text-white" />
+                                                        <span className="text-white">WhatsApp</span>
+                                                    </button>
+                                                )}
+                                                <div className="flex ml-auto">
+                                                    <button
+                                                        onClick={() => handleEditClient(client)}
+                                                        className="rounded-l-lg border border-blue-600 px-3 py-2 bg-blue-600"
+                                                        style={{ borderRight: 'none' }}
+                                                    >
+                                                        <UserPen strokeWidth={3} className="h-4 w-4 text-white" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteClient(client)}
+                                                        className="rounded-r-lg border border-red-500 bg-red-500 text-white px-3 py-2"
+                                                    >
+                                                        <Trash2 strokeWidth={3} className="h-4 w-4" />
+                                                    </button>
                                                 </div>
-                                            )}
-                                        </div>
-                                        <div className="mt-4 flex justify-between border-t border-gray-100 pt-3">
-                                            {client.telefono && (
-                                                <button
-                                                    onClick={() => openWhatsApp(client.telefono)}
-                                                    className="flex items-center gap-1 bg-[#2eb843] text-white rounded-lg px-3 py-2 text-sm font-medium"
-                                                >
-                                                    <WhatsAppIcon className="text-white" />
-                                                    <span className="text-white">WhatsApp</span>
-                                                </button>
-                                            )}
-                                            <div className="flex ml-auto">
-                                                <button
-                                                    onClick={() => handleEditClient(client)}
-                                                    className="rounded-l-lg border border-blue-600 px-3 py-2 bg-blue-600"
-                                                    style={{ borderRight: 'none' }}
-                                                >
-                                                    <UserPen strokeWidth={3} className="h-4 w-4 text-white" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteClient(client)}
-                                                    className="rounded-r-lg border border-red-500 bg-red-500 text-white px-3 py-2"
-                                                >
-                                                    <Trash2 strokeWidth={3} className="h-4 w-4" />
-                                                </button>
                                             </div>
                                         </div>
                                     </div>
+                                ))
+                            ) : (
+                                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white py-12 text-center">
+                                    <div className="mb-4 flex items-center justify-center">
+                                        <img
+                                            src={IconoClienteNoEncontrado}
+                                            alt="Cliente no encontrado"
+                                            className="h-32"
+                                            style={{ color: COLORS.primary }}
+                                        />
+                                    </div>
+                                    <h3 className="mb-2 text-lg font-medium text-gray-900">No se encontraron clientes</h3>
+                                    <p className="mb-6 max-w-xs text-sm text-gray-500">
+                                        No hay registros que coincidan con tu búsqueda. Prueba con otros filtros o agrega un nuevo cliente.
+                                    </p>
+                                    <button
+                                        onClick={handleAddClient}
+                                        className="flex items-center gap-2 rounded-lg px-5 py-3 text-sm font-medium text-white shadow-md"
+                                        style={{ backgroundColor: COLORS.secondary }}
+                                    >
+                                        <Plus className="h-5 w-5" />
+                                        Agregar Cliente
+                                    </button>
                                 </div>
-                            ))
-                        ) : (
-                            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white py-12 text-center">
-                                <div className="mb-4 flex items-center justify-center">
-                                    <img
-                                        src={IconoClienteNoEncontrado}
-                                        alt="Cliente no encontrado"
-                                        className="h-32"
-                                        style={{ color: COLORS.primary }}
-                                    />
-                                </div>
-                                <h3 className="mb-2 text-lg font-medium text-gray-900">No se encontraron clientes</h3>
-                                <p className="mb-6 max-w-xs text-sm text-gray-500">
-                                    No hay registros que coincidan con tu búsqueda. Prueba con otros filtros o agrega un nuevo cliente.
-                                </p>
-                                <button
-                                    onClick={handleAddClient}
-                                    className="flex items-center gap-2 rounded-lg px-5 py-3 text-sm font-medium text-white shadow-md"
-                                    style={{ backgroundColor: COLORS.secondary }}
-                                >
-                                    <Plus className="h-5 w-5" />
-                                    Agregar Cliente
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
+                            )}
+                        </div>
+                    )}
+                </div>
             </main>
         </div>
     );

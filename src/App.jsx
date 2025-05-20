@@ -6,6 +6,7 @@ import Clientes from './page/Clientes';
 import { AuthProvider } from './context/AuthContext';
 import { ClientesProvider } from './context/ClientesContext';
 import { ProductProvider } from './context/ProductContext';
+import { VentasProvider } from './context/VentasContext';
 import ProtectedRoute from './context/ProtectedRoute';
 import Productos from './page/Productos';
 import EscanerCodigoBarras from './page/EscanerCodigoBarras';
@@ -16,6 +17,8 @@ function App() {
       <BrowserRouter>
         <ClientesProvider>
           <ProductProvider>
+            <VentasProvider>
+
             <Routes>
               <Route path="/">
                 <Route index element={<Login />} />
@@ -62,6 +65,7 @@ function App() {
                 }
               />              
             </Routes>
+            </VentasProvider>
           </ProductProvider>
         </ClientesProvider>
       </BrowserRouter>

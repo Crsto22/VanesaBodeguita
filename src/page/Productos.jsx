@@ -62,7 +62,7 @@ const Productos = () => {
   const [categoryToDelete, setCategoryToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [productosAsociadosPorCategoria, setProductosAsociadosPorCategoria] = useState({});
-
+  const [appear, setAppear] = useState(false);
   // Drawer states para productos
   const [showProductDrawer, setShowProductDrawer] = useState(false);
   const [productFormData, setProductFormData] = useState({
@@ -110,6 +110,9 @@ const Productos = () => {
     }
   }, [toast.visible]);
 
+  useEffect(() => {
+    setAppear(true);
+  }, []);
   // Obtener el conteo de productos asociados por categoría
   useEffect(() => {
     const fetchProductosAsociados = async () => {
@@ -423,6 +426,7 @@ const Productos = () => {
     }
   };
 
+
   // Función para cerrar el toast manualmente
   const closeToast = () => {
     setToast(prev => ({ ...prev, visible: false }));
@@ -433,33 +437,31 @@ const Productos = () => {
       {/* Toast */}
       {toast.visible && (
         <div className="fixed top-0 left-0 right-0 w-full z-50 rounded-b-xl overflow-hidden">
-          <div 
-            className={`w-full shadow-lg transform transition-all duration-300 ease-in-out ${
-              toast.visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
-            } ${
-              toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
-            }`}
-            role="alert" 
-            tabIndex="-1" 
+          <div
+            className={`w-full shadow-lg transform transition-all duration-300 ease-in-out ${toast.visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
+              } ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+              }`}
+            role="alert"
+            tabIndex="-1"
             aria-labelledby="header-notification"
           >
             <div className="flex items-center justify-between p-5 max-w-3xl mx-auto">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <svg 
-                    className="w-4 h-4 text-white" 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    width="16" 
-                    height="16" 
-                    fill="currentColor" 
+                  <svg
+                    className="w-4 h-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="currentColor"
                     viewBox="0 0 16 16"
                   >
-                    <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+                    <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z" />
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <p 
-                    id="header-notification" 
+                  <p
+                    id="header-notification"
                     className="text-sm text-white font-medium"
                   >
                     {toast.message}
@@ -492,6 +494,8 @@ const Productos = () => {
         onOptionClick={() => setMenuOpen(false)}
       />
       <main className="px-3 pb-16 pt-3">
+               <div className={`transition-opacity duration-500 ${appear ? 'opacity-100' : 'opacity-0'}`}>
+
         <div className="relative mb-3 overflow-hidden rounded-3xl bg-gradient-to-br from-[#45923a] to-[#34722c] p-6 text-white shadow-lg">
           <img
             src={IconoProductos}
@@ -527,9 +531,8 @@ const Productos = () => {
         </div>
         <div className="mb-4 flex border-b border-gray-200">
           <button
-            className={`flex-1 py-3 font-medium text-sm text-center ${
-              activeTab === 'productos' ? 'border-b-2 border-[#45923a] text-[#45923a]' : 'text-gray-500'
-            }`}
+            className={`flex-1 py-3 font-medium text-sm text-center ${activeTab === 'productos' ? 'border-b-2 border-[#45923a] text-[#45923a]' : 'text-gray-500'
+              }`}
             onClick={() => setActiveTab('productos')}
           >
             <div className="flex justify-center items-center gap-2">
@@ -538,9 +541,8 @@ const Productos = () => {
             </div>
           </button>
           <button
-            className={`flex-1 py-3 font-medium text-sm text-center ${
-              activeTab === 'categorias' ? 'border-b-2 border-[#45923a] text-[#45923a]' : 'text-gray-500'
-            }`}
+            className={`flex-1 py-3 font-medium text-sm text-center ${activeTab === 'categorias' ? 'border-b-2 border-[#45923a] text-[#45923a]' : 'text-gray-500'
+              }`}
             onClick={() => setActiveTab('categorias')}
           >
             <div className="flex justify-center items-center gap-2">
@@ -570,16 +572,15 @@ const Productos = () => {
             {loading
               ? 'Cargando...'
               : activeTab === 'productos'
-              ? `${filteredProducts.length} ${filteredProducts.length === 1 ? 'producto' : 'productos'}`
-              : `${filteredCategories.length} ${filteredCategories.length === 1 ? 'categoría' : 'categorías'}`}
+                ? `${filteredProducts.length} ${filteredProducts.length === 1 ? 'producto' : 'productos'}`
+                : `${filteredCategories.length} ${filteredCategories.length === 1 ? 'categoría' : 'categorías'}`}
           </p>
           {activeTab === 'productos' && (
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handleSortChange('precio')}
-                className={`flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                  sortBy === 'precio' ? 'border-[#45923a] bg-green-50 text-[#45923a]' : 'border-gray-300 text-gray-600'
-                }`}
+                className={`flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${sortBy === 'precio' ? 'border-[#45923a] bg-green-50 text-[#45923a]' : 'border-gray-300 text-gray-600'
+                  }`}
               >
                 <DollarSign className="h-3.5 w-3.5" />
                 Precio
@@ -587,9 +588,8 @@ const Productos = () => {
               </button>
               <button
                 onClick={() => handleSortChange('stock')}
-                className={`flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                  sortBy === 'stock' ? 'border-[#45923a] bg-green-50 text-[#45923a]' : 'border-gray-300 text-gray-600'
-                }`}
+                className={`flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${sortBy === 'stock' ? 'border-[#45923a] bg-green-50 text-[#45923a]' : 'border-gray-300 text-gray-600'
+                  }`}
               >
                 <BarChart2 className="h-3.5 w-3.5" />
                 Stock
@@ -597,9 +597,8 @@ const Productos = () => {
               </button>
               <button
                 onClick={() => handleSortChange('categoria')}
-                className={`flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                  sortBy === 'categoria' ? 'border-[#45923a] bg-green-50 text-[#45923a]' : 'border-gray-300 text-gray-600'
-                }`}
+                className={`flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${sortBy === 'categoria' ? 'border-[#45923a] bg-green-50 text-[#45923a]' : 'border-gray-300 text-gray-600'
+                  }`}
               >
                 <Layers className="h-3.5 w-3.5" />
                 Categoría
@@ -652,20 +651,19 @@ const Productos = () => {
                                 {product.tipo_unidad === 'kilogramo' && ' por kg'}
                               </div>
                               <div
-                                className={`text-xs font-medium px-2 py-1 rounded-full ${
-                                  product.stock > 20
-                                    ? 'bg-green-100 text-green-800'
-                                    : product.stock > 5
+                                className={`text-xs font-medium px-2 py-1 rounded-full ${product.stock > 20
+                                  ? 'bg-green-100 text-green-800'
+                                  : product.stock > 5
                                     ? 'bg-amber-100 text-amber-800'
                                     : 'bg-red-100 text-red-800'
-                                }`}
+                                  }`}
                               >
                                 {product.stock} {product.tipo_unidad === 'kilogramo' ? 'kg' : ''} en stock
                               </div>
                             </div>
                             {product.has_precio_alternativo && product.precio_alternativo && (
                               <div className="mt-1 text-sm text-[#ffa40c] font-medium">
-                                Precio {product.motivo_precio_alternativo}: <span className="font-bold">S/{parseFloat(product.precio_alternativo).toFixed(2)}</span> 
+                                Precio {product.motivo_precio_alternativo}: <span className="font-bold">S/{parseFloat(product.precio_alternativo).toFixed(2)}</span>
                               </div>
                             )}
                           </div>
@@ -800,6 +798,7 @@ const Productos = () => {
             </div>
           )
         )}
+        </div>
       </main>
       <DrawerEditarAñadirCategoria
         isOpen={showCategoryDrawer}
