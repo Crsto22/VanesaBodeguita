@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, ArrowLeft, AlertCircle } from 'lucide-react';
+import { X, ArrowLeft, AlertCircle, Package, Check } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { useProducts } from '../../context/ProductContext';
 import IconoProductoCodigoBarras from '../../assets/Productos/IconoProductoCodigoBarras.svg';
@@ -10,6 +10,8 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
   const [error, setError] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [toast, setToast] = useState({ message: '', type: '', visible: false });
+  const [priceModalOpen, setPriceModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
   const stopScanner = () => {
     if (scannerRef.current && isScanning) {
@@ -36,6 +38,27 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
         setIsScanning(false);
       }
     }
+  };
+
+  const handleSelectPrecio = (precio) => {
+    if (!selectedProduct) return;
+    onSelectProducto({
+      id: selectedProduct.id,
+      nombre: selectedProduct.nombre,
+      cantidad: selectedProduct.tipo_unidad === 'kilogramo' ? 1 : 1,
+      precio_unitario: parseFloat(precio),
+      subtotal: parseFloat(precio).toFixed(2),
+      retornable: selectedProduct.retornable || false,
+      cantidad_retornable: selectedProduct.retornable && selectedProduct.tipo_unidad !== 'kilogramo' ? 1 : 0,
+      tipo_unidad: selectedProduct.tipo_unidad || 'unidad',
+      precio_referencia: selectedProduct.tipo_unidad === 'kilogramo' ? parseFloat(selectedProduct.precio) : null,
+      imagen: selectedProduct.imagen || null,
+    });
+    setToast({ message: 'Producto agregado', type: 'success', visible: true });
+    setPriceModalOpen(false);
+    setSelectedProduct(null);
+    stopScanner();
+    onClose();
   };
 
   useEffect(() => {
@@ -78,34 +101,39 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
                 }
                 const producto = productos.find((p) => p.codigo_barras === decodedText);
                 if (producto) {
-                  onSelectProducto({
-                    id: producto.id,
-                    nombre: producto.nombre,
-                    cantidad: producto.tipo_unidad === 'kilogramo' ? 1 : 1,
-                    precio_unitario: parseFloat(producto.precio),
-                    subtotal: parseFloat(producto.precio).toFixed(2),
-                    retornable: producto.retornable || false,
-                    cantidad_retornable: producto.retornable && producto.tipo_unidad !== 'kilogramo' ? 1 : 0,
-                    tipo_unidad: producto.tipo_unidad || 'unidad',
-                    precio_referencia: producto.tipo_unidad === 'kilogramo' ? parseFloat(producto.precio) : null,
-                    imagen: producto.imagen || null,
-                  });
-                  setToast({ message: 'Producto agregado', type: 'success', visible: true });
+                  if (producto.has_precio_alternativo && producto.precio_alternativo) {
+                    setSelectedProduct(producto);
+                    setPriceModalOpen(true);
+                  } else {
+                    onSelectProducto({
+                      id: producto.id,
+                      nombre: producto.nombre,
+                      cantidad: producto.tipo_unidad === 'kilogramo' ? 1 : 1,
+                      precio_unitario: parseFloat(producto.precio),
+                      subtotal: parseFloat(producto.precio).toFixed(2),
+                      retornable: producto.retornable || false,
+                      cantidad_retornable: producto.retornable && producto.tipo_unidad !== 'kilogramo' ? 1 : 0,
+                      tipo_unidad: producto.tipo_unidad || 'unidad',
+                      precio_referencia: producto.tipo_unidad === 'kilogramo' ? parseFloat(producto.precio) : null,
+                      imagen: producto.imagen || null,
+                    });
+                    setToast({ message: 'Producto agregado', type: 'success', visible: true });
+                    await scannerRef.current.stop();
+                    scannerRef.current.clear();
+                    const videoElement = document.querySelector('#barcode-scanner video');
+                    if (videoElement && videoElement.srcObject) {
+                      const stream = videoElement.srcObject;
+                      const tracks = stream.getTracks();
+                      tracks.forEach((track) => track.stop());
+                      videoElement.srcObject = null;
+                    }
+                    scannerRef.current = null;
+                    setIsScanning(false);
+                    onClose();
+                  }
                 } else {
                   setToast({ message: 'Producto no encontrado', type: 'error', visible: true });
                 }
-                await scannerRef.current.stop();
-                scannerRef.current.clear();
-                const videoElement = document.querySelector('#barcode-scanner video');
-                if (videoElement && videoElement.srcObject) {
-                  const stream = videoElement.srcObject;
-                  const tracks = stream.getTracks();
-                  tracks.forEach((track) => track.stop());
-                  videoElement.srcObject = null;
-                }
-                scannerRef.current = null;
-                setIsScanning(false);
-                onClose();
               } catch (err) {
                 console.error('Error during scan cleanup:', err);
                 setError('Error al procesar el código escaneado.');
@@ -139,6 +167,8 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
 
   const handleBack = () => {
     stopScanner();
+    setPriceModalOpen(false);
+    setSelectedProduct(null);
     onClose();
   };
 
@@ -182,6 +212,95 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {priceModalOpen && selectedProduct && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90]"
+            onClick={handleBack}
+          />
+          <div className="fixed inset-0 flex items-center justify-center z-[95] p-4">
+            <div
+              className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-auto overflow-hidden animate-in fade-in zoom-in duration-300"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-lg font-bold text-gray-800">Seleccionar Precio</h3>
+                  <button
+                    onClick={handleBack}
+                    className="p-1.5 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors"
+                  >
+                    <X className="h-5 w-5 text-gray-500" />
+                  </button>
+                </div>
+
+                <div className="mb-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      {selectedProduct.imagen ? (
+                        <img
+                          src={selectedProduct.imagen}
+                          alt={selectedProduct.nombre}
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                      ) : (
+                        <Package className="h-6 w-6 text-gray-400" />
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-800">{selectedProduct.nombre}</h4>
+                      <span className="text-xs text-gray-500">
+                        {obtenerCategoriaPorId(selectedProduct.categoria_ref)?.nombre || 'Sin categoría'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => handleSelectPrecio(selectedProduct.precio)}
+                    className="flex-1 p-3 rounded-xl border border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all focus:outline-none focus:ring-2 focus:ring-green-500 group relative"
+                  >
+                    <div className="flex flex-col items-center text-center">
+                      <h5 className="font-bold text-gray-800">Precio Normal</h5>
+                      <p className="text-xs text-gray-500 mb-2">Precio estándar del producto</p>
+                      <span className="text-xl font-bold text-green-600 mb-1">
+                        S/{parseFloat(selectedProduct.precio).toFixed(2)}
+                        {selectedProduct.tipo_unidad === 'kilogramo' && <span className="text-xs ml-1">/kg</span>}
+                      </span>
+                      <div className="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center group-hover:border-green-500 mt-1">
+                        <Check className="h-4 w-4 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    </div>
+                    <div className="absolute inset-0 rounded-xl border-2 border-green-500 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                  </button>
+
+                  <button
+                    onClick={() => handleSelectPrecio(parseFloat(selectedProduct.precio_alternativo))}
+                    className="flex-1 p-3 rounded-xl border border-gray-200 hover:border-amber-500 hover:bg-amber-50 transition-all focus:outline-none focus:ring-2 focus:ring-amber-500 group relative"
+                  >
+                    <div className="flex flex-col items-center text-center">
+                      <h5 className="font-bold text-gray-800">
+                        Precio {selectedProduct.motivo_precio_alternativo || 'Alternativo'}
+                      </h5>
+                      <p className="text-xs text-gray-500 mb-2">Precio especial</p>
+                      <span className="text-xl font-bold text-amber-600 mb-1">
+                        S/{parseFloat(selectedProduct.precio_alternativo).toFixed(2)}
+                        {selectedProduct.tipo_unidad === 'kilogramo' && <span className="text-xs ml-1">/kg</span>}
+                      </span>
+                      <div className="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center group-hover:border-amber-500 mt-1">
+                        <Check className="h-4 w-4 text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    </div>
+                    <div className="absolute inset-0 rounded-xl border-2 border-amber-500 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {isOpen && (
