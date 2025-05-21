@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, CreditCard, Users, Barcode, Package, User, PlusCircle, ScanBarcode, X, Milk, Minus, Plus } from 'lucide-react';
+import { ShoppingCart, Pencil, CreditCard, Users, Barcode, Package, User, PlusCircle, ScanBarcode, X, Milk, Minus, Plus } from 'lucide-react';
 import Logo from '../assets/Logo.svg';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
@@ -12,6 +11,8 @@ import ProductoNinguno from '../assets/Ventas/ProductoNinguno.svg';
 import ClientesDrawer from '../components/Ventas/ClientesDrawer';
 import ProductosDrawer from '../components/Ventas/ProductosDrawer';
 import ConfirmarVentaDrawer from '../components/Ventas/ConfirmarVentaDrawer';
+import EditarPrecioDrawer from '../components/Ventas/EditarPrecioDrawer';
+import EscanearProductoDrawer from '../components/Ventas/EscanearProductoDrawer';
 
 const Ventas = () => {
   const navigate = useNavigate();
@@ -24,12 +25,15 @@ const Ventas = () => {
   const [drawerClientesOpen, setDrawerClientesOpen] = useState(false);
   const [drawerProductosOpen, setDrawerProductosOpen] = useState(false);
   const [drawerConfirmarOpen, setDrawerConfirmarOpen] = useState(false);
+  const [drawerEditarPrecioOpen, setDrawerEditarPrecioOpen] = useState(false);
+  const [drawerEscanearOpen, setDrawerEscanearOpen] = useState(false);
+  const [productoEditIndex, setProductoEditIndex] = useState(null);
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [selectedProductos, setSelectedProductos] = useState([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [ventaId, setVentaId] = useState(null);
 
-  // Opciones del menú principal - Accesos rápidos
   const quickAccessOptions = [
     {
       id: 'ventas',
@@ -73,12 +77,10 @@ const Ventas = () => {
     },
   ];
 
-  // Animación de entrada
   useEffect(() => {
     setAppear(true);
   }, []);
 
-  // Inicializar estado desde localStorage
   useEffect(() => {
     try {
       const ventaGuardada = localStorage.getItem('ventaEnProgreso');
@@ -109,7 +111,6 @@ const Ventas = () => {
     }
   }, [obtenerClientePorId]);
 
-  // Guardar estado en localStorage
   useEffect(() => {
     try {
       localStorage.setItem(
@@ -124,7 +125,6 @@ const Ventas = () => {
     }
   }, [clienteSeleccionado, selectedProductos]);
 
-  // Sincronizar clienteSeleccionado
   useEffect(() => {
     if (clienteSeleccionado && !clientesLoading) {
       const clienteActual = obtenerClientePorId(clienteSeleccionado.id);
@@ -166,6 +166,7 @@ const Ventas = () => {
   const handleSelectProducto = (producto) => {
     setSelectedProductos((prev) => [...prev, producto]);
     setDrawerProductosOpen(false);
+    setDrawerEscanearOpen(false);
   };
 
   const handleRemoveProducto = (index) => {
@@ -206,6 +207,7 @@ const Ventas = () => {
       )
     );
     setError('');
+    setDrawerEditarPrecioOpen(false);
   };
 
   const handleFractionPrice = (index, fraction) => {
@@ -233,6 +235,11 @@ const Ventas = () => {
           : p
       )
     );
+  };
+
+  const handleOpenEditarPrecio = (index) => {
+    setProductoEditIndex(index);
+    setDrawerEditarPrecioOpen(true);
   };
 
   const handleRegistrarVenta = () => {
@@ -272,13 +279,24 @@ const Ventas = () => {
       };
       console.log('Venta Data to be sent:', ventaData);
       const ventaId = await crearVenta(ventaData);
+      setVentaId(ventaId);
       setSuccess(`Venta registrada con éxito (ID: ${ventaId})`);
       setClienteSeleccionado(null);
       setSelectedProductos([]);
       localStorage.removeItem('ventaEnProgreso');
       setDrawerConfirmarOpen(false);
+      return ventaId;
     } catch (error) {
       setError(`Error al registrar venta: ${error.message}`);
+      throw error;
+    }
+  };
+
+  const handleViewNotaVenta = () => {
+    if (ventaId) {
+      navigate(`/ventas/${ventaId}`);
+    } else {
+      setError('No se pudo cargar la nota de venta: ID no disponible');
     }
   };
 
@@ -296,10 +314,10 @@ const Ventas = () => {
         onOptionClick={handleOptionClick}
         logo={Logo}
       />
-      <main className="pt-3 px-1 pb-8">
-        <div className={`transition-opacity duration-500 ${appear ? 'opacity-100' : 'opacity-0'}`}>
+      <main className="pt-3 px-2 sm:px-4 pb-8 flex flex-col h-full">
+        <div className={`transition-opacity duration-500 ${appear ? 'opacity-100' : 'opacity-0'} flex flex-col h-full`}>
           {error && (
-            <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md text-sm flex justify-between items-center">
+            <div className="mb-3 p-2 sm:p-3 bg-red-100 text-red-700 rounded-md text-xs sm:text-sm flex justify-between items-center">
               {error}
               <button
                 onClick={() => setError('')}
@@ -311,7 +329,7 @@ const Ventas = () => {
             </div>
           )}
           {success && (
-            <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-md text-sm flex justify-between items-center">
+            <div className="mb-3 p-2 sm:p-3 bg-green-100 text-green-700 rounded-md text-xs sm:text-sm flex justify-between items-center">
               {success}
               <button
                 onClick={() => setSuccess('')}
@@ -325,9 +343,7 @@ const Ventas = () => {
           <div className="flex flex-row justify-center gap-2 sm:gap-6 mb-4">
             <div className="relative">
               <button
-                className={`flex btn rounded-full flex-row items-center justify-center p-3 border-none text-white shadow-md transition-all ${
-                  clienteSeleccionado ? 'bg-[#ffa40c] hover:bg-[#e69500] pr-10' : 'bg-[#ffa40c] hover:bg-[#e69500]'
-                }`}
+                className={`flex btn rounded-full flex-row items-center justify-center p-3 border-none text-white shadow-md transition-all ${clienteSeleccionado ? 'bg-[#ffa40c] hover:bg-[#e69500] pr-10' : 'bg-[#ffa40c] hover:bg-[#e69500]'}`}
                 onClick={() => setDrawerClientesOpen(true)}
                 disabled={clientesLoading}
               >
@@ -336,8 +352,8 @@ const Ventas = () => {
                   {clientesLoading
                     ? 'Cargando clientes...'
                     : clienteSeleccionado
-                    ? clienteSeleccionado.nombre
-                    : 'Cliente Genérico'}
+                      ? clienteSeleccionado.nombre
+                      : 'Cliente Genérico'}
                 </span>
               </button>
               {clienteSeleccionado && (
@@ -359,43 +375,43 @@ const Ventas = () => {
             </button>
             <button
               className="flex btn btn-dash border-none rounded-full flex-row items-center justify-center p-3 sm:p-4 bg-gray-200 hover:bg-gray-300 shadow-md transition-all"
-              onClick={() => navigate('/escaner')}
+              onClick={() => setDrawerEscanearOpen(true)}
             >
               <ScanBarcode strokeWidth={2.5} size={20} />
             </button>
           </div>
-          <div className="flex flex-col h-96 p-1">
-            <div className="flex-1 rounded-lg bg-white shadow-md p-4 sm:p-6 flex flex-col border border-dashed border-gray-300">
+          <div className="flex flex-col flex-1 p-1 min-h-0">
+            <div className="flex-1 rounded-lg bg-white shadow-md p-3 sm:p-4 flex flex-col border border-dashed border-gray-300 overflow-hidden">
               {selectedProductos.length === 0 ? (
-                <div className="flex flex-col items-center justify-center text-center max-w-md flex-1">
-                  <div className="flex items-center justify-center mb-4">
-                    <img src={ProductoNinguno} className="h-32 rounded-2xl text-gray-400" alt="Sin productos" />
+                <div className="flex flex-col items-center justify-center text-center max-w-md mx-auto flex-1">
+                  <div className="flex items-center justify-center mb-3">
+                    <img src={ProductoNinguno} className="h-24 sm:h-32 rounded-2xl text-gray-400" alt="Sin productos" />
                   </div>
-                  <h3 className="text-lg sm:text-xl font-medium text-gray-800 mb-2">
+                  <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-2">
                     No se ha agregado ningún producto
                   </h3>
-                  <p className="text-sm sm:text-base text-gray-500">
+                  <p className="text-xs sm:text-sm text-gray-500">
                     Busque el producto o escanee el código de barras para agregar productos a la venta.
                   </p>
                 </div>
               ) : (
-                <div className="flex-1 overflow-y-auto">
-                  <ul className="divide-y divide-gray-200">
+                <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
+                  <ul className="divide-y divide-gray-200 overflow-y-auto flex-1">
                     {selectedProductos.map((producto, index) => (
-                      <li key={index} className="py-4 flex items-center">
-                        <div className="flex-shrink-0 h-14 w-14 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden shadow-sm">
+                      <li key={index} className="py-3 flex items-start">
+                        <div className="flex-shrink-0 h-12 w-12 sm:h-14 sm:w-14 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden shadow-sm">
                           {producto.imagen ? (
                             <img src={producto.imagen} alt={producto.nombre} className="object-cover w-full h-full" />
                           ) : (
-                            <Package className="h-7 w-7 text-gray-400" />
+                            <Package className="h-6 w-6 text-gray-400" />
                           )}
                         </div>
-                        <div className="ml-4 flex-1">
+                        <div className="ml-3 flex-1">
                           <div className="flex justify-between items-center">
-                            <p className="text-sm font-medium text-gray-900">{producto.nombre}</p>
+                            <p className="text-xs sm:text-sm font-medium text-gray-900 pr-2 break-words">{producto.nombre}</p>
                             <button
                               onClick={() => handleRemoveProducto(index)}
-                              className="p-1 rounded-full hover:bg-gray-200"
+                              className="p-1 rounded-full hover:bg-gray-200 flex-shrink-0"
                               aria-label="Quitar producto"
                             >
                               <X size={16} strokeWidth={2.5} className="text-gray-500" />
@@ -406,69 +422,72 @@ const Ventas = () => {
                               Precio por kg: S/{producto.precio_referencia.toFixed(2)}
                             </p>
                           )}
-                          <div className="flex items-center gap-3 mt-2">
+                          <div className="flex flex-wrap items-center gap-2 mt-2">
                             {producto.tipo_unidad === 'kilogramo' ? (
                               <>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  value={producto.precio_unitario}
-                                  onChange={(e) => handleUpdatePrecio(index, parseFloat(e.target.value) || 0)}
-                                  className="w-20 p-2 border border-gray-300 rounded-md text-sm shadow-sm"
-                                  placeholder="Precio unitario"
-                                />
+                                <div className="flex items-center">
+                                  <span className="px-3 text-sm sm:text-base font-medium text-gray-700">S/{producto.precio_unitario.toFixed(2)}</span>
+                                  <button
+                                    onClick={() => handleOpenEditarPrecio(index)}
+                                    className="bg-gray-100 hover:bg-gray-200 p-2 border border-gray-300 rounded-md"
+                                    aria-label="Editar precio"
+                                  >
+                                    <Pencil size={20} className="text-gray-600" />
+                                  </button>
+                                </div>
                                 <div className="flex gap-1">
                                   <button
                                     onClick={() => handleFractionPrice(index, 0.25)}
-                                    className="px-2 py-1 text-xs font-medium text-white bg-[#45923a] hover:bg-[#3a7d30] rounded-md"
+                                    className="px-3 py-1.5 text-xs font-medium text-white bg-[#45923a] hover:bg-[#3a7d30] rounded-md shadow-sm"
+                                    title="250 gramos"
                                   >
-                                    1/4
+                                    1/4 kg
                                   </button>
                                   <button
                                     onClick={() => handleFractionPrice(index, 0.5)}
-                                    className="px-2 py-1 text-xs font-medium text-white bg-[#45923a] hover:bg-[#3a7d30] rounded-md"
+                                    className="px-3 py-1.5 text-xs font-medium text-white bg-[#45923a] hover:bg-[#3a7d30] rounded-md shadow-sm"
+                                    title="500 gramos"
                                   >
-                                    1/2
+                                    1/2 kg
                                   </button>
                                   <button
                                     onClick={() => handleFractionPrice(index, 0.75)}
-                                    className="px-2 py-1 text-xs font-medium text-white bg-[#45923a] hover:bg-[#3a7d30] rounded-md"
+                                    className="px-3 py-1.5 text-xs font-medium text-white bg-[#45923a] hover:bg-[#3a7d30] rounded-md shadow-sm"
+                                    title="750 gramos"
                                   >
-                                    3/4
+                                    3/4 kg
                                   </button>
                                 </div>
                               </>
                             ) : (
-                              <div className="flex items-center border border-gray-300 rounded-md shadow-sm">
-                                <button
-                                  onClick={() => handleUpdateCantidad(index, producto.cantidad - 1)}
-                                  className="p-2 text-gray-600 bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
-                                  disabled={producto.cantidad <= 1}
-                                >
-                                  <Minus size={18} />
-                                </button>
-                                <span className="px-3 text-sm font-medium text-gray-700">{producto.cantidad}</span>
-                                <button
-                                  onClick={() => handleUpdateCantidad(index, producto.cantidad + 1)}
-                                  className="p-2 text-gray-600 bg-gray-50 hover:bg-gray-100"
-                                >
-                                  <Plus size={18} />
-                                </button>
-                              </div>
-                            )}
-                            {producto.tipo_unidad !== 'kilogramo' && (
                               <>
+                                <div className="flex items-center border border-gray-300 rounded-md shadow-sm">
+                                  <button
+                                    onClick={() => handleUpdateCantidad(index, producto.cantidad - 1)}
+                                    className="p-2 text-gray-600 bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
+                                    disabled={producto.cantidad <= 1}
+                                  >
+                                    <Minus size={20} />
+                                  </button>
+                                  <span className="px-3 text-sm sm:text-base font-medium text-gray-700">{producto.cantidad}</span>
+                                  <button
+                                    onClick={() => handleUpdateCantidad(index, producto.cantidad + 1)}
+                                    className="p-2 text-gray-600 bg-gray-50 hover:bg-gray-100"
+                                  >
+                                    <Plus size={20} />
+                                  </button>
+                                </div>
                                 <span className="text-sm text-gray-600">x</span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  value={producto.precio_unitario}
-                                  onChange={(e) => handleUpdatePrecio(index, parseFloat(e.target.value) || 0)}
-                                  className="w-20 p-2 border border-gray-300 rounded-md text-sm shadow-sm"
-                                  placeholder="Precio unitario"
-                                />
+                                <div className="flex items-center">
+                                  <span className="px-3 text-sm sm:text-base font-medium text-gray-700">S/{producto.precio_unitario.toFixed(2)}</span>
+                                  <button
+                                    onClick={() => handleOpenEditarPrecio(index)}
+                                    className="bg-gray-100 hover:bg-gray-200 p-2 border border-gray-300 rounded-md"
+                                    aria-label="Editar precio"
+                                  >
+                                    <Pencil size={20} className="text-gray-600" />
+                                  </button>
+                                </div>
                               </>
                             )}
                             <span className="text-sm font-bold text-[#45923a]">
@@ -477,12 +496,12 @@ const Ventas = () => {
                           </div>
                           {producto.retornable && (
                             <div className="mt-2 flex items-center gap-2">
-                              <Milk size={16} className="text-blue-600" />
+                              <Milk size={14} className="text-blue-600" />
                               <span className="text-xs text-gray-600">Debe:</span>
                               <select
                                 value={producto.cantidad_retornable}
                                 onChange={(e) => handleUpdateRetornables(index, parseInt(e.target.value) || 0)}
-                                className="p-1 border border-gray-300 rounded-md text-sm shadow-sm"
+                                className="p-1 border border-gray-300 rounded-md text-xs shadow-sm"
                               >
                                 {[...Array(producto.cantidad + 1)].map((_, i) => (
                                   <option key={i} value={i}>
@@ -496,24 +515,36 @@ const Ventas = () => {
                       </li>
                     ))}
                   </ul>
-                  <div className="mt-4 p-4 bg-gray-50 rounded-lg shadow-sm border border-gray-100">
+                  <div className="mt-3 p-3 bg-gray-50 rounded-lg shadow-sm border border-gray-100">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-700">Total:</span>
-                      <span className="text-lg font-bold text-[#45923a]">S/{calcularTotal().toFixed(2)}</span>
+                      <span className="text-sm font-medium text-gray-700">Subtotal:</span>
+                      <span className="text-base sm:text-lg font-bold text-[#45923a]">S/{calcularTotal().toFixed(2)}</span>
                     </div>
                   </div>
-                  <button
-                    onClick={handleRegistrarVenta}
-                    className="mt-4 w-full py-3 bg-[#45923a] hover:bg-[#3a7d30] text-white font-medium rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md"
-                  >
-                    <ShoppingCart size={20} />
-                    Registrar Venta
-                  </button>
+                  <div className="w-full mt-auto pt-3">
+                    {/* Botón de Registrar Venta se maneja en la sección fixed */}
+                  </div>
                 </div>
               )}
             </div>
           </div>
         </div>
+
+        {selectedProductos.length > 0 && (
+          <div className="fixed bottom-0 left-0 right-0 p-3 bg-white bg-opacity-95 backdrop-blur-sm border-t border-gray-200 shadow-lg z-20">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-base font-medium text-gray-800">Total:</span>
+              <span className="text-lg font-bold text-[#45923a]">S/{calcularTotal().toFixed(2)}</span>
+            </div>
+            <button
+              onClick={handleRegistrarVenta}
+              className="w-full py-3 bg-gradient-to-r from-[#45923a] to-[#3d8433] hover:from-[#3a7d30] hover:to-[#326c29] text-white font-medium rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-[0.98]"
+            >
+              <ShoppingCart size={20} strokeWidth={2} />
+              <span className="font-bold">Registrar Venta</span>
+            </button>
+          </div>
+        )}
       </main>
       <ClientesDrawer
         isOpen={drawerClientesOpen}
@@ -529,11 +560,28 @@ const Ventas = () => {
         isOpen={drawerConfirmarOpen}
         onClose={() => setDrawerConfirmarOpen(false)}
         onConfirm={handleConfirmarVenta}
+        onViewNotaVenta={handleViewNotaVenta}
         clienteSeleccionado={clienteSeleccionado}
         setClienteSeleccionado={setClienteSeleccionado}
         total={calcularTotal()}
         currentUser={currentUser}
         clientesLoading={clientesLoading}
+      />
+      {productoEditIndex !== null && (
+        <EditarPrecioDrawer
+          isOpen={drawerEditarPrecioOpen}
+          onClose={() => {
+            setDrawerEditarPrecioOpen(false);
+            setProductoEditIndex(null);
+          }}
+          producto={selectedProductos[productoEditIndex]}
+          onConfirm={(nuevoPrecio) => handleUpdatePrecio(productoEditIndex, nuevoPrecio)}
+        />
+      )}
+      <EscanearProductoDrawer
+        isOpen={drawerEscanearOpen}
+        onClose={() => setDrawerEscanearOpen(false)}
+        onSelectProducto={handleSelectProducto}
       />
     </div>
   );

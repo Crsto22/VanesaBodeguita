@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { X, Search, User, Mail, Phone } from 'lucide-react';
 import { useClientes } from '../../context/ClientesContext';
+import { useVentas } from '../../context/VentasContext'; // Importar VentasContext
 import DrawerEditarAñadir from '../Clientes/DrawerEditarAñadir';
 
 const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
-  const { clientes, loading, crearCliente } = useClientes();
+  const { clientes, loading: clientesLoading, crearCliente } = useClientes();
+  const { obtenerDeudaTotalPorCliente, loading: ventasLoading } = useVentas(); // Usar VentasContext
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredClientes, setFilteredClientes] = useState([]);
   const [drawerCrearOpen, setDrawerCrearOpen] = useState(false);
@@ -18,7 +20,7 @@ const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
 
   // Filtrar clientes según el término de búsqueda
   useEffect(() => {
-    if (!loading) {
+    if (!clientesLoading) {
       if (searchTerm === '') {
         setFilteredClientes(clientes);
       } else {
@@ -30,7 +32,7 @@ const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
         setFilteredClientes(filtered);
       }
     }
-  }, [searchTerm, clientes, loading]);
+  }, [searchTerm, clientes, clientesLoading]);
 
   // Resetear búsqueda cuando se abre/cierra el drawer
   useEffect(() => {
@@ -198,14 +200,14 @@ const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
                 className="block w-full text-sm rounded-full pl-10 pr-3 py-2 border border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#45923a] focus:border-transparent"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                disabled={loading}
+                disabled={clientesLoading}
               />
             </div>
           </div>
 
           {/* Lista de clientes */}
           <div className="flex-1 overflow-y-auto">
-            {loading ? (
+            {clientesLoading || ventasLoading ? (
               <div className="flex justify-center items-center h-full">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#45923a]"></div>
               </div>
@@ -218,59 +220,65 @@ const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
               </div>
             ) : (
               <ul className="divide-y divide-gray-200">
-                {filteredClientes.map((cliente) => (
-                  <li key={cliente.id} className="hover:bg-gray-50">
-                    <button
-                      onClick={() => handleSelect(cliente)}
-                      className="w-full text-left p-4 flex items-center"
-                      disabled={loading}
-                    >
-                      <div className="flex-shrink-0 h-10 w-10 rounded-full bg-[#ffa40c] flex items-center justify-center text-white">
-                        <User className="h-5 w-5" />
-                      </div>
-                      <div className="ml-3 flex-1 flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{cliente.nombre}</p>
-                          {cliente.telefono && (
-                            <p className="text-xs text-gray-500">{cliente.telefono}</p>
-                          )}
+                {filteredClientes.map((cliente) => {
+                  const deudaTotal = obtenerDeudaTotalPorCliente(cliente.id);
+                  return (
+                    <li key={cliente.id} className="hover:bg-gray-50">
+                      <button
+                        onClick={() => handleSelect(cliente)}
+                        className="w-full text-left p-4 flex items-center"
+                        disabled={clientesLoading || ventasLoading}
+                      >
+                        <div className="flex-shrink-0 h-10 w-10 rounded-full bg-[#ffa40c] flex items-center justify-center text-white">
+                          <User className="h-5 w-5" />
                         </div>
-                        <div className="flex items-center gap-2">
-                          {cliente.telefono && (
-                            <span
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openWhatsApp(cliente.telefono);
-                              }}
-                              onKeyDown={(e) => handleKeyDown(e, () => openWhatsApp(cliente.telefono))}
-                              role="button"
-                              tabIndex={0}
-                              className="flex items-center p-1 hover:bg-gray-200 rounded-full cursor-pointer"
-                              aria-label="Contactar por WhatsApp"
-                            >
-                              <WhatsAppIcon className="h-5 w-5 text-green-600" />
-                            </span>
-                          )}
-                          {cliente.correo && (
-                            <span
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openEmail(cliente.correo);
-                              }}
-                              onKeyDown={(e) => handleKeyDown(e, () => openEmail(cliente.correo))}
-                              role="button"
-                              tabIndex={0}
-                              className="flex items-center p-1 hover:bg-gray-200 rounded-full cursor-pointer"
-                              aria-label="Enviar correo"
-                            >
-                              <Mail className="h-5 w-5 text-gray-500" />
-                            </span>
-                          )}
+                        <div className="ml-3 flex-1 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{cliente.nombre}</p>
+                            {cliente.telefono && (
+                              <p className="text-xs text-gray-500">{cliente.telefono}</p>
+                            )}
+                            <p className={`text-xs ${deudaTotal > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                              Deuda: S/ {deudaTotal.toFixed(2)}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {cliente.telefono && (
+                              <span
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openWhatsApp(cliente.telefono);
+                                }}
+                                onKeyDown={(e) => handleKeyDown(e, () => openWhatsApp(cliente.telefono))}
+                                role="button"
+                                tabIndex={0}
+                                className="flex items-center p-1 hover:bg-gray-200 rounded-full cursor-pointer"
+                                aria-label="Contactar por WhatsApp"
+                              >
+                                <WhatsAppIcon className="h-5 w-5 text-green-600" />
+                              </span>
+                            )}
+                            {cliente.correo && (
+                              <span
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEmail(cliente.correo);
+                                }}
+                                onKeyDown={(e) => handleKeyDown(e, () => openEmail(cliente.correo))}
+                                role="button"
+                                tabIndex={0}
+                                className="flex items-center p-1 hover:bg-gray-200 rounded-full cursor-pointer"
+                                aria-label="Enviar correo"
+                              >
+                                <Mail className="h-5 w-5 text-gray-500" />
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </button>
-                  </li>
-                ))}
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
@@ -281,7 +289,7 @@ const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
               onClick={() => setDrawerCrearOpen(true)}
               className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white"
               style={{ backgroundColor: COLORS.primary }}
-              disabled={loading}
+              disabled={clientesLoading}
             >
               Crear nuevo cliente
             </button>

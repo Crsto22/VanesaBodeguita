@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../firebase/firebase';
-import { collection, addDoc, doc, updateDoc, onSnapshot, query, where, runTransaction, getDocs } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, onSnapshot, query, where, runTransaction, getDocs, getDoc } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { useClientes } from './ClientesContext';
 import { useProducts } from './ProductContext';
@@ -64,7 +64,6 @@ export const VentasProvider = ({ children }) => {
         const producto = obtenerProductoPorId(item.producto_ref);
         if (!producto) throw new Error(`Producto ${item.producto_ref} no encontrado`);
         if (item.cantidad <= 0) throw new Error(`Cantidad inválida para ${producto.nombre}`);
-        if (item.cantidad > producto.stock) throw new Error(`Stock insuficiente para ${producto.nombre}`);
         if (item.precio_unitario <= 0) throw new Error(`Precio unitario inválido para ${producto.nombre}`);
         if (Math.abs(item.subtotal - item.cantidad * item.precio_unitario) > 0.01) {
           throw new Error(`Subtotal inválido para ${producto.nombre}`);
@@ -133,15 +132,6 @@ export const VentasProvider = ({ children }) => {
       console.log('Nueva Venta a guardar:', nuevaVenta);
 
       const docRef = await addDoc(ventasCollection, nuevaVenta);
-
-      // Actualizar stock de productos
-      await Promise.all(productosProcesados.map(async (item) => {
-        const producto = obtenerProductoPorId(item.producto_ref);
-        const productoRef = doc(db, 'productos', item.producto_ref);
-        await updateDoc(productoRef, {
-          stock: producto.stock - item.cantidad,
-        });
-      }));
 
       return docRef.id;
     } catch (error) {
@@ -271,9 +261,57 @@ export const VentasProvider = ({ children }) => {
     }
   };
 
+  // Obtener deuda total por cliente
+  const obtenerDeudaTotalPorCliente = (clienteId) => {
+    try {
+      const ventasCliente = ventas.filter(v => v.cliente_ref === clienteId);
+      const deudaTotal = ventasCliente.reduce((sum, venta) => sum + (venta.monto_pendiente || 0), 0);
+      return Number(deudaTotal.toFixed(2)); // Redondear a 2 decimales
+    } catch (error) {
+      console.error('Error al calcular deuda total por cliente:', error);
+      return 0;
+    }
+  };
+
   // Obtener venta por ID
   const obtenerVentaPorId = (id) => {
     return ventas.find(venta => venta.id === id);
+  };
+
+  // Obtener todos los datos de una venta por ID, incluyendo el nombre del cajero
+  const obtenerVentaCompletaPorId = async (ventaId) => {
+    try {
+      const ventaRef = doc(db, 'ventas', ventaId);
+      const ventaDoc = await getDoc(ventaRef);
+
+      if (!ventaDoc.exists()) {
+        throw new Error('Venta no encontrada');
+      }
+
+      const ventaData = {
+        id: ventaDoc.id,
+        ...ventaDoc.data(),
+      };
+
+      // Obtener el nombre del cajero
+      let nombreCajero = 'Desconocido';
+      if (ventaData.cajero_ref) {
+        const cajeroRef = doc(db, 'usuarios', ventaData.cajero_ref);
+        const cajeroDoc = await getDoc(cajeroRef);
+        if (cajeroDoc.exists()) {
+          const cajeroData = cajeroDoc.data();
+          nombreCajero = cajeroData.nombre || 'Cajero sin nombre';
+        }
+      }
+
+      return {
+        ...ventaData,
+        nombre_cajero: nombreCajero,
+      };
+    } catch (error) {
+      console.error('Error al obtener venta completa:', error);
+      throw error;
+    }
   };
 
   const value = {
@@ -284,6 +322,8 @@ export const VentasProvider = ({ children }) => {
     registrarDevolucionRetornables,
     obtenerVentasPorCliente,
     obtenerVentaPorId,
+    obtenerVentaCompletaPorId,
+    obtenerDeudaTotalPorCliente, // Nueva función añadida al contexto
   };
 
   return (

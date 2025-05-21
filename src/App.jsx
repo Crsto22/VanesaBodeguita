@@ -11,6 +11,8 @@ import ProtectedRoute from './context/ProtectedRoute';
 import Productos from './page/Productos';
 import EscanerCodigoBarras from './page/EscanerCodigoBarras';
 import Ventas from './page/Ventas';
+import NotaVenta from './page/NotaVenta';
+
 function App() {
   return (
     <AuthProvider>
@@ -18,53 +20,60 @@ function App() {
         <ClientesProvider>
           <ProductProvider>
             <VentasProvider>
-
-            <Routes>
-              <Route path="/">
-                <Route index element={<Login />} />
-                <Route
-                  path="dashboard"
-                  element={
-                    <ProtectedRoute>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="clientes"
-                  element={
-                    <ProtectedRoute>
-                      <Clientes />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route path="*" element={<h1>404 - Página no encontrada</h1>} />
-              </Route>
-              <Route
-                path="productos"
-                element={
-                  <ProtectedRoute>
-                    <Productos />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="escaner"
-                element={
-                  <ProtectedRoute>
-                    <EscanerCodigoBarras />
-                  </ProtectedRoute>
-                }
-                />   
-              <Route
-                path="ventas"
-                element={
-                  <ProtectedRoute>
-                    <Ventas />
-                  </ProtectedRoute>
-                }
-              />              
-            </Routes>
+              <Routes>
+                <Route path="/">
+                  <Route index element={<Login />} />
+                  <Route
+                    path="dashboard"
+                    element={
+                      <ProtectedRoute>
+                        <Dashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="clientes"
+                    element={
+                      <ProtectedRoute>
+                        <Clientes />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="productos"
+                    element={
+                      <ProtectedRoute>
+                        <Productos />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="escaner"
+                    element={
+                      <ProtectedRoute>
+                        <EscanerCodigoBarras />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="ventas"
+                    element={
+                      <ProtectedRoute>
+                        <Ventas />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="ventas/:id"
+                    element={
+                      <ProtectedRoute>
+                        <NotaVenta />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route path="*" element={<h1>404 - Página no encontrada</h1>} />
+                </Route>
+              </Routes>
             </VentasProvider>
           </ProductProvider>
         </ClientesProvider>
