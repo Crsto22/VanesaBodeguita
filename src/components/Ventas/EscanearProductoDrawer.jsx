@@ -57,14 +57,13 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
     setToast({ message: 'Producto agregado', type: 'success', visible: true });
     setPriceModalOpen(false);
     setSelectedProduct(null);
-    stopScanner();
-    onClose();
+    onClose(); // Close the drawer after price selection, matching ProductosDrawer
   };
 
   useEffect(() => {
     let html5QrCode = null;
 
-    if (isOpen) {
+    if (isOpen && !priceModalOpen) {
       html5QrCode = new Html5Qrcode('barcode-scanner', {
         formatsToSupport: [
           Html5QrcodeSupportedFormats.EAN_13,
@@ -101,6 +100,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
                 }
                 const producto = productos.find((p) => p.codigo_barras === decodedText);
                 if (producto) {
+                  stopScanner(); // Stop scanner before proceeding
                   if (producto.has_precio_alternativo && producto.precio_alternativo) {
                     setSelectedProduct(producto);
                     setPriceModalOpen(true);
@@ -118,24 +118,13 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
                       imagen: producto.imagen || null,
                     });
                     setToast({ message: 'Producto agregado', type: 'success', visible: true });
-                    await scannerRef.current.stop();
-                    scannerRef.current.clear();
-                    const videoElement = document.querySelector('#barcode-scanner video');
-                    if (videoElement && videoElement.srcObject) {
-                      const stream = videoElement.srcObject;
-                      const tracks = stream.getTracks();
-                      tracks.forEach((track) => track.stop());
-                      videoElement.srcObject = null;
-                    }
-                    scannerRef.current = null;
-                    setIsScanning(false);
-                    onClose();
+                    onClose(); // Close drawer after adding product, matching ProductosDrawer
                   }
                 } else {
                   setToast({ message: 'Producto no encontrado', type: 'error', visible: true });
                 }
               } catch (err) {
-                console.error('Error during scan cleanup:', err);
+                console.error('Error during scan processing:', err);
                 setError('Error al procesar el código escaneado.');
                 setIsScanning(false);
               }
@@ -154,7 +143,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
     return () => {
       stopScanner();
     };
-  }, [isOpen, productos, loading, onSelectProducto, onClose]);
+  }, [isOpen, priceModalOpen, productos, loading, onSelectProducto, onClose]);
 
   useEffect(() => {
     if (toast.visible) {
