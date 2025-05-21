@@ -191,6 +191,13 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
                   </p>
                 </div>
               </div>
+              <button
+                onClick={() => setToast((prev) => ({ ...prev, visible: false }))}
+                className="text-white hover:text-gray-200 focus:outline-none"
+                aria-label="Cerrar notificación"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
           </div>
         </div>
@@ -210,12 +217,6 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-5">
                   <h3 className="text-lg font-bold text-gray-800">Seleccionar Precio</h3>
-                  <button
-                    onClick={handleBack}
-                    className="p-1.5 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors"
-                  >
-                    <X className="h-5 w-5 text-gray-500" />
-                  </button>
                 </div>
 
                 <div className="mb-4">
