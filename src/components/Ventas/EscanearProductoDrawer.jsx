@@ -191,13 +191,6 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
                   </p>
                 </div>
               </div>
-              <button
-                onClick={() => setToast((prev) => ({ ...prev, visible: false }))}
-                className="text-white hover:text-gray-200 focus:outline-none"
-                aria-label="Cerrar notificación"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
           </div>
         </div>
