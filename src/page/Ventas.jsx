@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, Pencil, CreditCard, Users, Barcode, Package, User, PlusCircle, ScanBarcode, X, Milk, Minus, Plus } from 'lucide-react';
+import { ShoppingCart, Pencil, CreditCard, Users, History, Barcode, Package, User, PlusCircle, ScanBarcode, X, Milk, Minus, Plus } from 'lucide-react';
 import Logo from '../assets/Logo.svg';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
@@ -340,45 +341,56 @@ const Ventas = () => {
               </button>
             </div>
           )}
-          <div className="flex flex-row justify-center gap-2 sm:gap-6 mb-4">
-            <div className="relative">
-              <button
-                className={`flex btn rounded-full flex-row items-center justify-center p-3 border-none text-white shadow-md transition-all ${clienteSeleccionado ? 'bg-[#ffa40c] hover:bg-[#e69500] pr-10' : 'bg-[#ffa40c] hover:bg-[#e69500]'}`}
-                onClick={() => setDrawerClientesOpen(true)}
-                disabled={clientesLoading}
-              >
-                <User size={17} className="flex-shrink-0" />
-                <span className="text-sm truncate max-w-[150px]">
-                  {clientesLoading
-                    ? 'Cargando clientes...'
-                    : clienteSeleccionado
-                      ? clienteSeleccionado.nombre
-                      : 'Cliente Genérico'}
-                </span>
-              </button>
-              {clienteSeleccionado && (
+          <div className="flex flex-col items-center gap-4 mb-4">
+            <button
+              className="btn border-none rounded-2xl flex flex-row items-center justify-center p-3 w-80 bg-blue-500 text-white shadow-md transition-all"
+              onClick={() => navigate('/ventas/historial')}
+            >
+              <History size={17} className="flex-shrink-0" />
+              <span className="text-sm truncate max-w-[150px]"> Ver Historial</span>
+            </button>
+            <div className="flex flex-row justify-center gap-2 sm:gap-6">
+              <div className="relative">
                 <button
-                  onClick={handleRemoveCliente}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 rounded-full hover:bg-[#ffc157] transition-colors z-10"
-                  aria-label="Quitar cliente"
+                  className={`flex btn rounded-full flex-row items-center justify-center p-3 border-none text-white shadow-md transition-all ${
+                    clienteSeleccionado ? 'bg-[#ffa40c] hover:bg-[#e69500] pr-10' : 'bg-[#ffa40c] hover:bg-[#e69500]'
+                  }`}
+                  onClick={() => setDrawerClientesOpen(true)}
+                  disabled={clientesLoading}
                 >
-                  <X size={14} strokeWidth={2.5} className="text-white" />
+                  <User size={17} className="flex-shrink-0" />
+                  <span className="text-sm truncate max-w-[150px]">
+                    {clientesLoading
+                      ? 'Cargando clientes...'
+                      : clienteSeleccionado
+                        ? clienteSeleccionado.nombre
+                        : 'Cliente Genérico'}
+                  </span>
                 </button>
-              )}
+                {clienteSeleccionado && (
+                  <button
+                    onClick={handleRemoveCliente}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 rounded-full hover:bg-[#ffc157] transition-colors z-10"
+                    aria-label="Quitar cliente"
+                  >
+                    <X size={14} strokeWidth={2.5} className="text-white" />
+                  </button>
+                )}
+              </div>
+              <button
+                className="btn border-none btn-soft rounded-full flex flex-row items-center justify-center p-3 sm:p-4 bg-[#45923a] hover:bg-[#3a7d30] text-white shadow-md transition-all"
+                onClick={() => setDrawerProductosOpen(true)}
+              >
+                <PlusCircle size={17} />
+                <span className="text-sm sm:text-base font-medium">Producto</span>
+              </button>
+              <button
+                className="flex btn btn-dash border-none rounded-full flex-row items-center justify-center p-3 sm:p-4 bg-gray-200 hover:bg-gray-300 shadow-md transition-all"
+                onClick={() => setDrawerEscanearOpen(true)}
+              >
+                <ScanBarcode strokeWidth={2.5} size={20} />
+              </button>
             </div>
-            <button
-              className="btn border-none btn-soft rounded-full flex flex-row items-center justify-center p-3 sm:p-4 bg-[#45923a] hover:bg-[#3a7d30] text-white shadow-md transition-all"
-              onClick={() => setDrawerProductosOpen(true)}
-            >
-              <PlusCircle size={17} />
-              <span className="text-sm sm:text-base font-medium">Producto</span>
-            </button>
-            <button
-              className="flex btn btn-dash border-none rounded-full flex-row items-center justify-center p-3 sm:p-4 bg-gray-200 hover:bg-gray-300 shadow-md transition-all"
-              onClick={() => setDrawerEscanearOpen(true)}
-            >
-              <ScanBarcode strokeWidth={2.5} size={20} />
-            </button>
           </div>
           <div className="flex flex-col flex-1 p-1 min-h-0">
             <div className="flex-1 rounded-lg bg-white shadow-md p-3 sm:p-4 flex flex-col border border-dashed border-gray-300 overflow-hidden">

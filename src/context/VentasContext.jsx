@@ -1,6 +1,7 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../firebase/firebase';
-import { collection, addDoc, doc, updateDoc, onSnapshot, query, where, runTransaction, getDocs, getDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, onSnapshot, query, where, runTransaction, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { useClientes } from './ClientesContext';
 import { useProducts } from './ProductContext';
@@ -42,6 +43,21 @@ export const VentasProvider = ({ children }) => {
 
     return () => unsubscribe();
   }, [currentUser]);
+
+  // Obtener todas las ventas (sin filtro de estado)
+  const obtenerTodasVentas = async () => {
+    try {
+      const snapshot = await getDocs(ventasCollection);
+      const ventasData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      return ventasData;
+    } catch (error) {
+      console.error('Error al obtener todas las ventas:', error);
+      throw error;
+    }
+  };
 
   // Crear una nueva venta
   const crearVenta = async (ventaData) => {
@@ -314,6 +330,26 @@ export const VentasProvider = ({ children }) => {
     }
   };
 
+  // Eliminar una venta por ID
+  const eliminarVenta = async (ventaId) => {
+    try {
+      if (!currentUser) throw new Error('Usuario no autenticado');
+
+      const ventaRef = doc(db, 'ventas', ventaId);
+      const ventaDoc = await getDoc(ventaRef);
+
+      if (!ventaDoc.exists()) {
+        throw new Error('Venta no encontrada');
+      }
+
+      await deleteDoc(ventaRef);
+      return true; // Indica éxito
+    } catch (error) {
+      console.error('Error al eliminar venta:', error);
+      throw error;
+    }
+  };
+
   const value = {
     ventas,
     loading,
@@ -323,7 +359,9 @@ export const VentasProvider = ({ children }) => {
     obtenerVentasPorCliente,
     obtenerVentaPorId,
     obtenerVentaCompletaPorId,
-    obtenerDeudaTotalPorCliente, // Nueva función añadida al contexto
+    obtenerDeudaTotalPorCliente,
+    obtenerTodasVentas,
+    eliminarVenta, // Nueva función añadida al contexto
   };
 
   return (

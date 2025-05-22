@@ -373,12 +373,12 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
           <div className="flex gap-2">
             <div className="relative flex-1">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
+                <Search size={18} className=" text-gray-400" />
               </div>
               <input
                 type="text"
                 placeholder="Buscar producto, categoría o código..."
-                className="block w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                className="block w-full pl-12 pr-4 py-3 text-sm border border-gray-300 rounded-xl text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 disabled={loading}
@@ -388,19 +388,19 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
               onClick={toggleCategorias}
               className={`p-3 rounded-xl border ${selectedCategoria ? 'bg-green-600 border-green-600 text-white' : 'border-gray-300 bg-gray-50 text-gray-700'} flex items-center justify-center`}
             >
-              <Filter className="h-5 w-5" />
+              <Filter size={17} />
             </button>
           </div>
           
           {showCategorias && (
             <div className="mt-3 bg-white rounded-xl shadow-lg border border-gray-200 p-3 overflow-hidden">
               <div className="mb-2 px-1">
-                <h3 className="font-medium text-gray-700 flex items-center gap-2">
+                <h3 className="font-medium text-gray-700 flex items-center gap-2 text-">
                   <Tag className="h-4 w-4" />
-                  <span>Categorías</span>
+                  <span >Categorías</span>
                 </h3>
               </div>
-              <div className="flex flex-wrap gap-2 max-h-60 overflow-y-auto">
+              <div className="flex flex-wrap gap-2 max-h-60 overflow-y-auto ">
                 {categorias.map((categoria) => (
                   <button
                     key={categoria.id}

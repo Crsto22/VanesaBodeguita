@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useVentas } from '../context/VentasContext';
@@ -47,6 +48,10 @@ const NotaVenta = () => {
     navigate('/ventas');
   };
 
+  const handleBack = () => {
+    navigate(-1); // Navigate back one step in history
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -64,11 +69,11 @@ const NotaVenta = () => {
         <div className="text-center">
           <p className="text-red-600 font-medium">{error}</p>
           <button
-            onClick={() => navigate('/ventas')}
+            onClick={handleBack}
             className="mt-4 flex items-center gap-2 text-green-600 hover:text-green-700 font-medium"
           >
             <ArrowLeft size={16} />
-            Volver a Ventas
+            Volver
           </button>
         </div>
       </div>
@@ -81,7 +86,7 @@ const NotaVenta = () => {
       <div className="fixed top-0 left-0 right-0 bg-white z-10 shadow-md">
         <div className="flex justify-between items-center p-4">
           <button
-            onClick={() => navigate('/ventas')}
+            onClick={handleBack}
             className="flex items-center gap-1 text-green-600 hover:text-green-700 font-medium"
           >
             <ArrowLeft size={16} />
@@ -250,13 +255,13 @@ const NotaVenta = () => {
           .shadow-lg {
             box-shadow: none !important;
           }
-          .mt-16 {
+          .mt-24 {
             margin-top: 0 !important;
           }
-          .mt-16 *, .mt-16 {
+          .mt-24 *, .mt-24 {
             visibility: visible;
           }
-          .mt-16 {
+          .mt-24 {
             position: absolute;
             left: 0;
             top: 0;

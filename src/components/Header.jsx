@@ -34,18 +34,6 @@ const Header = ({ menuOpen, setMenuOpen, notifications }) => {
             <Home className="h-5 w-5 group-hover:scale-110 transition-transform" />
           </Link>
           
-          <button 
-            className="relative rounded-lg bg-gray-100 p-2 transition-all hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-200"
-            aria-label="Notifications"
-          >
-            <Bell className="h-5 w-5 text-gray-700" />
-            {notifications > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white ring-1 ring-white">
-                {notifications > 9 ? '9+' : notifications}
-              </span>
-            )}
-          </button>
-          
           <div className="flex items-center gap-3">
             <div className="hidden md:flex flex-col items-end">
               <span className="text-sm font-medium text-gray-900">

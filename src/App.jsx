@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Login from './page/Login';
@@ -12,6 +13,7 @@ import Productos from './page/Productos';
 import EscanerCodigoBarras from './page/EscanerCodigoBarras';
 import Ventas from './page/Ventas';
 import NotaVenta from './page/NotaVenta';
+import VentasHistorial from './page/VentasHistorial';
 
 function App() {
   return (
@@ -60,6 +62,14 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <Ventas />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="ventas/historial"
+                    element={
+                      <ProtectedRoute>
+                        <VentasHistorial />
                       </ProtectedRoute>
                     }
                   />
