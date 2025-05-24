@@ -4,7 +4,7 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { useProducts } from '../../context/ProductContext';
 import IconoProductoCodigoBarras from '../../assets/Productos/IconoProductoCodigoBarras.svg';
 
-const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
+const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, colors }) => {
   const { productos, loading, obtenerCategoriaPorId } = useProducts();
   const scannerRef = useRef(null);
   const [error, setError] = useState('');
@@ -12,34 +12,39 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
   const [toast, setToast] = useState({ message: '', type: '', visible: false });
   const [priceModalOpen, setPriceModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const scanLockRef = useRef(false);
+  const [isProcessingScan, setIsProcessingScan] = useState(false);
 
-  const stopScanner = async () => {
+  const stopScanner = () => {
     if (scannerRef.current && isScanning) {
       try {
-        await scannerRef.current.stop();
-        scannerRef.current.clear();
-        const videoElement = document.querySelector('#barcode-scanner video');
-        if (videoElement && videoElement.srcObject) {
-          const tracks = videoElement.srcObject.getTracks();
-          tracks.forEach(track => track.stop());
-          videoElement.srcObject = null;
-        }
-        setIsScanning(false);
-        return true;
+        scannerRef.current.stop().then(() => {
+          scannerRef.current.clear();
+          const videoElement = document.querySelector('#barcode-scanner video');
+          if (videoElement && videoElement.srcObject) {
+            const stream = videoElement.srcObject;
+            const tracks = stream.getTracks();
+            tracks.forEach((track) => track.stop());
+            videoElement.srcObject = null;
+          }
+          scannerRef.current = null;
+          setIsScanning(false);
+        }).catch((err) => {
+          console.error('Error stopping scanner:', err);
+          setError('Error al detener el escáner.');
+          setIsScanning(false);
+        });
       } catch (err) {
         console.error('Error stopping scanner:', err);
         setError('Error al detener el escáner.');
         setIsScanning(false);
-        return false;
       }
     }
-    return false;
   };
 
   const handleSelectPrecio = (precio) => {
     if (!selectedProduct) return;
-    onSelectProducto({
+    
+    const productoParaVenta = {
       id: selectedProduct.id,
       nombre: selectedProduct.nombre,
       cantidad: selectedProduct.tipo_unidad === 'kilogramo' ? 1 : 1,
@@ -50,7 +55,9 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
       tipo_unidad: selectedProduct.tipo_unidad || 'unidad',
       precio_referencia: selectedProduct.tipo_unidad === 'kilogramo' ? parseFloat(selectedProduct.precio) : null,
       imagen: selectedProduct.imagen || null,
-    });
+    };
+
+    onSelectProducto(productoParaVenta);
     setToast({ message: 'Producto agregado', type: 'success', visible: true });
     setPriceModalOpen(false);
     setSelectedProduct(null);
@@ -59,57 +66,6 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
 
   useEffect(() => {
     let html5QrCode = null;
-
-    const processScannedCode = async (decodedText) => {
-      if (scanLockRef.current) return;
-      scanLockRef.current = true;
-      
-      try {
-        const stopped = await stopScanner();
-        if (!stopped) {
-          setToast({ message: 'Error al procesar el escaneo', type: 'error', visible: true });
-          return;
-        }
-
-        if (loading) {
-          setToast({ message: 'Cargando productos, intenta de nuevo.', type: 'error', visible: true });
-          return;
-        }
-
-        const producto = productos.find((p) => p.codigo_barras === decodedText);
-        if (!producto) {
-          setToast({ message: 'Producto no encontrado', type: 'error', visible: true });
-          return;
-        }
-
-        if (producto.has_precio_alternativo && producto.precio_alternativo) {
-          setSelectedProduct(producto);
-          setPriceModalOpen(true);
-        } else {
-          onSelectProducto({
-            id: producto.id,
-            nombre: producto.nombre,
-            cantidad: producto.tipo_unidad === 'kilogramo' ? 1 : 1,
-            precio_unitario: parseFloat(producto.precio),
-            subtotal: parseFloat(producto.precio).toFixed(2),
-            retornable: producto.retornable || false,
-            cantidad_retornable: producto.retornable && producto.tipo_unidad !== 'kilogramo' ? 1 : 0,
-            tipo_unidad: producto.tipo_unidad || 'unidad',
-            precio_referencia: producto.tipo_unidad === 'kilogramo' ? parseFloat(producto.precio) : null,
-            imagen: producto.imagen || null,
-          });
-          setToast({ message: 'Producto agregado', type: 'success', visible: true });
-          onClose();
-        }
-      } catch (err) {
-        console.error('Error during scan processing:', err);
-        setError('Error al procesar el código escaneado.');
-      } finally {
-        setTimeout(() => {
-          scanLockRef.current = false;
-        }, 1000);
-      }
-    };
 
     if (isOpen && !priceModalOpen) {
       html5QrCode = new Html5Qrcode('barcode-scanner', {
@@ -135,18 +91,63 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
           await html5QrCode.start(
             { facingMode: 'environment' },
             {
-              fps: 10,
+              fps: 15,
               qrbox: { width: 300, height: 120 },
               aspectRatio: window.innerWidth < 600 ? 1.0 : 3 / 1,
               experimentalFeatures: { useBarCodeDetectorIfSupported: true },
             },
-            processScannedCode,
-            () => {}
+            async (decodedText) => {
+              try {
+                // Evitar múltiples escaneos simultáneos
+                if (isProcessingScan || loading) {
+                  if (loading) {
+                    setToast({ 
+                      message: 'Cargando productos, intenta de nuevo.', 
+                      type: 'error', 
+                      visible: true 
+                    });
+                  }
+                  return;
+                }
+                
+                setIsProcessingScan(true);
+                const producto = productos.find((p) => p.codigo_barras === decodedText);
+                
+                if (!producto) {
+                  setToast({ 
+                    message: 'Producto no encontrado', 
+                    type: 'error', 
+                    visible: true 
+                  });
+                  return;
+                }
+
+                // Detener el escáner antes de continuar
+                await stopScanner();
+
+                // Manejar productos con precio alternativo
+                if (producto.has_precio_alternativo && producto.precio_alternativo) {
+                  setSelectedProduct(producto);
+                  setPriceModalOpen(true);
+                } else {
+                  handleSelectPrecio(producto.precio);
+                }
+              } catch (err) {
+                console.error('Error during scan processing:', err);
+                setError('Error al procesar el código escaneado.');
+              } finally {
+                setIsProcessingScan(false);
+              }
+            },
+            (errorMessage) => {
+              // Ignorar NotFoundException pero resetear estado
+              setIsProcessingScan(false);
+            }
           );
         } catch (err) {
           setError('No se pudo iniciar la cámara. Por favor, permite el acceso a la cámara o verifica tu dispositivo.');
           setIsScanning(false);
-          scanLockRef.current = false;
+          setIsProcessingScan(false);
         }
       };
 
@@ -155,9 +156,9 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
 
     return () => {
       stopScanner();
-      scanLockRef.current = false;
+      setIsProcessingScan(false);
     };
-  }, [isOpen, priceModalOpen, productos, loading, onSelectProducto, onClose]);
+  }, [isOpen, priceModalOpen, productos, loading]);
 
   useEffect(() => {
     if (toast.visible) {
@@ -172,7 +173,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
     stopScanner();
     setPriceModalOpen(false);
     setSelectedProduct(null);
-    scanLockRef.current = false;
+    setIsProcessingScan(false);
     onClose();
   };
 
@@ -184,18 +185,21 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
             className={`max-w-md w-full shadow-lg rounded-lg transform transition-all duration-300 ease-in-out mt-4 pointer-events-auto ${
               toast.visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
             } ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}
-            role="alert"
           >
             <div className="flex items-center justify-between p-4">
               <div className="flex items-center">
-                <Check className="w-5 h-5 text-white" />
+                <div className="flex-shrink-0">
+                  <Check className="w-5 h-5 text-white" />
+                </div>
                 <div className="ml-3">
-                  <p className="text-white font-medium">{toast.message}</p>
+                  <p className="text-white font-medium">
+                    {toast.message}
+                  </p>
                 </div>
               </div>
               <button
                 onClick={() => setToast((prev) => ({ ...prev, visible: false }))}
-                className="text-white hover:text-gray-200"
+                className="text-white hover:text-gray-200 focus:outline-none"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -206,16 +210,19 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
 
       {priceModalOpen && selectedProduct && (
         <>
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90]" onClick={handleBack} />
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90]"
+            onClick={handleBack}
+          />
           <div className="fixed inset-0 flex items-center justify-center z-[95] p-4">
             <div
-              className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-auto overflow-hidden animate-in fade-in zoom-in duration-300"
+              className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-auto overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-6">
                 <div className="flex items-center justify-between mb-5">
                   <h3 className="text-lg font-bold text-gray-800">Seleccionar Precio</h3>
-                  <button onClick={handleBack} className="p-1.5 rounded-full hover:bg-gray-100">
+                  <button onClick={handleBack}>
                     <X className="h-5 w-5 text-gray-500" />
                   </button>
                 </div>
@@ -245,37 +252,31 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
                 <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     onClick={() => handleSelectPrecio(selectedProduct.precio)}
-                    className="flex-1 p-3 rounded-xl border border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all group relative"
+                    className="flex-1 p-3 rounded-xl border border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all"
                   >
                     <div className="flex flex-col items-center text-center">
                       <h5 className="font-bold text-gray-800">Precio Normal</h5>
                       <p className="text-xs text-gray-500 mb-2">Precio estándar</p>
-                      <span className="text-xl font-bold text-green-600 mb-1">
+                      <span className="text-xl font-bold text-green-600">
                         S/{parseFloat(selectedProduct.precio).toFixed(2)}
                         {selectedProduct.tipo_unidad === 'kilogramo' && <span className="text-xs ml-1">/kg</span>}
                       </span>
-                      <div className="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center group-hover:border-green-500 mt-1">
-                        <Check className="h-4 w-4 text-green-500 opacity-0 group-hover:opacity-100" />
-                      </div>
                     </div>
                   </button>
 
                   <button
                     onClick={() => handleSelectPrecio(parseFloat(selectedProduct.precio_alternativo))}
-                    className="flex-1 p-3 rounded-xl border border-gray-200 hover:border-amber-500 hover:bg-amber-50 transition-all group relative"
+                    className="flex-1 p-3 rounded-xl border border-gray-200 hover:border-amber-500 hover:bg-amber-50 transition-all"
                   >
                     <div className="flex flex-col items-center text-center">
                       <h5 className="font-bold text-gray-800">
                         Precio {selectedProduct.motivo_precio_alternativo || 'Alternativo'}
                       </h5>
                       <p className="text-xs text-gray-500 mb-2">Precio especial</p>
-                      <span className="text-xl font-bold text-amber-600 mb-1">
+                      <span className="text-xl font-bold text-amber-600">
                         S/{parseFloat(selectedProduct.precio_alternativo).toFixed(2)}
                         {selectedProduct.tipo_unidad === 'kilogramo' && <span className="text-xs ml-1">/kg</span>}
                       </span>
-                      <div className="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center group-hover:border-amber-500 mt-1">
-                        <Check className="h-4 w-4 text-amber-500 opacity-0 group-hover:opacity-100" />
-                      </div>
                     </div>
                   </button>
                 </div>
@@ -286,19 +287,18 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
       )}
 
       {isOpen && (
-        <div
-          className={`fixed inset-0 bg-black/70 z-40 transition-opacity duration-300 ${
-            isOpen ? 'opacity-100' : 'opacity-0'
-          }`}
-          onClick={handleBack}
-        />
+        <div className="fixed inset-0 bg-black/60 z-40" onClick={handleBack} />
       )}
-      
+
       <div
-        className={`fixed inset-0 bg-white rounded-t-2xl shadow-2xl z-50 transform transition-transform duration-300 ${
+        className={`fixed inset-0 bg-white rounded-t-2xl shadow-2xl z-50 transform transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-y-0' : 'translate-y-full'
         }`}
-        style={{ maxHeight: '100vh', overflowY: 'auto' }}
+        style={{ 
+          maxHeight: '100vh', 
+          overflowY: 'auto',
+          '--tw-ring-color': colors.primary 
+        }}
       >
         <div className="p-4 h-full flex flex-col">
           <div className="flex items-center justify-between mb-4">
@@ -313,7 +313,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
               <X className="h-6 w-6 text-gray-500 hover:text-gray-700" />
             </button>
           </div>
-          
+
           <div className="flex-1 flex flex-col items-center justify-center px-4">
             {error ? (
               <div className="bg-red-100 p-4 rounded-lg flex flex-col items-center">
@@ -341,7 +341,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
                 )}
               </div>
             )}
-            
+
             <p className="mt-4 text-sm text-gray-600 text-center">
               Alinea el código de barras dentro del recuadro rojo para escanear.
             </p>
