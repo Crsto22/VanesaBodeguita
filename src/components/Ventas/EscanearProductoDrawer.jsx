@@ -4,7 +4,7 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { useProducts } from '../../context/ProductContext';
 import IconoProductoCodigoBarras from '../../assets/Productos/IconoProductoCodigoBarras.svg';
 
-const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, colors }) => {
+const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
   const { productos, loading, obtenerCategoriaPorId } = useProducts();
   const scannerRef = useRef(null);
   const [error, setError] = useState('');
@@ -13,6 +13,15 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, colors }) =
   const [priceModalOpen, setPriceModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isProcessingScan, setIsProcessingScan] = useState(false);
+
+  // Definimos colores por defecto
+  const defaultColors = {
+    primary: '#45923a',
+    secondary: '#ffa40c',
+    dark: '#2c5b24',
+    light: '#f9fdf8',
+    background: '#f5f7fa'
+  };
 
   const stopScanner = () => {
     if (scannerRef.current && isScanning) {
@@ -98,7 +107,6 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, colors }) =
             },
             async (decodedText) => {
               try {
-                // Evitar múltiples escaneos simultáneos
                 if (isProcessingScan || loading) {
                   if (loading) {
                     setToast({ 
@@ -122,10 +130,8 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, colors }) =
                   return;
                 }
 
-                // Detener el escáner antes de continuar
                 await stopScanner();
 
-                // Manejar productos con precio alternativo
                 if (producto.has_precio_alternativo && producto.precio_alternativo) {
                   setSelectedProduct(producto);
                   setPriceModalOpen(true);
@@ -140,7 +146,6 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, colors }) =
               }
             },
             (errorMessage) => {
-              // Ignorar NotFoundException pero resetear estado
               setIsProcessingScan(false);
             }
           );
@@ -253,6 +258,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, colors }) =
                   <button
                     onClick={() => handleSelectPrecio(selectedProduct.precio)}
                     className="flex-1 p-3 rounded-xl border border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all"
+                    style={{ borderColor: defaultColors.primary }}
                   >
                     <div className="flex flex-col items-center text-center">
                       <h5 className="font-bold text-gray-800">Precio Normal</h5>
@@ -267,6 +273,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, colors }) =
                   <button
                     onClick={() => handleSelectPrecio(parseFloat(selectedProduct.precio_alternativo))}
                     className="flex-1 p-3 rounded-xl border border-gray-200 hover:border-amber-500 hover:bg-amber-50 transition-all"
+                    style={{ borderColor: defaultColors.secondary }}
                   >
                     <div className="flex flex-col items-center text-center">
                       <h5 className="font-bold text-gray-800">
@@ -296,8 +303,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, colors }) =
         }`}
         style={{ 
           maxHeight: '100vh', 
-          overflowY: 'auto',
-          '--tw-ring-color': colors.primary 
+          overflowY: 'auto'
         }}
       >
         <div className="p-4 h-full flex flex-col">
