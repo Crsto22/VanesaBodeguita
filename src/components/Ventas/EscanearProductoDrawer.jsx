@@ -12,33 +12,29 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
   const [toast, setToast] = useState({ message: '', type: '', visible: false });
   const [priceModalOpen, setPriceModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [isProcessingScan, setIsProcessingScan] = useState(false); // Nueva variable de estado
+  const scanLockRef = useRef(false); // Usamos un ref para el lock de escaneo
 
-  const stopScanner = () => {
+  const stopScanner = async () => {
     if (scannerRef.current && isScanning) {
       try {
-        scannerRef.current.stop().then(() => {
-          scannerRef.current.clear();
-          const videoElement = document.querySelector('#barcode-scanner video');
-          if (videoElement && videoElement.srcObject) {
-            const stream = videoElement.srcObject;
-            const tracks = stream.getTracks();
-            tracks.forEach((track) => track.stop());
-            videoElement.srcObject = null;
-          }
-          scannerRef.current = null;
-          setIsScanning(false);
-        }).catch((err) => {
-          console.error('Error stopping scanner:', err);
-          setError('Error al detener el escáner.');
-          setIsScanning(false);
-        });
+        await scannerRef.current.stop();
+        scannerRef.current.clear();
+        const videoElement = document.querySelector('#barcode-scanner video');
+        if (videoElement && videoElement.srcObject) {
+          const tracks = videoElement.srcObject.getTracks();
+          tracks.forEach(track => track.stop());
+          videoElement.srcObject = null;
+        }
+        setIsScanning(false);
+        return true; // Indica que se detuvo correctamente
       } catch (err) {
         console.error('Error stopping scanner:', err);
         setError('Error al detener el escáner.');
         setIsScanning(false);
+        return false;
       }
     }
+    return false;
   };
 
   const handleSelectPrecio = (precio) => {
@@ -64,6 +60,60 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
   useEffect(() => {
     let html5QrCode = null;
 
+    const processScannedCode = async (decodedText) => {
+      // Bloquear escaneos adicionales
+      if (scanLockRef.current) return;
+      scanLockRef.current = true;
+      
+      try {
+        // Detener el escáner inmediatamente
+        const stopped = await stopScanner();
+        if (!stopped) {
+          setToast({ message: 'Error al procesar el escaneo', type: 'error', visible: true });
+          return;
+        }
+
+        if (loading) {
+          setToast({ message: 'Cargando productos, intenta de nuevo.', type: 'error', visible: true });
+          return;
+        }
+
+        const producto = productos.find((p) => p.codigo_barras === decodedText);
+        if (!producto) {
+          setToast({ message: 'Producto no encontrado', type: 'error', visible: true });
+          return;
+        }
+
+        if (producto.has_precio_alternativo && producto.precio_alternativo) {
+          setSelectedProduct(producto);
+          setPriceModalOpen(true);
+        } else {
+          onSelectProducto({
+            id: producto.id,
+            nombre: producto.nombre,
+            cantidad: producto.tipo_unidad === 'kilogramo' ? 1 : 1,
+            precio_unitario: parseFloat(producto.precio),
+            subtotal: parseFloat(producto.precio).toFixed(2),
+            retornable: producto.retornable || false,
+            cantidad_retornable: producto.retornable && producto.tipo_unidad !== 'kilogramo' ? 1 : 0,
+            tipo_unidad: producto.tipo_unidad || 'unidad',
+            precio_referencia: producto.tipo_unidad === 'kilogramo' ? parseFloat(producto.precio) : null,
+            imagen: producto.imagen || null,
+          });
+          setToast({ message: 'Producto agregado', type: 'success', visible: true });
+          onClose();
+        }
+      } catch (err) {
+        console.error('Error during scan processing:', err);
+        setError('Error al procesar el código escaneado.');
+      } finally {
+        // Liberar el lock después de un breve retraso
+        setTimeout(() => {
+          scanLockRef.current = false;
+        }, 1000);
+      }
+    };
+
     if (isOpen && !priceModalOpen) {
       html5QrCode = new Html5Qrcode('barcode-scanner', {
         formatsToSupport: [
@@ -88,68 +138,18 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
           await html5QrCode.start(
             { facingMode: 'environment' },
             {
-              fps: 15,
+              fps: 10, // Reducimos los frames por segundo
               qrbox: { width: 300, height: 120 },
               aspectRatio: window.innerWidth < 600 ? 1.0 : 3 / 1,
               experimentalFeatures: { useBarCodeDetectorIfSupported: true },
             },
-            async (decodedText) => {
-              try {
-                // Verificar si ya estamos procesando un escaneo
-                if (isProcessingScan || loading) {
-                  if (loading) {
-                    setToast({ message: 'Cargando productos, intenta de nuevo.', type: 'error', visible: true });
-                  }
-                  return;
-                }
-                
-                // Marcar que estamos procesando un escaneo
-                setIsProcessingScan(true);
-                
-                const producto = productos.find((p) => p.codigo_barras === decodedText);
-                if (producto) {
-                  await stopScanner(); // Detener el escáner antes de continuar
-                  
-                  if (producto.has_precio_alternativo && producto.precio_alternativo) {
-                    setSelectedProduct(producto);
-                    setPriceModalOpen(true);
-                  } else {
-                    onSelectProducto({
-                      id: producto.id,
-                      nombre: producto.nombre,
-                      cantidad: producto.tipo_unidad === 'kilogramo' ? 1 : 1,
-                      precio_unitario: parseFloat(producto.precio),
-                      subtotal: parseFloat(producto.precio).toFixed(2),
-                      retornable: producto.retornable || false,
-                      cantidad_retornable: producto.retornable && producto.tipo_unidad !== 'kilogramo' ? 1 : 0,
-                      tipo_unidad: producto.tipo_unidad || 'unidad',
-                      precio_referencia: producto.tipo_unidad === 'kilogramo' ? parseFloat(producto.precio) : null,
-                      imagen: producto.imagen || null,
-                    });
-                    setToast({ message: 'Producto agregado', type: 'success', visible: true });
-                    onClose();
-                  }
-                } else {
-                  setToast({ message: 'Producto no encontrado', type: 'error', visible: true });
-                }
-              } catch (err) {
-                console.error('Error during scan processing:', err);
-                setError('Error al procesar el código escaneado.');
-                setIsScanning(false);
-              } finally {
-                // Independientemente del resultado, marcamos que hemos terminado de procesar
-                setIsProcessingScan(false);
-              }
-            },
-            (errorMessage) => {
-              // Ignorar NotFoundException pero resetear el estado de procesamiento
-              setIsProcessingScan(false);
-            }
+            processScannedCode,
+            () => {} // Ignorar NotFoundException
           );
         } catch (err) {
           setError('No se pudo iniciar la cámara. Por favor, permite el acceso a la cámara o verifica tu dispositivo.');
           setIsScanning(false);
-          setIsProcessingScan(false);
+          scanLockRef.current = false;
         }
       };
 
@@ -158,7 +158,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
 
     return () => {
       stopScanner();
-      setIsProcessingScan(false);
+      scanLockRef.current = false;
     };
   }, [isOpen, priceModalOpen, productos, loading, onSelectProducto, onClose]);
 
@@ -175,7 +175,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
     stopScanner();
     setPriceModalOpen(false);
     setSelectedProduct(null);
-    setIsProcessingScan(false);
+    scanLockRef.current = false;
     onClose();
   };
 
