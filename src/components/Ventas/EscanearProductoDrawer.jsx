@@ -12,7 +12,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
   const [toast, setToast] = useState({ message: '', type: '', visible: false });
   const [priceModalOpen, setPriceModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const scanLockRef = useRef(false); // Usamos un ref para el lock de escaneo
+  const scanLockRef = useRef(false);
 
   const stopScanner = async () => {
     if (scannerRef.current && isScanning) {
@@ -26,7 +26,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
           videoElement.srcObject = null;
         }
         setIsScanning(false);
-        return true; // Indica que se detuvo correctamente
+        return true;
       } catch (err) {
         console.error('Error stopping scanner:', err);
         setError('Error al detener el escáner.');
@@ -61,12 +61,10 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
     let html5QrCode = null;
 
     const processScannedCode = async (decodedText) => {
-      // Bloquear escaneos adicionales
       if (scanLockRef.current) return;
       scanLockRef.current = true;
       
       try {
-        // Detener el escáner inmediatamente
         const stopped = await stopScanner();
         if (!stopped) {
           setToast({ message: 'Error al procesar el escaneo', type: 'error', visible: true });
@@ -107,7 +105,6 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
         console.error('Error during scan processing:', err);
         setError('Error al procesar el código escaneado.');
       } finally {
-        // Liberar el lock después de un breve retraso
         setTimeout(() => {
           scanLockRef.current = false;
         }, 1000);
@@ -138,13 +135,13 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
           await html5QrCode.start(
             { facingMode: 'environment' },
             {
-              fps: 10, // Reducimos los frames por segundo
+              fps: 10,
               qrbox: { width: 300, height: 120 },
               aspectRatio: window.innerWidth < 600 ? 1.0 : 3 / 1,
               experimentalFeatures: { useBarCodeDetectorIfSupported: true },
             },
             processScannedCode,
-            () => {} // Ignorar NotFoundException
+            () => {}
           );
         } catch (err) {
           setError('No se pudo iniciar la cámara. Por favor, permite el acceso a la cámara o verifica tu dispositivo.');
@@ -188,31 +185,17 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
               toast.visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
             } ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}
             role="alert"
-            tabIndex="-1"
-            aria-labelledby="header-notification"
           >
             <div className="flex items-center justify-between p-4">
               <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg
-                    className="w-5 h-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 16 16"
-                    fill="currentColor"
-                  >
-                    <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z" />
-                  </svg>
-                </div>
+                <Check className="w-5 h-5 text-white" />
                 <div className="ml-3">
-                  <p id="header-notification" className="text-white font-medium">
-                    {toast.message}
-                  </p>
+                  <p className="text-white font-medium">{toast.message}</p>
                 </div>
               </div>
               <button
                 onClick={() => setToast((prev) => ({ ...prev, visible: false }))}
-                className="text-white hover:text-gray-200 focus:outline-none"
-                aria-label="Cerrar notificación"
+                className="text-white hover:text-gray-200"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -223,10 +206,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
 
       {priceModalOpen && selectedProduct && (
         <>
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90]"
-            onClick={handleBack}
-          />
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90]" onClick={handleBack} />
           <div className="fixed inset-0 flex items-center justify-center z-[95] p-4">
             <div
               className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-auto overflow-hidden animate-in fade-in zoom-in duration-300"
@@ -235,6 +215,9 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-5">
                   <h3 className="text-lg font-bold text-gray-800">Seleccionar Precio</h3>
+                  <button onClick={handleBack} className="p-1.5 rounded-full hover:bg-gray-100">
+                    <X className="h-5 w-5 text-gray-500" />
+                  </button>
                 </div>
 
                 <div className="mb-4">
@@ -262,25 +245,24 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
                 <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     onClick={() => handleSelectPrecio(selectedProduct.precio)}
-                    className="flex-1 p-3 rounded-xl border border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all focus:outline-none focus:ring-2 focus:ring-green-500 group relative"
+                    className="flex-1 p-3 rounded-xl border border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all group relative"
                   >
                     <div className="flex flex-col items-center text-center">
                       <h5 className="font-bold text-gray-800">Precio Normal</h5>
-                      <p className="text-xs text-gray-500 mb-2">Precio estándar del producto</p>
+                      <p className="text-xs text-gray-500 mb-2">Precio estándar</p>
                       <span className="text-xl font-bold text-green-600 mb-1">
                         S/{parseFloat(selectedProduct.precio).toFixed(2)}
                         {selectedProduct.tipo_unidad === 'kilogramo' && <span className="text-xs ml-1">/kg</span>}
                       </span>
                       <div className="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center group-hover:border-green-500 mt-1">
-                        <Check className="h-4 w-4 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <Check className="h-4 w-4 text-green-500 opacity-0 group-hover:opacity-100" />
                       </div>
                     </div>
-                    <div className="absolute inset-0 rounded-xl border-2 border-green-500 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
                   </button>
 
                   <button
                     onClick={() => handleSelectPrecio(parseFloat(selectedProduct.precio_alternativo))}
-                    className="flex-1 p-3 rounded-xl border border-gray-200 hover:border-amber-500 hover:bg-amber-50 transition-all focus:outline-none focus:ring-2 focus:ring-amber-500 group relative"
+                    className="flex-1 p-3 rounded-xl border border-gray-200 hover:border-amber-500 hover:bg-amber-50 transition-all group relative"
                   >
                     <div className="flex flex-col items-center text-center">
                       <h5 className="font-bold text-gray-800">
@@ -292,10 +274,9 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
                         {selectedProduct.tipo_unidad === 'kilogramo' && <span className="text-xs ml-1">/kg</span>}
                       </span>
                       <div className="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center group-hover:border-amber-500 mt-1">
-                        <Check className="h-4 w-4 text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <Check className="h-4 w-4 text-amber-500 opacity-0 group-hover:opacity-100" />
                       </div>
                     </div>
-                    <div className="absolute inset-0 rounded-xl border-2 border-amber-500 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
                   </button>
                 </div>
               </div>
@@ -306,14 +287,15 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
 
       {isOpen && (
         <div
-          className={`fixed inset-0 bg-black/70 z-40 transition-opacity duration-300 ease-in-out ${
+          className={`fixed inset-0 bg-black/70 z-40 transition-opacity duration-300 ${
             isOpen ? 'opacity-100' : 'opacity-0'
           }`}
           onClick={handleBack}
         />
       )}
+      
       <div
-        className={`fixed inset-0 bg-white rounded-t-2xl shadow-2xl z-50 transform transition-transform duration-300 ease-in-out ${
+        className={`fixed inset-0 bg-white rounded-t-2xl shadow-2xl z-50 transform transition-transform duration-300 ${
           isOpen ? 'translate-y-0' : 'translate-y-full'
         }`}
         style={{ maxHeight: '100vh', overflowY: 'auto' }}
@@ -331,6 +313,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
               <X className="h-6 w-6 text-gray-500 hover:text-gray-700" />
             </button>
           </div>
+          
           <div className="flex-1 flex flex-col items-center justify-center px-4">
             {error ? (
               <div className="bg-red-100 p-4 rounded-lg flex flex-col items-center">
@@ -358,12 +341,15 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
                 )}
               </div>
             )}
+            
             <p className="mt-4 text-sm text-gray-600 text-center">
               Alinea el código de barras dentro del recuadro rojo para escanear.
             </p>
+            
             {isScanning && !error && (
               <p className="mt-2 text-sm text-gray-500">Escaneando...</p>
             )}
+            
             <img
               src={IconoProductoCodigoBarras}
               alt="Icono de Código de Barras"
