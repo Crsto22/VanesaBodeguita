@@ -12,7 +12,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
   const [toast, setToast] = useState({ message: '', type: '', visible: false });
   const [priceModalOpen, setPriceModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [lastScannedCode, setLastScannedCode] = useState(null); // Nueva bandera para evitar escaneos duplicados
+  const [isProcessingScan, setIsProcessingScan] = useState(false); // Nueva variable de estado
 
   const stopScanner = () => {
     if (scannerRef.current && isScanning) {
@@ -58,9 +58,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
     setToast({ message: 'Producto agregado', type: 'success', visible: true });
     setPriceModalOpen(false);
     setSelectedProduct(null);
-    setLastScannedCode(null); // Resetear el código escaneado
-    stopScanner(); // Asegurar que el escáner esté detenido
-    onClose(); // Cerrar el drawer después de seleccionar el precio
+    onClose();
   };
 
   useEffect(() => {
@@ -96,20 +94,22 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
               experimentalFeatures: { useBarCodeDetectorIfSupported: true },
             },
             async (decodedText) => {
-              // Evitar procesar el mismo código dos veces
-              if (decodedText === lastScannedCode) {
-                return;
-              }
-              setLastScannedCode(decodedText); // Guardar el código escaneado
-
               try {
-                if (loading) {
-                  setToast({ message: 'Cargando productos, intenta de nuevo.', type: 'error', visible: true });
+                // Verificar si ya estamos procesando un escaneo
+                if (isProcessingScan || loading) {
+                  if (loading) {
+                    setToast({ message: 'Cargando productos, intenta de nuevo.', type: 'error', visible: true });
+                  }
                   return;
                 }
+                
+                // Marcar que estamos procesando un escaneo
+                setIsProcessingScan(true);
+                
                 const producto = productos.find((p) => p.codigo_barras === decodedText);
                 if (producto) {
-                  stopScanner(); // Detener el escáner inmediatamente
+                  await stopScanner(); // Detener el escáner antes de continuar
+                  
                   if (producto.has_precio_alternativo && producto.precio_alternativo) {
                     setSelectedProduct(producto);
                     setPriceModalOpen(true);
@@ -127,24 +127,29 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
                       imagen: producto.imagen || null,
                     });
                     setToast({ message: 'Producto agregado', type: 'success', visible: true });
-                    onClose(); // Cerrar el drawer después de agregar el producto
+                    onClose();
                   }
                 } else {
                   setToast({ message: 'Producto no encontrado', type: 'error', visible: true });
-                  setLastScannedCode(null); // Permitir reintentar el escaneo
                 }
               } catch (err) {
                 console.error('Error during scan processing:', err);
                 setError('Error al procesar el código escaneado.');
                 setIsScanning(false);
-                setLastScannedCode(null); // Permitir reintentar el escaneo
+              } finally {
+                // Independientemente del resultado, marcamos que hemos terminado de procesar
+                setIsProcessingScan(false);
               }
             },
-            () => {} // Ignore NotFoundException
+            (errorMessage) => {
+              // Ignorar NotFoundException pero resetear el estado de procesamiento
+              setIsProcessingScan(false);
+            }
           );
         } catch (err) {
           setError('No se pudo iniciar la cámara. Por favor, permite el acceso a la cámara o verifica tu dispositivo.');
           setIsScanning(false);
+          setIsProcessingScan(false);
         }
       };
 
@@ -153,6 +158,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
 
     return () => {
       stopScanner();
+      setIsProcessingScan(false);
     };
   }, [isOpen, priceModalOpen, productos, loading, onSelectProducto, onClose]);
 
@@ -169,7 +175,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
     stopScanner();
     setPriceModalOpen(false);
     setSelectedProduct(null);
-    setLastScannedCode(null); // Resetear el código escaneado
+    setIsProcessingScan(false);
     onClose();
   };
 
@@ -229,13 +235,6 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-5">
                   <h3 className="text-lg font-bold text-gray-800">Seleccionar Precio</h3>
-                  <button
-                    onClick={handleBack}
-                    className="p-1.5 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors"
-                    aria-label="Cerrar modal de precio"
-                  >
-                    <X className="h-5 w-5 text-gray-500" />
-                  </button>
                 </div>
 
                 <div className="mb-4">
@@ -264,7 +263,6 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
                   <button
                     onClick={() => handleSelectPrecio(selectedProduct.precio)}
                     className="flex-1 p-3 rounded-xl border border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all focus:outline-none focus:ring-2 focus:ring-green-500 group relative"
-                    aria-label={`Seleccionar precio normal para ${selectedProduct.nombre}`}
                   >
                     <div className="flex flex-col items-center text-center">
                       <h5 className="font-bold text-gray-800">Precio Normal</h5>
@@ -283,7 +281,6 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
                   <button
                     onClick={() => handleSelectPrecio(parseFloat(selectedProduct.precio_alternativo))}
                     className="flex-1 p-3 rounded-xl border border-gray-200 hover:border-amber-500 hover:bg-amber-50 transition-all focus:outline-none focus:ring-2 focus:ring-amber-500 group relative"
-                    aria-label={`Seleccionar precio alternativo para ${selectedProduct.nombre}`}
                   >
                     <div className="flex flex-col items-center text-center">
                       <h5 className="font-bold text-gray-800">
@@ -326,12 +323,11 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto }) => {
             <button
               onClick={handleBack}
               className="flex items-center text-sm font-medium text-gray-700 hover:text-gray-900"
-              aria-label="Regresar"
             >
               <ArrowLeft className="h-5 w-5 mr-1" />
               Regresar
             </button>
-            <button onClick={handleBack} aria-label="Cerrar drawer">
+            <button onClick={handleBack}>
               <X className="h-6 w-6 text-gray-500 hover:text-gray-700" />
             </button>
           </div>
