@@ -14,7 +14,7 @@ import EscanerCodigoBarras from './page/EscanerCodigoBarras';
 import Ventas from './page/Ventas';
 import NotaVenta from './page/NotaVenta';
 import VentasHistorial from './page/VentasHistorial';
-
+import Deudas from './page/Deudas';
 function App() {
   return (
     <AuthProvider>
@@ -78,6 +78,14 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <NotaVenta />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="deudas"
+                    element={
+                      <ProtectedRoute>
+                        <Deudas />
                       </ProtectedRoute>
                     }
                   />
