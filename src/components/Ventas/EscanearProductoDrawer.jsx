@@ -251,3 +251,4 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError })
 };
 
 export default EscanearProductoDrawer;
+
