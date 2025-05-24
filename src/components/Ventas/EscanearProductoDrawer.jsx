@@ -1,15 +1,16 @@
-
 import React, { useState, useEffect, useRef } from 'react';
-import { X, RefreshCw, Package, Scan } from 'lucide-react';
+import { X, RefreshCw, Package, Check } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { useProducts } from '../../context/ProductContext';
 import Escaner from '../../assets/Productos/Escaner.svg';
 import EscanerNoEscaneo from '../../assets/Productos/EscanerNoEscaneo.svg';
 
 const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError }) => {
-  const { productos, loading } = useProducts();
+  const { productos, loading, obtenerCategoriaPorId } = useProducts();
   const [isScanning, setIsScanning] = useState(false);
   const [localError, setLocalError] = useState('');
+  const [priceModalOpen, setPriceModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const scannerRef = useRef(null);
   const scannerContainerRef = useRef(null);
 
@@ -84,22 +85,25 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError })
             );
             await stopScanner();
             if (foundProduct) {
-              const precio = foundProduct.has_precio_alternativo && foundProduct.precio_alternativo
-                ? parseFloat(foundProduct.precio_alternativo)
-                : parseFloat(foundProduct.precio);
-              onSelectProducto({
-                id: foundProduct.id,
-                nombre: foundProduct.nombre,
-                cantidad: foundProduct.tipo_unidad === 'kilogramo' ? 1 : 1,
-                precio_unitario: precio,
-                subtotal: precio.toFixed(2),
-                retornable: foundProduct.retornable || false,
-                cantidad_retornable: foundProduct.retornable && foundProduct.tipo_unidad !== 'kilogramo' ? 1 : 0,
-                tipo_unidad: foundProduct.tipo_unidad || 'unidad',
-                precio_referencia: foundProduct.tipo_unidad === 'kilogramo' ? parseFloat(foundProduct.precio) : null,
-                imagen: foundProduct.imagen || null,
-              });
-              onClose();
+              setSelectedProduct(foundProduct);
+              if (foundProduct.has_precio_alternativo && foundProduct.precio_alternativo) {
+                setPriceModalOpen(true);
+              } else {
+                const precio = parseFloat(foundProduct.precio);
+                onSelectProducto({
+                  id: foundProduct.id,
+                  nombre: foundProduct.nombre,
+                  cantidad: foundProduct.tipo_unidad === 'kilogramo' ? 1 : 1,
+                  precio_unitario: precio,
+                  subtotal: precio.toFixed(2),
+                  retornable: foundProduct.retornable || false,
+                  cantidad_retornable: foundProduct.retornable && foundProduct.tipo_unidad !== 'kilogramo' ? 1 : 0,
+                  tipo_unidad: foundProduct.tipo_unidad || 'unidad',
+                  precio_referencia: foundProduct.tipo_unidad === 'kilogramo' ? parseFloat(foundProduct.precio) : null,
+                  imagen: foundProduct.imagen || null,
+                });
+                onClose();
+              }
             } else {
               setError('No se encontró un producto con ese código de barras.');
               onClose();
@@ -131,6 +135,25 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError })
   const handleScanAgain = async () => {
     setLocalError('');
     await startScanner();
+  };
+
+  const handleSelectPrecio = (precio) => {
+    if (selectedProduct) {
+      onSelectProducto({
+        id: selectedProduct.id,
+        nombre: selectedProduct.nombre,
+        cantidad: selectedProduct.tipo_unidad === 'kilogramo' ? 1 : 1,
+        precio_unitario: parseFloat(precio),
+        subtotal: parseFloat(precio).toFixed(2),
+        retornable: selectedProduct.retornable || false,
+        cantidad_retornable: selectedProduct.retornable && selectedProduct.tipo_unidad !== 'kilogramo' ? 1 : 0,
+        tipo_unidad: selectedProduct.tipo_unidad || 'unidad',
+        precio_referencia: selectedProduct.tipo_unidad === 'kilogramo' ? parseFloat(selectedProduct.precio) : null,
+        imagen: selectedProduct.imagen || null,
+      });
+    }
+    setPriceModalOpen(false);
+    onClose();
   };
 
   return (
@@ -231,6 +254,99 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError })
             </>
           )}
         </div>
+
+        {priceModalOpen && selectedProduct && (
+          <>
+            <div
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90]"
+              onClick={() => setPriceModalOpen(false)}
+            />
+            <div className="fixed inset-0 flex items-center justify-center z-[95] p-4">
+              <div 
+                className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-auto overflow-hidden animate-in fade-in zoom-in duration-300"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-5">
+                    <h3 className="text-lg font-bold text-gray-800">Seleccionar Precio</h3>
+                    <button
+                      onClick={() => setPriceModalOpen(false)}
+                      className="p-2 rounded-full hover:bg-gray-100"
+                    >
+                      <X className="h-5 w-5 text-gray-500" />
+                    </button>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        {selectedProduct.imagen ? (
+                          <img
+                            src={selectedProduct.imagen}
+                            alt={selectedProduct.nombre}
+                            className="w-full h-full object-cover rounded-lg"
+                          />
+                        ) : (
+                          <Package className="h-6 w-6 text-gray-400" />
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-gray-800">{selectedProduct.nombre}</h4>
+                        <span className="text-xs text-gray-500">
+                          {obtenerCategoriaPorId(selectedProduct.categoria_ref)?.nombre || 'Sin categoría'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      onClick={() => handleSelectPrecio(selectedProduct.precio)}
+                      className="flex-1 p-3 rounded-xl border border-gray-200 hover:border-[#45923a] hover:bg-[#f9fdf8] transition-all focus:outline-none focus:ring-2 focus:ring-[#45923a] group relative"
+                    >
+                      <div className="flex flex-col items-center text-center">
+                        <h5 className="font-bold text-gray-800">Precio Normal</h5>
+                        <p className="text-xs text-gray-500 mb-2">
+                          Precio estándar del producto
+                        </p>
+                        <span className="text-xl font-bold text-[#45923a] mb-1">
+                          S/{parseFloat(selectedProduct.precio).toFixed(2)}
+                          {selectedProduct.tipo_unidad === 'kilogramo' && <span className="text-xs ml-1">/kg</span>}
+                        </span>
+                        <div className="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center group-hover:border-[#45923a] mt-1">
+                          <Check className="h-4 w-4 text-[#45923a] opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </div>
+                      <div className="absolute inset-0 rounded-xl border-2 border-[#45923a] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                    </button>
+                    
+                    <button
+                      onClick={() => handleSelectPrecio(parseFloat(selectedProduct.precio_alternativo))}
+                      className="flex-1 p-3 rounded-xl border border-gray-200 hover:border-[#ffa40c] hover:bg-[#fff8e6] transition-all focus:outline-none focus:ring-2 focus:ring-[#ffa40c] group relative"
+                    >
+                      <div className="flex flex-col items-center text-center">
+                        <h5 className="font-bold text-gray-800">
+                          Precio {selectedProduct.motivo_precio_alternativo || 'Alternativo'}
+                        </h5>
+                        <p className="text-xs text-gray-500 mb-2">
+                          Precio especial
+                        </p>
+                        <span className="text-xl font-bold text-[#ffa40c] mb-1">
+                          S/{parseFloat(selectedProduct.precio_alternativo).toFixed(2)}
+                          {selectedProduct.tipo_unidad === 'kilogramo' && <span className="text-xs ml-1">/kg</span>}
+                        </span>
+                        <div className="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center group-hover:border-[#ffa40c] mt-1">
+                          <Check className="h-4 w-4 text-[#ffa40c] opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </div>
+                      <div className="absolute inset-0 rounded-xl border-2 border-[#ffa40c] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       <style jsx global>{`
@@ -245,10 +361,22 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError })
             transform: translateY(0);
           }
         }
+        .animate-in {
+          animation: animateIn 0.3s ease-in-out;
+        }
+        @keyframes animateIn {
+          0% {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
       `}</style>
     </>
   );
 };
 
 export default EscanearProductoDrawer;
-

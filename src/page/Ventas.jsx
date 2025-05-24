@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShoppingCart, Pencil, CreditCard, Users, History, Barcode, Package, User, PlusCircle, ScanBarcode, X, Milk, Minus, Plus } from 'lucide-react';
@@ -165,9 +164,26 @@ const Ventas = () => {
   };
 
   const handleSelectProducto = (producto) => {
-    setSelectedProductos((prev) => [...prev, producto]);
+    setSelectedProductos((prev) => {
+      const existingProductIndex = prev.findIndex((p) => p.id === producto.id && p.precio_unitario === producto.precio_unitario);
+      if (existingProductIndex !== -1) {
+        const updatedProductos = [...prev];
+        updatedProductos[existingProductIndex] = {
+          ...updatedProductos[existingProductIndex],
+          cantidad: updatedProductos[existingProductIndex].cantidad + producto.cantidad,
+          subtotal: (
+            (updatedProductos[existingProductIndex].cantidad + producto.cantidad) * producto.precio_unitario
+          ).toFixed(2),
+          cantidad_retornable:
+            producto.retornable && producto.tipo_unidad !== 'kilogramo'
+              ? updatedProductos[existingProductIndex].cantidad_retornable + producto.cantidad
+              : 0,
+        };
+        return updatedProductos;
+      }
+      return [...prev, producto];
+    });
     setDrawerProductosOpen(false);
-    setDrawerEscanearOpen(false);
   };
 
   const handleRemoveProducto = (index) => {
@@ -594,6 +610,7 @@ const Ventas = () => {
         isOpen={drawerEscanearOpen}
         onClose={() => setDrawerEscanearOpen(false)}
         onSelectProducto={handleSelectProducto}
+        setError={setError}
       />
     </div>
   );
