@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Login from './page/Login';
@@ -15,6 +14,8 @@ import Ventas from './page/Ventas';
 import NotaVenta from './page/NotaVenta';
 import VentasHistorial from './page/VentasHistorial';
 import Deudas from './page/Deudas';
+import NotaEstadoCuenta from './page/NotaEstadoCuenta';
+
 function App() {
   return (
     <AuthProvider>
@@ -86,6 +87,14 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <Deudas />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="deudas/:id"
+                    element={
+                      <ProtectedRoute>
+                        <NotaEstadoCuenta />
                       </ProtectedRoute>
                     }
                   />

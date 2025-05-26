@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../firebase/firebase';
 import { collection, addDoc, doc, updateDoc, onSnapshot, query, where, runTransaction, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
@@ -80,6 +79,7 @@ export const VentasProvider = ({ children }) => {
         const producto = obtenerProductoPorId(item.producto_ref);
         if (!producto) throw new Error(`Producto ${item.producto_ref} no encontrado`);
         if (item.cantidad <= 0) throw new Error(`Cantidad inválida para ${producto.nombre}`);
+        if (item.cantidad_retornable > item.cantidad) throw new Error(`Cantidad retornable inválida para ${producto.nombre}`);
         if (item.precio_unitario <= 0) throw new Error(`Precio unitario inválido para ${producto.nombre}`);
         if (Math.abs(item.subtotal - item.cantidad * item.precio_unitario) > 0.01) {
           throw new Error(`Subtotal inválido para ${producto.nombre}`);
@@ -130,7 +130,7 @@ export const VentasProvider = ({ children }) => {
 
       const nuevaVenta = {
         cliente_ref: ventaData.cliente_ref || null,
-        nombre_cliente: ventaData.nombre_cliente || 'Cliente Genérico',
+        nombre_cliente: ventaData.cliente_ref ? obtenerClientePorId(ventaData.cliente_ref).nombre : (ventaData.nombre_cliente || 'Cliente Genérico'),
         cajero_ref: currentUser.uid,
         fecha_creacion: new Date().toISOString(),
         estado: ventaData.estado,
@@ -144,11 +144,7 @@ export const VentasProvider = ({ children }) => {
         historial_retornables: [],
       };
 
-      console.log('Venta Data recibida:', ventaData);
-      console.log('Nueva Venta a guardar:', nuevaVenta);
-
       const docRef = await addDoc(ventasCollection, nuevaVenta);
-
       return docRef.id;
     } catch (error) {
       console.error('Error al crear venta:', error);
@@ -231,8 +227,10 @@ export const VentasProvider = ({ children }) => {
       if (cantidadDevuelta <= 0) throw new Error('La cantidad devuelta debe ser mayor a 0');
 
       const ventaRef = doc(db, 'ventas', ventaId);
-      const venta = ventas.find(v => v.id === ventaId);
-      if (!venta) throw new Error('Venta no encontrada');
+      const ventaDoc = await getDoc(ventaRef);
+      if (!ventaDoc.exists()) throw new Error('Venta no encontrada');
+
+      const venta = ventaDoc.data();
       if (cantidadDevuelta > venta.total_retornables) {
         throw new Error(`No se pueden devolver ${cantidadDevuelta} retornables, solo adeuda ${venta.total_retornables}`);
       }
@@ -259,18 +257,22 @@ export const VentasProvider = ({ children }) => {
   };
 
   // Obtener ventas por cliente
-  const obtenerVentasPorCliente = async (clienteId) => {
+  const obtenerVentasPorCliente = async (clienteId, includePagado = false) => {
     try {
+      const estados = includePagado ? ['pendiente', 'parcial', 'pagado'] : ['pendiente', 'parcial'];
       const ventasQuery = query(
         ventasCollection,
         where('cliente_ref', '==', clienteId),
-        where('estado', 'in', ['pendiente', 'parcial'])
+        where('estado', 'in', estados)
       );
       const snapshot = await getDocs(ventasQuery);
-      return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const ventasData = snapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        .filter(venta => includePagado ? (venta.monto_pendiente > 0 || venta.total_retornables > 0) : venta.monto_pendiente > 0);
+      return ventasData;
     } catch (error) {
       console.error('Error al obtener ventas por cliente:', error);
       throw error;
@@ -282,7 +284,7 @@ export const VentasProvider = ({ children }) => {
     try {
       const ventasCliente = ventas.filter(v => v.cliente_ref === clienteId);
       const deudaTotal = ventasCliente.reduce((sum, venta) => sum + (venta.monto_pendiente || 0), 0);
-      return Number(deudaTotal.toFixed(2)); // Redondear a 2 decimales
+      return Number(deudaTotal.toFixed(2));
     } catch (error) {
       console.error('Error al calcular deuda total por cliente:', error);
       return 0;
@@ -290,8 +292,15 @@ export const VentasProvider = ({ children }) => {
   };
 
   // Obtener venta por ID
-  const obtenerVentaPorId = (id) => {
-    return ventas.find(venta => venta.id === id);
+  const obtenerVentaPorId = async (id) => {
+    try {
+      const ventaRef = doc(db, 'ventas', id);
+      const ventaDoc = await getDoc(ventaRef);
+      return ventaDoc.exists() ? { id: doc.id, ...ventaDoc.data() } : null;
+    } catch (error) {
+      console.error('Error al obtener venta por ID:', error);
+      return null;
+    }
   };
 
   // Obtener todos los datos de una venta por ID, incluyendo el nombre del cajero
@@ -309,7 +318,6 @@ export const VentasProvider = ({ children }) => {
         ...ventaDoc.data(),
       };
 
-      // Obtener el nombre del cajero
       let nombreCajero = 'Desconocido';
       if (ventaData.cajero_ref) {
         const cajeroRef = doc(db, 'usuarios', ventaData.cajero_ref);
@@ -342,8 +350,13 @@ export const VentasProvider = ({ children }) => {
         throw new Error('Venta no encontrada');
       }
 
+      const ventaData = ventaDoc.data();
+      if (ventaData.historial_pagos?.length > 0 || ventaData.historial_retornables?.length > 0) {
+        throw new Error('No se puede eliminar una venta con pagos o devoluciones registradas');
+      }
+
       await deleteDoc(ventaRef);
-      return true; // Indica éxito
+      return true;
     } catch (error) {
       console.error('Error al eliminar venta:', error);
       throw error;
@@ -361,7 +374,7 @@ export const VentasProvider = ({ children }) => {
     obtenerVentaCompletaPorId,
     obtenerDeudaTotalPorCliente,
     obtenerTodasVentas,
-    eliminarVenta, // Nueva función añadida al contexto
+    eliminarVenta,
   };
 
   return (

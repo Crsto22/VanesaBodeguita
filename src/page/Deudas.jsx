@@ -7,6 +7,8 @@ import Header from '../components/Header';
 import IconoDeudas from '../assets/Deudas/IconoDeudas.svg';
 import { useClientes } from '../context/ClientesContext';
 import { useVentas } from '../context/VentasContext';
+import PagarDeudaDrawer from '../components/Deudas/PagarDeudaDrawer';
+import DevolverBotellasDrawer from '../components/Deudas/DevolverBotellasDrawer';
 
 const Deudas = () => {
   const navigate = useNavigate();
@@ -16,11 +18,11 @@ const Deudas = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const { clientes, loading: clientesLoading } = useClientes();
   const { obtenerDeudaTotalPorCliente, obtenerVentasPorCliente, loading: ventasLoading } = useVentas();
-
-  // Estado para almacenar las deudas y retornables por cliente
   const [clientesConDeudas, setClientesConDeudas] = useState([]);
+  const [drawerPagarDeudaOpen, setDrawerPagarDeudaOpen] = useState(false);
+  const [drawerDevolverBotellasOpen, setDrawerDevolverBotellasOpen] = useState(false);
+  const [selectedCliente, setSelectedCliente] = useState(null);
 
-  // Opciones del menú principal - Accesos rápidos
   const quickAccessOptions = [
     {
       id: 'ventas',
@@ -64,7 +66,6 @@ const Deudas = () => {
     },
   ];
 
-  // Calcular deudas y retornables por cliente
   useEffect(() => {
     setAppear(true);
 
@@ -74,7 +75,7 @@ const Deudas = () => {
       const clientesConDatos = await Promise.all(
         clientes.map(async (cliente) => {
           const deudaTotal = obtenerDeudaTotalPorCliente(cliente.id);
-          const ventasCliente = await obtenerVentasPorCliente(cliente.id);
+          const ventasCliente = await obtenerVentasPorCliente(cliente.id, true);
           const totalRetornables = ventasCliente.reduce(
             (sum, venta) => sum + (venta.total_retornables || 0),
             0
@@ -88,7 +89,6 @@ const Deudas = () => {
         })
       );
 
-      // Filtrar solo clientes con deudas o retornables pendientes
       const clientesFiltrados = clientesConDatos.filter(
         (cliente) => cliente.deudaTotal > 0 || cliente.totalRetornables > 0
       );
@@ -99,7 +99,6 @@ const Deudas = () => {
     calcularDeudasYRetornables();
   }, [clientes, clientesLoading, ventasLoading, obtenerDeudaTotalPorCliente, obtenerVentasPorCliente]);
 
-  // Filtrar clientes según el término de búsqueda
   const clientesFiltrados = clientesConDeudas.filter(cliente =>
     cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
     cliente.correo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -112,16 +111,47 @@ const Deudas = () => {
   };
 
   const handlePagarDeuda = (clienteId) => {
-    // Lógica para pagar deuda
-    console.log('Pagar deuda para cliente:', clienteId);
+    const cliente = clientesConDeudas.find((c) => c.id === clienteId);
+    setSelectedCliente(cliente);
+    setDrawerPagarDeudaOpen(true);
   };
 
   const handleDevolverBotellas = (clienteId) => {
-    // Lógica para devolver botellas
-    console.log('Devolver botellas para cliente:', clienteId);
+    const cliente = clientesConDeudas.find((c) => c.id === clienteId);
+    setSelectedCliente(cliente);
+    setDrawerDevolverBotellasOpen(true);
   };
 
-  // Componente de esqueleto de carga
+  const handlePagarDeudaSuccess = async () => {
+    const updatedClientes = await Promise.all(
+      clientesConDeudas.map(async (cliente) => {
+        const deudaTotal = obtenerDeudaTotalPorCliente(cliente.id);
+        const ventasCliente = await obtenerVentasPorCliente(cliente.id, true);
+        const totalRetornables = ventasCliente.reduce(
+          (sum, venta) => sum + (venta.total_retornables || 0),
+          0
+        );
+        return { ...cliente, deudaTotal, totalRetornables };
+      })
+    );
+    setClientesConDeudas(updatedClientes.filter((c) => c.deudaTotal > 0 || c.totalRetornables > 0));
+  };
+
+  const handleDevolverBotellasSuccess = async () => {
+    const updatedClientes = await Promise.all(
+      clientesConDeudas.map(async (cliente) => {
+        const deudaTotal = obtenerDeudaTotalPorCliente(cliente.id);
+        const ventasCliente = await obtenerVentasPorCliente(cliente.id, true);
+        const totalRetornables = ventasCliente.reduce(
+          (sum, venta) => sum + (venta.total_retornables || 0),
+          0
+        );
+        return { ...cliente, deudaTotal, totalRetornables };
+      })
+    );
+    setClientesConDeudas(updatedClientes.filter((c) => c.deudaTotal > 0 || c.totalRetornables > 0));
+  };
+
   const SkeletonCard = () => (
     <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 animate-pulse">
       <div className="flex items-start gap-3 mb-4">
@@ -145,14 +175,11 @@ const Deudas = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
-      {/* Header component */}
       <Header
         menuOpen={menuOpen}
         setMenuOpen={setMenuOpen}
         notifications={notifications}
       />
-
-      {/* Sidebar component */}
       <Sidebar
         isOpen={menuOpen}
         setIsOpen={setMenuOpen}
@@ -160,24 +187,20 @@ const Deudas = () => {
         onOptionClick={handleOptionClick}
         logo={Logo}
       />
-
-      {/* Contenido principal */}
       <main className="px-3 pb-12 pt-4">
         <div className={`transition-opacity duration-500 ${appear ? 'opacity-100' : 'opacity-0'}`}>
-          {/* Hero section con saludo */}
-          <div className="relative mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-[#45923a] to-[#3d8033] p-4 text-white shadow-lg">
+          <div className="relative mb-3 overflow-hidden rounded-3xl bg-gradient-to-br from-[#45923a] to-[#34722c] p-6 text-white shadow-lg">
             <img
               src={IconoDeudas}
               alt="Background Icon"
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-20 h-20 object-contain opacity-80"
+              className="absolute right-0 top-1/2 -translate-y-1/2 w-28 h-28 object-contain z-0"
             />
             <div className="relative">
-              <h1 className="mb-1 text-lg font-bold">Deudas Pendientes</h1>
-              <p className="text-sm text-white/80">Gestiona los pagos de tus clientes</p>
+              <h1 className="mb-2 text-xl font-bold">Deudas y Retornables Pendientes</h1>
+              <p className="text-sm text-white/80">Gestiona los pagos y botellas retornables de tus clientes</p>
             </div>
           </div>
 
-          {/* Buscador */}
           <div className="mb-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -191,11 +214,10 @@ const Deudas = () => {
             </div>
           </div>
 
-          {/* Lista de clientes con deudas */}
           <div>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-base font-semibold text-gray-800">
-                Clientes con Deudas ({clientesFiltrados.length})
+                Clientes con Deudas o Retornables ({clientesFiltrados.length})
               </h2>
             </div>
 
@@ -211,7 +233,7 @@ const Deudas = () => {
                   <CreditCard className="h-8 w-8 text-gray-400" />
                 </div>
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">
-                  {searchTerm ? 'No se encontraron resultados' : 'No hay deudas pendientes'}
+                  {searchTerm ? 'No se encontraron resultados' : 'No hay deudas ni retornables pendientes'}
                 </h3>
                 <p className="text-xs text-gray-500">
                   {searchTerm ? 'Intenta con otro término de búsqueda' : 'Todos los clientes están al día'}
@@ -224,7 +246,6 @@ const Deudas = () => {
                     key={cliente.id}
                     className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg hover:border-gray-200 transition-all duration-300"
                   >
-                    {/* Header del cliente con avatar */}
                     <div className="flex items-start gap-3 mb-4">
                       <div className="w-12 h-12 bg-gradient-to-br from-[#45923a] to-[#3d8033] rounded-full flex items-center justify-center flex-shrink-0">
                         <span className="text-white font-semibold text-sm">
@@ -248,7 +269,6 @@ const Deudas = () => {
                       </div>
                     </div>
 
-                    {/* Badges de deuda y retornables */}
                     <div className="flex gap-2 mb-4">
                       {cliente.deudaTotal > 0 && (
                         <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 border border-red-100 rounded-full">
@@ -262,13 +282,12 @@ const Deudas = () => {
                         <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-full">
                           <Milk className="h-3 w-3 text-blue-600" />
                           <span className="text-xs font-medium text-blue-700">
-                            {cliente.totalRetornables} botellas
+                            {cliente.totalRetornables} {cliente.totalRetornables === 1 ? 'botella' : 'botellas'}
                           </span>
                         </div>
                       )}
                     </div>
 
-                    {/* Botones de acción modernos */}
                     <div className="flex gap-2">
                       {cliente.deudaTotal > 0 && (
                         <button
@@ -296,6 +315,26 @@ const Deudas = () => {
           </div>
         </div>
       </main>
+
+      <PagarDeudaDrawer
+        isOpen={drawerPagarDeudaOpen}
+        onClose={() => {
+          setDrawerPagarDeudaOpen(false);
+          setSelectedCliente(null);
+        }}
+        cliente={selectedCliente}
+        onPagarDeuda={handlePagarDeudaSuccess}
+      />
+
+      <DevolverBotellasDrawer
+        isOpen={drawerDevolverBotellasOpen}
+        onClose={() => {
+          setDrawerDevolverBotellasOpen(false);
+          setSelectedCliente(null);
+        }}
+        cliente={selectedCliente}
+        onDevolverBotellas={handleDevolverBotellasSuccess}
+      />
     </div>
   );
 };
