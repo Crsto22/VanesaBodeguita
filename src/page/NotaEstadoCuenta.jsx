@@ -28,7 +28,11 @@ const NotaEstadoCuenta = () => {
 
         // Fetch sales with pending or partial status
         const ventasData = await obtenerVentasPorCliente(id, false);
-        setVentas(ventasData);
+        // Sort sales by fecha_creacion in descending order
+        const sortedVentas = ventasData.sort((a, b) => 
+          new Date(b.fecha_creacion) - new Date(a.fecha_creacion)
+        );
+        setVentas(sortedVentas);
       } catch (err) {
         console.error('Error al obtener datos:', err);
         setError(err.message || 'Error al cargar el estado de cuenta');
@@ -75,7 +79,7 @@ const NotaEstadoCuenta = () => {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="flex flex-col items-center">
-          <Loader2 className="h-8 w-8 text-green-600 animate-spin" />
+          <Loader2 className="h-8 w-8 text-green- distribuir en el estado de cuenta.600 animate-spin" />
           <p className="mt-2 text-gray-600 font-medium">Cargando estado de cuenta...</p>
         </div>
       </div>
@@ -232,7 +236,6 @@ const NotaEstadoCuenta = () => {
             {/* Summary */}
             <div className="border-t border-dashed border-gray-400 my-4"></div>
             <div className="mb-4">
-             
               <div className="flex justify-between text-xs mt-2">
                 <span className="font-medium text-xl">Deuda Total:</span>
                 <span className="font-bold text-red-600 text-xl">S/{totalDeuda.toFixed(2)}</span>
