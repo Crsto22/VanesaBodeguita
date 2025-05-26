@@ -1,9 +1,9 @@
-
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useVentas } from '../context/VentasContext';
 import { Loader2, ArrowLeft, Printer, Download, Plus } from 'lucide-react';
 import Logo from '../assets/Logo.svg';
+import domtoimage from 'dom-to-image';
 
 const NotaVenta = () => {
   const { id } = useParams();
@@ -12,6 +12,8 @@ const NotaVenta = () => {
   const [venta, setVenta] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isDownloading, setIsDownloading] = useState(false); // State for download loading
+  const notaVentaRef = useRef(null); // Ref for capturing receipt content
 
   useEffect(() => {
     const fetchVenta = async () => {
@@ -38,10 +40,32 @@ const NotaVenta = () => {
     window.print();
   };
 
-  const handleDownload = () => {
-    // Lógica para descargar la nota de venta como PDF o imagen
-    // Esta es una implementación básica que podría expandirse según necesidades
-    alert('Funcionalidad de descarga en desarrollo');
+  const handleDownload = async () => {
+    try {
+      setIsDownloading(true); // Start loading
+      const dataUrl = await domtoimage.toPng(notaVentaRef.current, {
+        bgcolor: '#ffffff',
+        quality: 1,
+        width: 384 * 2,
+        height: notaVentaRef.current.clientHeight * 2,
+        style: {
+          transform: 'scale(2)',
+          transformOrigin: 'top left',
+          width: '384px',
+          height: `${notaVentaRef.current.clientHeight}px`
+        }
+      });
+
+      const link = document.createElement('a');
+      link.download = `nota-venta-${id.slice(0, 8)}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (error) {
+      console.error('Error al generar la nota de venta:', error);
+      alert('Error al generar la nota de venta. Intente nuevamente.');
+    } finally {
+      setIsDownloading(false); // Stop loading
+    }
   };
 
   const handleNuevaVenta = () => {
@@ -49,7 +73,7 @@ const NotaVenta = () => {
   };
 
   const handleBack = () => {
-    navigate(-1); // Navigate back one step in history
+    navigate(-1);
   };
 
   if (loading) {
@@ -80,6 +104,119 @@ const NotaVenta = () => {
     );
   }
 
+  const renderContent = () => (
+    <div className="p-4 font-mono text-sm text-gray-800 bg-gray-50 border-t border-b border-gray-200">
+      {/* Logo and Header */}
+      <div className="text-center mb-4">
+        <img
+          src={Logo}
+          alt="Logo"
+          className="mx-auto mb-2"
+          style={{ maxWidth: '80px', height: 'auto' }}
+        />
+        <h2 className="text-lg font-bold text-gray-900">Nota de Venta</h2>
+        <p className="text-xs">Venta #{id}</p>
+        <p className="text-xs">
+          Fecha: {new Date(venta.fecha_creacion).toLocaleString('es-PE', {
+            dateStyle: 'short',
+            timeStyle: 'short',
+          })}
+        </p>
+        <p className="text-xs">Cajero: {venta.nombre_cajero || 'Desconocido'}</p>
+        <p className="text-xs">Cliente: {venta.nombre_cliente}</p>
+      </div>
+
+      {/* Separator */}
+      <div className="border-t border-dashed border-gray-400 my-2"></div>
+
+      {/* Products */}
+      <div className="mb-4">
+        <div className="flex justify-between font-bold text-xs">
+          <span>Descripción</span>
+          <span>Total</span>
+        </div>
+        {venta.productos.map((producto, index) => (
+          <div key={index} className="flex justify-between mt-1 text-xs">
+            <div>
+              <p className="font-medium">
+                {producto.nombre} x{producto.cantidad}
+              </p>
+              <p className="text-gray-600">
+                S/{producto.precio_unitario.toFixed(2)}/u
+                {producto.retornable && ` | Retornables: ${producto.cantidad_retornable}`}
+              </p>
+            </div>
+            <p className="font-medium">S/{producto.subtotal.toFixed(2)}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Separator */}
+      <div className="border-t border-dashed border-gray-400 my-2"></div>
+
+      {/* Totals */}
+      <div className="text-right mb-4">
+        <p className="text-xs font-bold">Total: S/{venta.total.toFixed(2)}</p>
+        {venta.estado === 'parcial' && (
+          <>
+            <p className="text-xs">Pagado: S/{venta.monto_pagado.toFixed(2)}</p>
+            <p className="text-xs text-red-600">Pendiente: S/{venta.monto_pendiente.toFixed(2)}</p>
+          </>
+        )}
+        {venta.estado === 'pendiente' && (
+          <p className="text-xs text-red-600">Pendiente: S/{venta.monto_pendiente.toFixed(2)}</p>
+        )}
+        <p
+          className={`text-xs font-medium capitalize ${
+            venta.estado === 'pagado'
+              ? 'text-green-600'
+              : venta.estado === 'parcial'
+              ? 'text-[#ffa40c]'
+              : 'text-red-600'
+          }`}
+        >
+          Estado: {venta.estado.charAt(0).toUpperCase() + venta.estado.slice(1)}
+        </p>
+        {venta.total_retornables > 0 && (
+          <p className="text-xs">Retornables pendientes: {venta.total_retornables}</p>
+        )}
+      </div>
+
+      {/* Returnables History */}
+      {venta.historial_retornables && venta.historial_retornables.length > 0 && (
+        <>
+          <div className="border-t border-dashed border-gray-400 my-2"></div>
+          <div className="mb-4">
+            <p className="font-bold text-xs">Historial de Retornables</p>
+            {venta.historial_retornables.map((devolucion, index) => (
+              <div key={index} className="text-xs mt-1">
+                <p>
+                  {new Date(devolucion.fecha).toLocaleString('es-PE', {
+                    dateStyle: 'short',
+                    timeStyle: 'short',
+                  })}
+                  : {devolucion.cantidad_devuelta} devuelto(s)
+                </p>
+                {devolucion.notas && <p className="text-gray-600">Notas: {devolucion.notas}</p>}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Notes */}
+      {venta.notas && (
+        <>
+          <div className="border-t border-dashed border-gray-400 my-2"></div>
+          <div>
+            <p className="font-bold text-xs">Notas</p>
+            <p className="text-xs text-gray-600">{venta.notas}</p>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       {/* Header - Fixed */}
@@ -92,21 +229,25 @@ const NotaVenta = () => {
             <ArrowLeft size={16} />
             <span className="text-sm">Volver</span>
           </button>
-          
           <div className="flex items-center gap-3">
-            <button 
-              onClick={handlePrint} 
+            <button
+              onClick={handlePrint}
               className="text-[#45923a]"
               aria-label="Imprimir nota de venta"
             >
               <Printer size={20} />
             </button>
-            <button 
-              onClick={handleDownload} 
-              className="text-[#45923a]"
+            <button
+              onClick={handleDownload}
+              className="text-[#45923a] relative"
               aria-label="Descargar nota de venta"
+              disabled={isDownloading}
             >
-              <Download size={20} />
+              {isDownloading ? (
+                <Loader2 size={20} className="animate-spin" />
+              ) : (
+                <Download size={20} />
+              )}
             </button>
           </div>
         </div>
@@ -115,117 +256,23 @@ const NotaVenta = () => {
       {/* Content - Scrollable */}
       <div className="mt-24 pb-6 flex justify-center px-4">
         <div className="max-w-[384px] w-full bg-white rounded-lg shadow-lg">
-          {/* Receipt Content */}
-          <div className="p-4 font-mono text-sm text-gray-800 bg-gray-50 border-t border-b border-gray-200">
-            {/* Logo and Header */}
-            <div className="text-center mb-4">
-              <img
-                src={Logo}
-                alt="Logo"
-                className="mx-auto mb-2"
-                style={{ maxWidth: '80px', height: 'auto' }}
-              />
-              <h2 className="text-lg font-bold text-gray-900">Nota de Venta</h2>
-              <p className="text-xs">Venta #{id}</p>
-              <p className="text-xs">
-                Fecha: {new Date(venta.fecha_creacion).toLocaleString('es-PE', {
-                  dateStyle: 'short',
-                  timeStyle: 'short',
-                })}
-              </p>
-              <p className="text-xs">Cajero: {venta.nombre_cajero || 'Desconocido'}</p>
-              <p className="text-xs">Cliente: {venta.nombre_cliente}</p>
-            </div>
+          {renderContent()}
+        </div>
+      </div>
 
-            {/* Separator */}
-            <div className="border-t border-dashed border-gray-400 my-2"></div>
-
-            {/* Products */}
-            <div className="mb-4">
-              <div className="flex justify-between font-bold text-xs">
-                <span>Descripción</span>
-                <span>Total</span>
-              </div>
-              {venta.productos.map((producto, index) => (
-                <div key={index} className="flex justify-between mt-1 text-xs">
-                  <div>
-                    <p className="font-medium">
-                      {producto.nombre} x{producto.cantidad}
-                    </p>
-                    <p className="text-gray-600">
-                      S/{producto.precio_unitario.toFixed(2)}/u
-                      {producto.retornable && ` | Retornables: ${producto.cantidad_retornable}`}
-                    </p>
-                  </div>
-                  <p className="font-medium">S/{producto.subtotal.toFixed(2)}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Separator */}
-            <div className="border-t border-dashed border-gray-400 my-2"></div>
-
-            {/* Totals */}
-            <div className="text-right mb-4">
-              <p className="text-xs font-bold">Total: S/{venta.total.toFixed(2)}</p>
-              {venta.estado === 'parcial' && (
-                <>
-                  <p className="text-xs">Pagado: S/{venta.monto_pagado.toFixed(2)}</p>
-                  <p className="text-xs text-red-600">Pendiente: S/{venta.monto_pendiente.toFixed(2)}</p>
-                </>
-              )}
-              {venta.estado === 'pendiente' && (
-                <p className="text-xs text-red-600">Pendiente: S/{venta.monto_pendiente.toFixed(2)}</p>
-              )}
-              <p
-                className={`text-xs font-medium capitalize ${
-                  venta.estado === 'pagado'
-                    ? 'text-green-600'
-                    : venta.estado === 'parcial'
-                    ? 'text-[#ffa40c]'
-                    : 'text-red-600'
-                }`}
-              >
-                Estado: {venta.estado.charAt(0).toUpperCase() + venta.estado.slice(1)}
-              </p>
-              {venta.total_retornables > 0 && (
-                <p className="text-xs">Retornables pendientes: {venta.total_retornables}</p>
-              )}
-            </div>
-
-            {/* Returnables History */}
-            {venta.historial_retornables && venta.historial_retornables.length > 0 && (
-              <>
-                <div className="border-t border-dashed border-gray-400 my-2"></div>
-                <div className="mb-4">
-                  <p className="font-bold text-xs">Historial de Retornables</p>
-                  {venta.historial_retornables.map((devolucion, index) => (
-                    <div key={index} className="text-xs mt-1">
-                      <p>
-                        {new Date(devolucion.fecha).toLocaleString('es-PE', {
-                          dateStyle: 'short',
-                          timeStyle: 'short',
-                        })}
-                        : {devolucion.cantidad_devuelta} devuelto(s)
-                      </p>
-                      {devolucion.notas && <p className="text-gray-600">Notas: {devolucion.notas}</p>}
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Notes */}
-            {venta.notas && (
-              <>
-                <div className="border-t border-dashed border-gray-400 my-2"></div>
-                <div>
-                  <p className="font-bold text-xs">Notas</p>
-                  <p className="text-xs text-gray-600">{venta.notas}</p>
-                </div>
-              </>
-            )}
-          </div>
+      {/* Hidden content for high-quality image generation */}
+      <div className="fixed -left-[9999px]">
+        <div
+          ref={notaVentaRef}
+          className="bg-white w-[384px] text-sm"
+          style={{
+            fontFamily: "'Courier New', monospace",
+            lineHeight: '1.5',
+            color: '#000',
+            boxShadow: '0 0 0 1px rgba(0,0,0,0.1)'
+          }}
+        >
+          {renderContent()}
         </div>
       </div>
 
@@ -240,7 +287,7 @@ const NotaVenta = () => {
         </button>
       </div>
 
-      {/* Print styles - Solo aplicados cuando se imprime */}
+      {/* Print styles */}
       <style jsx global>{`
         @media print {
           body * {
@@ -258,7 +305,8 @@ const NotaVenta = () => {
           .mt-24 {
             margin-top: 0 !important;
           }
-          .mt-24 *, .mt-24 {
+          .mt-24 *,
+          .mt-24 {
             visibility: visible;
           }
           .mt-24 {

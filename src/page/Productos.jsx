@@ -6,8 +6,6 @@ import {
   Edit2,
   Trash2,
   DollarSign,
-  ArrowUpDown,
-  BarChart2,
   ShoppingCart,
   Users,
   Truck,
@@ -45,9 +43,8 @@ const Productos = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [userName] = useState('Usuario');
   const [notifications] = useState(3);
-  const [sortBy, setSortBy] = useState('nombre');
-  const [sortOrder, setSortOrder] = useState('asc');
   const [activeTab, setActiveTab] = useState('productos');
+  const [selectedCategory, setSelectedCategory] = useState('all'); // New state for category filter
   const [toast, setToast] = useState({ message: '', type: '', visible: false });
 
   // Drawer states para categorías
@@ -63,6 +60,7 @@ const Productos = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [productosAsociadosPorCategoria, setProductosAsociadosPorCategoria] = useState({});
   const [appear, setAppear] = useState(false);
+
   // Drawer states para productos
   const [showProductDrawer, setShowProductDrawer] = useState(false);
   const [productFormData, setProductFormData] = useState({
@@ -113,6 +111,7 @@ const Productos = () => {
   useEffect(() => {
     setAppear(true);
   }, []);
+
   // Obtener el conteo de productos asociados por categoría
   useEffect(() => {
     const fetchProductosAsociados = async () => {
@@ -204,37 +203,16 @@ const Productos = () => {
     </div>
   );
 
-  // Filtrado y ordenación de productos
-  const filteredProducts = productos
-    .filter((product) => {
-      const categoriaNombre = obtenerCategoriaPorId(product.categoria_ref)?.nombre || '';
-      const matchesSearch =
-        product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        categoriaNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (product.codigo_barras || '').toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesSearch;
-    })
-    .sort((a, b) => {
-      let fieldA, fieldB;
-      if (sortBy === 'precio') {
-        fieldA = a.precio;
-        fieldB = b.precio;
-      } else if (sortBy === 'stock') {
-        fieldA = a.stock;
-        fieldB = b.stock;
-      } else if (sortBy === 'categoria') {
-        fieldA = obtenerCategoriaPorId(a.categoria_ref)?.nombre || '';
-        fieldB = obtenerCategoriaPorId(b.categoria_ref)?.nombre || '';
-      } else {
-        fieldA = a.nombre.toLowerCase();
-        fieldB = b.nombre.toLowerCase();
-      }
-      if (sortOrder === 'asc') {
-        return fieldA > fieldB ? 1 : -1;
-      } else {
-        return fieldA < fieldB ? 1 : -1;
-      }
-    });
+  // Filtrado de productos
+  const filteredProducts = productos.filter((product) => {
+    const categoriaNombre = obtenerCategoriaPorId(product.categoria_ref)?.nombre || '';
+    const matchesSearch =
+      product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      categoriaNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (product.codigo_barras || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || product.categoria_ref === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   // Filtrado de categorías
   const filteredCategories = categorias.filter((category) => {
@@ -344,15 +322,6 @@ const Productos = () => {
     }
   };
 
-  const handleSortChange = (field) => {
-    if (sortBy === 'nombre' && field === 'nombre') {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(field);
-      setSortOrder('asc');
-    }
-  };
-
   // Manejadores para categorías
   const handleAddCategory = () => {
     setCategoryFormData({
@@ -426,7 +395,6 @@ const Productos = () => {
     }
   };
 
-
   // Función para cerrar el toast manualmente
   const closeToast = () => {
     setToast(prev => ({ ...prev, visible: false }));
@@ -437,7 +405,7 @@ const Productos = () => {
       {/* Toast */}
       {toast.visible && (
         <div className="fixed top-0 left-0 right-0 w-full z-50 rounded-b-xl overflow-hidden">
-          <div
+          <div
             className={`w-full shadow-lg transform transition-all duration-300 ease-in-out ${toast.visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
               } ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
               }`}
@@ -494,310 +462,294 @@ const Productos = () => {
         onOptionClick={() => setMenuOpen(false)}
       />
       <main className="px-3 pb-16 pt-3">
-               <div className={`transition-opacity duration-500 ${appear ? 'opacity-100' : 'opacity-0'}`}>
-
-        <div className="relative mb-3 overflow-hidden rounded-3xl bg-gradient-to-br from-[#45923a] to-[#34722c] p-6 text-white shadow-lg">
-          <img
-            src={IconoProductos}
-            alt="Productos Icon"
-            className="absolute right-0 top-1/2 -translate-y-1/2 w-28 h-28 object-contain z-0"
-          />
-          <div className="relative flex justify-between items-center">
-            <div className="flex flex-col">
-              <h1 className="mb-2 text-xl font-bold">Gestión de Productos</h1>
-              <div className="flex gap-2">
-                {activeTab === 'productos' ? (
-                  <button
-                    onClick={handleAddProduct}
-                    className="bg-[#ffa40c] font-semibold py-2 px-4 rounded-full shadow-md transition duration-300 flex items-center gap-2 w-fit"
-                    title="Agregar nuevo producto"
-                  >
-                    <PackagePlus size={18} strokeWidth={3} />
-                    Nuevo Producto
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleAddCategory}
-                    className="bg-[#ffa40c] font-semibold py-2 px-4 rounded-full shadow-md transition duration-300 flex items-center gap-2 w-fit"
-                    title="Agregar nueva categoría"
-                  >
-                    <PlusCircle size={18} strokeWidth={3} />
-                    Nueva Categoría
-                  </button>
-                )}
+        <div className={`transition-opacity duration-500 ${appear ? 'opacity-100' : 'opacity-0'}`}>
+          <div className="relative mb-3 overflow-hidden rounded-3xl bg-gradient-to-br from-[#45923a] to-[#34722c] p-6 text-white shadow-lg">
+            <img
+              src={IconoProductos}
+              alt="Productos Icon"
+              className="absolute right-0 top-1/2 -translate-y-1/2 w-28 h-28 object-contain z-0"
+            />
+            <div className="relative flex justify-between items-center">
+              <div className="flex flex-col">
+                <h1 className="mb-2 text-xl font-bold">Gestión de Productos</h1>
+                <div className="flex gap-2">
+                  {activeTab === 'productos' ? (
+                    <button
+                      onClick={handleAddProduct}
+                      className="bg-[#ffa40c] font-semibold py-2 px-4 rounded-full shadow-md transition duration-300 flex items-center gap-2 w-fit"
+                      title="Agregar nuevo producto"
+                    >
+                      <PackagePlus size={18} strokeWidth={3} />
+                      Nuevo Producto
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleAddCategory}
+                      className="bg-[#ffa40c] font-semibold py-2 px-4 rounded-full shadow-md transition duration-300 flex items-center gap-2 w-fit"
+                      title="Agregar nueva categoría"
+                    >
+                      <PlusCircle size={18} strokeWidth={3} />
+                      Nueva Categoría
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        <div className="mb-4 flex border-b border-gray-200">
-          <button
-            className={`flex-1 py-3 font-medium text-sm text-center ${activeTab === 'productos' ? 'border-b-2 border-[#45923a] text-[#45923a]' : 'text-gray-500'
-              }`}
-            onClick={() => setActiveTab('productos')}
-          >
-            <div className="flex justify-center items-center gap-2">
-              <Package className="h-5 w-5" />
-              Productos
-            </div>
-          </button>
-          <button
-            className={`flex-1 py-3 font-medium text-sm text-center ${activeTab === 'categorias' ? 'border-b-2 border-[#45923a] text-[#45923a]' : 'text-gray-500'
-              }`}
-            onClick={() => setActiveTab('categorias')}
-          >
-            <div className="flex justify-center items-center gap-2">
-              <Layers className="h-5 w-5" />
-              Categorías
-            </div>
-          </button>
-        </div>
-        <div className="relative mb-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
-            <input
-              type="text"
-              placeholder={
-                activeTab === 'productos'
-                  ? 'Buscar producto por nombre, categoría o código...'
-                  : 'Buscar categoría por nombre o descripción...'
-              }
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full rounded-full border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm outline-none transition-all duration-300 focus:border-[#45923a]"
-            />
+          <div className="mb-4 flex border-b border-gray-200">
+            <button
+              className={`flex-1 py-3 font-medium text-sm text-center ${activeTab === 'productos' ? 'border-b-2 border-[#45923a] text-[#45923a]' : 'text-gray-500'
+                }`}
+              onClick={() => setActiveTab('productos')}
+            >
+              <div className="flex justify-center items-center gap-2">
+                <Package className="h-5 w-5" />
+                Productos
+              </div>
+            </button>
+            <button
+              className={`flex-1 py-3 font-medium text-sm text-center ${activeTab === 'categorias' ? 'border-b-2 border-[#45923a] text-[#45923a]' : 'text-gray-500'
+                }`}
+              onClick={() => setActiveTab('categorias')}
+            >
+              <div className="flex justify-center items-center gap-2">
+                <Layers className="h-5 w-5" />
+                Categorías
+              </div>
+            </button>
           </div>
-        </div>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
-          <p className="text-sm text-gray-500">
-            {loading
-              ? 'Cargando...'
-              : activeTab === 'productos'
-                ? `${filteredProducts.length} ${filteredProducts.length === 1 ? 'producto' : 'productos'}`
-                : `${filteredCategories.length} ${filteredCategories.length === 1 ? 'categoría' : 'categorías'}`}
-          </p>
+          <div className="relative mb-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
+              <input
+                type="text"
+                placeholder={
+                  activeTab === 'productos'
+                    ? 'Buscar producto por nombre, categoría o código...'
+                    : 'Buscar categoría por nombre o descripción...'
+                }
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full rounded-full border border-gray-300 bg-white py-3 pl-12 pr-4 text-sm outline-none transition-all duration-300 focus:border-[#45923a]"
+              />
+            </div>
+          </div>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
+            <p className="text-sm text-gray-500">
+              {loading
+                ? 'Cargando...'
+                : activeTab === 'productos'
+                  ? `${filteredProducts.length} ${filteredProducts.length === 1 ? 'producto' : 'productos'}`
+                  : `${filteredCategories.length} ${filteredCategories.length === 1 ? 'categoría' : 'categorías'}`}
+            </p>
+            {activeTab === 'productos' && (
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 focus:border-[#45923a] focus:outline-none"
+                >
+                  <option value="all">Todas las Categorías</option>
+                  {categorias.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
           {activeTab === 'productos' && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleSortChange('precio')}
-                className={`flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${sortBy === 'precio' ? 'border-[#45923a] bg-green-50 text-[#45923a]' : 'border-gray-300 text-gray-600'
-                  }`}
-              >
-                <DollarSign className="h-3.5 w-3.5" />
-                Precio
-                {sortBy === 'precio' && <ArrowUpDown className="h-3 w-3" />}
-              </button>
-              <button
-                onClick={() => handleSortChange('stock')}
-                className={`flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${sortBy === 'stock' ? 'border-[#45923a] bg-green-50 text-[#45923a]' : 'border-gray-300 text-gray-600'
-                  }`}
-              >
-                <BarChart2 className="h-3.5 w-3.5" />
-                Stock
-                {sortBy === 'stock' && <ArrowUpDown className="h-3 w-3" />}
-              </button>
-              <button
-                onClick={() => handleSortChange('categoria')}
-                className={`flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${sortBy === 'categoria' ? 'border-[#45923a] bg-green-50 text-[#45923a]' : 'border-gray-300 text-gray-600'
-                  }`}
-              >
-                <Layers className="h-3.5 w-3.5" />
-                Categoría
-                {sortBy === 'categoria' && <ArrowUpDown className="h-3 w-3" />}
-              </button>
-            </div>
-          )}
-        </div>
-        {activeTab === 'productos' && (
-          loading ? (
-            <div className="space-y-4">
-              {[1, 2, 3, 4].map((item) => (
-                <ProductoSkeleton key={item} />
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredProducts.length > 0 ? (
-                filteredProducts.map((product) => (
-                  <div
-                    key={product.id}
-                    className="relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow"
-                  >
-                    <div className="p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="h-20 w-20 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
-                          {product.imagen ? (
-                            <img src={product.imagen} alt={product.nombre} className="object-cover w-full h-full" />
-                          ) : (
-                            <Package className="h-10 w-10 text-gray-400" />
-                          )}
-                        </div>
-                        <div className="flex flex-col grow">
-                          <h3 className="font-medium text-gray-900">{product.nombre}</h3>
-                          <div className="flex items-center gap-1">
-                            <span
-                              className="inline-block w-2 h-2 rounded-full"
-                              style={{
-                                backgroundColor: obtenerCategoriaPorId(product.categoria_ref)?.color || '#9ca3af',
-                              }}
-                            ></span>
-                            <span className="text-xs text-gray-500">
-                              {obtenerCategoriaPorId(product.categoria_ref)?.nombre || 'Sin categoría'}
-                            </span>
+            loading ? (
+              <div className="space-y-4">
+                {[1, 2, 3, 4].map((item) => (
+                  <ProductoSkeleton key={item} />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredProducts.length > 0 ? (
+                  filteredProducts.map((product) => (
+                    <div
+                      key={product.id}
+                      className="relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow"
+                    >
+                      <div className="p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="h-20 w-20 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
+                            {product.imagen ? (
+                              <img src={product.imagen} alt={product.nombre} className="object-cover w-full h-full" />
+                            ) : (
+                              <Package className="h-10 w-10 text-gray-400" />
+                            )}
                           </div>
-                          <div className="mt-2 flex flex-col">
-                            <div className="flex justify-between items-center">
-                              <div className="text-lg font-bold text-[#45923a]">
-                                S/{product.precio.toFixed(2)}
-                                {product.tipo_unidad === 'kilogramo' && ' por kg'}
-                              </div>
-                              <div
-                                className={`text-xs font-medium px-2 py-1 rounded-full ${product.stock > 20
-                                  ? 'bg-green-100 text-green-800'
-                                  : product.stock > 5
-                                    ? 'bg-amber-100 text-amber-800'
-                                    : 'bg-red-100 text-red-800'
-                                  }`}
-                              >
-                                {product.stock} {product.tipo_unidad === 'kilogramo' ? 'kg' : ''} en stock
-                              </div>
+                          <div className="flex flex-col grow">
+                            <h3 className="font-medium text-gray-900">{product.nombre}</h3>
+                            <div className="flex items-center gap-1">
+                              <span
+                                className="inline-block w-2 h-2 rounded-full"
+                                style={{
+                                  backgroundColor: obtenerCategoriaPorId(product.categoria_ref)?.color || '#9ca3af',
+                                }}
+                              ></span>
+                              <span className="text-xs text-gray-500">
+                                {obtenerCategoriaPorId(product.categoria_ref)?.nombre || 'Sin categoría'}
+                              </span>
                             </div>
-                            {product.has_precio_alternativo && product.precio_alternativo && (
-                              <div className="mt-1 text-sm text-[#ffa40c] font-medium">
-                                Precio {product.motivo_precio_alternativo}: <span className="font-bold">S/{parseFloat(product.precio_alternativo).toFixed(2)}</span>
+                            <div className="mt-2 flex flex-col">
+                              <div className="flex justify-between items-center">
+                                <div className="text-lg font-bold text-[#45923a]">
+                                  S/{product.precio.toFixed(2)}
+                                  {product.tipo_unidad === 'kilogramo' && ' por kg'}
+                                </div>
+                                <div
+                                  className={`text-xs font-medium px-2 py-1 rounded-full ${product.stock > 20
+                                    ? 'bg-green-100 text-green-800'
+                                    : product.stock > 5
+                                      ? 'bg-amber-100 text-amber-800'
+                                      : 'bg-red-100 text-red-800'
+                                    }`}
+                                >
+                                  {product.stock} {product.tipo_unidad === 'kilogramo' ? 'kg' : ''} en stock
+                                </div>
+                              </div>
+                              {product.has_precio_alternativo && product.precio_alternativo && (
+                                <div className="mt-1 text-sm text-[#ffa40c] font-medium">
+                                  Precio {product.motivo_precio_alternativo}: <span className="font-bold">S/{parseFloat(product.precio_alternativo).toFixed(2)}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-4 flex justify-between items-center border-t border-gray-100 pt-3">
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center">
+                              <Barcode className="h-4 w-4 text-gray-400 mr-1" />
+                              <span className="text-xs text-gray-500">{product.codigo_barras || 'Sin código'}</span>
+                            </div>
+                            {product.retornable && (
+                              <div className="flex items-center bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">
+                                <ArrowLeftRight className="h-3.5 w-3.5 mr-1" />
+                                Retornable
                               </div>
                             )}
                           </div>
-                        </div>
-                      </div>
-                      <div className="mt-4 flex justify-between items-center border-t border-gray-100 pt-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center">
-                            <Barcode className="h-4 w-4 text-gray-400 mr-1" />
-                            <span className="text-xs text-gray-500">{product.codigo_barras || 'Sin código'}</span>
+                          <div className="flex">
+                            <button
+                              onClick={() => handleEditProduct(product.id)}
+                              className="rounded-l-lg border border-blue-600 px-3 py-2 bg-blue-600"
+                              style={{ borderRight: 'none' }}
+                            >
+                              <Edit2 className="h-4 w-4 text-white" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteProduct(product)}
+                              className="rounded-r-lg border border-red-500 bg-red-500 text-white px-3 py-2"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                           </div>
-                          {product.retornable && (
-                            <div className="flex items-center bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">
-                              <ArrowLeftRight className="h-3.5 w-3.5 mr-1" />
-                              Retornable
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex">
-                          <button
-                            onClick={() => handleEditProduct(product.id)}
-                            className="rounded-l-lg border border-blue-600 px-3 py-2 bg-blue-600"
-                            style={{ borderRight: 'none' }}
-                          >
-                            <Edit2 className="h-4 w-4 text-white" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteProduct(product)}
-                            className="rounded-r-lg border border-red-500 bg-red-500 text-white px-3 py-2"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
                         </div>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white py-12 text-center">
+                    <div className="mb-4 flex items-center justify-center">
+                      <img src={IconoProductoNoEncontrado} alt="Producto no encontrado" className="h-32" />
+                    </div>
+                    <h3 className="mb-2 text-lg font-medium text-gray-900">No se encontraron productos</h3>
+                    <p className="mb-6 max-w-xs text-sm text-gray-500">
+                      No hay registros que coincidan con tu búsqueda. Prueba con otros filtros o agrega un nuevo producto.
+                    </p>
+                    <button
+                      onClick={handleAddProduct}
+                      className="flex items-center gap-2 rounded-lg px-5 py-3 text-sm font-medium text-white shadow-md"
+                      style={{ backgroundColor: COLORS.secondary }}
+                    >
+                      <Plus className="h-5 w-5" />
+                      Agregar Producto
+                    </button>
                   </div>
-                ))
-              ) : (
-                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white py-12 text-center">
-                  <div className="mb-4 flex items-center justify-center">
-                    <img src={IconoProductoNoEncontrado} alt="Producto no encontrado" className="h-32" />
-                  </div>
-                  <h3 className="mb-2 text-lg font-medium text-gray-900">No se encontraron productos</h3>
-                  <p className="mb-6 max-w-xs text-sm text-gray-500">
-                    No hay registros que coincidan con tu búsqueda. Prueba con otros filtros o agrega un nuevo producto.
-                  </p>
-                  <button
-                    onClick={handleAddProduct}
-                    className="flex items-center gap-2 rounded-lg px-5 py-3 text-sm font-medium text-white shadow-md"
-                    style={{ backgroundColor: COLORS.secondary }}
-                  >
-                    <Plus className="h-5 w-5" />
-                    Agregar Producto
-                  </button>
-                </div>
-              )}
-            </div>
-          )
-        )}
-        {activeTab === 'categorias' && (
-          loading ? (
-            <div className="space-y-4">
-              {[1, 2, 3, 4].map((item) => (
-                <CategoriaSkeleton key={item} />
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredCategories.length > 0 ? (
-                filteredCategories.map((category) => (
-                  <div
-                    key={category.id}
-                    className="relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow"
-                  >
-                    <div className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="h-12 w-12 rounded-full flex items-center justify-center text-white"
-                          style={{ backgroundColor: category.color || COLORS.primary }}
-                        >
-                          <Layers className="h-6 w-6" />
-                        </div>
-                        <div className="flex flex-col grow">
-                          <h3 className="font-medium text-gray-900">{category.nombre}</h3>
-                          <p className="text-sm text-gray-500">{category.descripcion || 'Sin descripción'}</p>
-                        </div>
-                      </div>
-                      <div className="mt-4 flex justify-between items-center border-t border-gray-100 pt-3">
-                        <div className="text-sm text-gray-500">
-                          {productosAsociadosPorCategoria[category.id] !== undefined
-                            ? `${productosAsociadosPorCategoria[category.id]} productos`
-                            : '0 productos'}
-                        </div>
-                        <div className="flex">
-                          <button
-                            onClick={() => handleEditCategory(category)}
-                            className="rounded-l-lg border border-blue-600 px-3 py-2 bg-blue-600"
-                            style={{ borderRight: 'none' }}
+                )}
+              </div>
+            )
+          )}
+          {activeTab === 'categorias' && (
+            loading ? (
+              <div className="space-y-4">
+                {[1, 2, 3, 4].map((item) => (
+                  <CategoriaSkeleton key={item} />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredCategories.length > 0 ? (
+                  filteredCategories.map((category) => (
+                    <div
+                      key={category.id}
+                      className="relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow"
+                    >
+                      <div className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="h-12 w-12 rounded-full flex items-center justify-center text-white"
+                            style={{ backgroundColor: category.color || COLORS.primary }}
                           >
-                            <Edit2 className="h-4 w-4 text-white" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteCategory(category)}
-                            className="rounded-r-lg border border-red-500 bg-red-500 text-white px-3 py-2"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                            <Layers className="h-6 w-6" />
+                          </div>
+                          <div className="flex flex-col grow">
+                            <h3 className="font-medium text-gray-900">{category.nombre}</h3>
+                            <p className="text-sm text-gray-500">{category.descripcion || 'Sin descripción'}</p>
+                          </div>
+                        </div>
+                        <div className="mt-4 flex justify-between items-center border-t border-gray-100 pt-3">
+                          <div className="text-sm text-gray-500">
+                            {productosAsociadosPorCategoria[category.id] !== undefined
+                              ? `${productosAsociadosPorCategoria[category.id]} productos`
+                              : '0 productos'}
+                          </div>
+                          <div className="flex">
+                            <button
+                              onClick={() => handleEditCategory(category)}
+                              className="rounded-l-lg border border-blue-600 px-3 py-2 bg-blue-600"
+                              style={{ borderRight: 'none' }}
+                            >
+                              <Edit2 className="h-4 w-4 text-white" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCategory(category)}
+                              className="rounded-r-lg border border-red-500 bg-red-500 text-white px-3 py-2"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white py-12 text-center">
+                    <div className="mb-4 flex items-center justify-center">
+                      <img src={IconoProductoNoEncontrado} alt="Producto no encontrado" className="h-32" />
+                    </div>
+                    <h3 className="mb-2 text-lg font-medium text-gray-900">No se encontraron categorías</h3>
+                    <p className="mb-6 max-w-xs text-sm text-gray-500">
+                      No hay categorías que coincidan con tu búsqueda. Prueba con otros filtros o agrega una nueva categoría.
+                    </p>
+                    <button
+                      onClick={handleAddCategory}
+                      className="flex items-center gap-2 rounded-lg px-5 py-3 text-sm font-medium text-white shadow-md"
+                      style={{ backgroundColor: COLORS.secondary }}
+                    >
+                      <Plus className="h-5 w-5" />
+                      Agregar Categoría
+                    </button>
                   </div>
-                ))
-              ) : (
-                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white py-12 text-center">
-                  <div className="mb-4 flex items-center justify-center">
-                    <img src={IconoProductoNoEncontrado} alt="Producto no encontrado" className="h-32" />
-                  </div>
-                  <h3 className="mb-2 text-lg font-medium text-gray-900">No se encontraron categorías</h3>
-                  <p className="mb-6 max-w-xs text-sm text-gray-500">
-                    No hay categorías que coincidan con tu búsqueda. Prueba con otros filtros o agrega una nueva categoría.
-                  </p>
-                  <button
-                    onClick={handleAddCategory}
-                    className="flex items-center gap-2 rounded-lg px-5 py-3 text-sm font-medium text-white shadow-md"
-                    style={{ backgroundColor: COLORS.secondary }}
-                  >
-                    <Plus className="h-5 w-5" />
-                    Agregar Categoría
-                  </button>
-                </div>
-              )}
-            </div>
-          )
-        )}
+                )}
+              </div>
+            )
+          )}
         </div>
       </main>
       <DrawerEditarAñadirCategoria

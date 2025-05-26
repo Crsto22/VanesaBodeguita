@@ -173,12 +173,12 @@ const EscanerCodigoBarras = () => {
       <main className="flex-1 flex flex-col items-center p-4 max-w-lg mx-auto w-full">
         {error ? (
           <div className="bg-red-50 border border-red-100 rounded-2xl p-6 flex flex-col items-center w-full mt-4 shadow-sm">
-            <div className=" p-3 mb-4">
-            <img
-                  src={EscanerNoEscaneo}
-                  alt="Icono de Código de Barras"
-                  className="w-32 "
-                />
+            <div className="p-3 mb-4">
+              <img
+                src={EscanerNoEscaneo}
+                alt="Icono de Código de Barras"
+                className="w-32"
+              />
             </div>
             <h2 className="text-lg font-medium text-gray-900 mb-2">Ocurrió un error</h2>
             <p className="text-sm text-gray-600 text-center mb-6">{error}</p>
@@ -225,7 +225,7 @@ const EscanerCodigoBarras = () => {
                   <span className="text-sm text-gray-500">Precio regular:</span>
                   <div className="flex items-end">
                     <span className="text-sm text-indigo-600 mr-1 mb-1">S/</span>
-                    <span className="text-2xl font-bold text-indigo-600">{scannedProduct.precio}</span>
+                    <span className="text-2xl font-bold text-indigo-600">{Number(scannedProduct.precio).toFixed(2)}</span>
                   </div>
                 </div>
 
@@ -236,7 +236,7 @@ const EscanerCodigoBarras = () => {
                     </div>
                     <div className="flex items-end">
                       <span className="text-sm text-green-600 mr-1 mb-1">S/</span>
-                      <span className="text-2xl font-bold text-green-600">{scannedProduct.precio_alternativo}</span>
+                      <span className="text-2xl font-bold text-green-600">{Number(scannedProduct.precio_alternativo).toFixed(2)}</span>
                     </div>
                   </div>
                 )}
@@ -297,12 +297,12 @@ const EscanerCodigoBarras = () => {
 
             <div className="bg-white rounded-2xl p-6 w-full mt-4 shadow-sm border border-gray-100">
               <div className="flex flex-col items-center text-center">
-                <div className=" p-4 mb-4">
-                <img
-                  src={Escaner}
-                  alt="Icono de Código de Barras"
-                  className="w-32 "
-                />
+                <div className="p-4 mb-4">
+                  <img
+                    src={Escaner}
+                    alt="Icono de Código de Barras"
+                    className="w-32"
+                  />
                 </div>
                 <h2 className="text-lg font-medium text-gray-900 mb-2">
                   Escáner de Código de Barras
@@ -310,8 +310,6 @@ const EscanerCodigoBarras = () => {
                 <p className="text-sm text-gray-600 mb-6">
                   Alinea el código de barras del producto dentro del recuadro para escanearlo automáticamente.
                 </p>
-
-               
               </div>
             </div>
           </>
