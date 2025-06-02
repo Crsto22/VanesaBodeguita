@@ -448,7 +448,7 @@ const Ventas = () => {
                           
                           <div className="flex-1 min-w-0">
                             <div className="flex justify-between items-start mb-2">
-                              <h4 className="text-sm font-bold text-gray-900 leading-tight pr-2 truncate">
+                              <h4 className="text-sm font-bold text-gray-900 leading-tight pr-2 ">
                                 {producto.nombre}
                               </h4>
                               <button
