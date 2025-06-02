@@ -4,7 +4,7 @@ import ClientesDrawer from './ClientesDrawer';
 import EstadoPagado from '../../assets/Ventas/EstadoPagado.svg';
 import EstadoParcial from '../../assets/Ventas/EstadoParcial.svg';
 import EstadoPendiente from '../../assets/Ventas/EstadoPendiente.svg';
-
+import LogoIzipay from "../../assets/LogoIzipay.png"; // Asegúrate de tener esta imagen en la ruta correcta
 const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, total, currentUser, clientesLoading, clienteSeleccionado, setClienteSeleccionado }) => {
   const [estado, setEstado] = useState('pagado');
   const [montoPagado, setMontoPagado] = useState('');
@@ -152,9 +152,8 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
 
       {/* ConfirmarVentaDrawer */}
       <div
-        className={`fixed inset-0 bg-white z-50 transform transition-transform duration-300 ease-in-out ${
-          isOpen ? 'translate-y-0' : 'translate-y-full'
-        } rounded-t-2xl overflow-auto`}
+        className={`fixed inset-0 bg-white z-50 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-y-0' : 'translate-y-full'
+          } rounded-t-2xl overflow-auto`}
         style={{ maxHeight: '95vh', top: 'auto' }}
       >
         <div className="flex flex-col h-full">
@@ -177,9 +176,8 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
               <label className="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
               <div className="relative">
                 <button
-                  className={`flex w-full items-center justify-start gap-2 p-2 rounded-lg ${
-                    clienteSeleccionado ? 'bg-[#ffa40c]/10 border border-[#ffa40c]/30 text-gray-800' : 'bg-[#ffa40c]/10 border border-[#ffa40c]/30 text-gray-800'
-                  } shadow-sm transition-all`}
+                  className={`flex w-full items-center justify-start gap-2 p-2 rounded-lg ${clienteSeleccionado ? 'bg-[#ffa40c]/10 border border-[#ffa40c]/30 text-gray-800' : 'bg-[#ffa40c]/10 border border-[#ffa40c]/30 text-gray-800'
+                    } shadow-sm transition-all`}
                   onClick={() => setDrawerClientesOpen(true)}
                   disabled={clientesLoading}
                 >
@@ -190,8 +188,8 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
                     {clientesLoading
                       ? 'Cargando clientes...'
                       : clienteSeleccionado
-                      ? clienteSeleccionado.nombre
-                      : 'Cliente Genérico'}
+                        ? clienteSeleccionado.nombre
+                        : 'Cliente Genérico'}
                   </span>
                   {clienteSeleccionado && (
                     <button
@@ -211,9 +209,8 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
               <label className="block text-sm font-medium text-gray-700 mb-2">Estado de Pago</label>
               <div className="flex gap-2 w-full">
                 <button
-                  className={`flex-1 p-2 rounded-lg flex flex-col items-center ${
-                    estado === 'pagado' ? 'bg-[#45923a]/20 border-2 border-[#45923a] shadow-md' : 'bg-gray-100 border border-gray-200'
-                  } transition-all`}
+                  className={`flex-1 p-2 rounded-lg flex flex-col items-center ${estado === 'pagado' ? 'bg-[#45923a]/20 border-2 border-[#45923a] shadow-md' : 'bg-gray-100 border border-gray-200'
+                    } transition-all`}
                   onClick={() => setEstado('pagado')}
                 >
                   <div className={`rounded-full flex items-center justify-center mb-1 ${estado === 'pagado' ? 'bg-[#45923a]' : ''}`}>
@@ -223,9 +220,8 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
                 </button>
 
                 <button
-                  className={`flex-1 p-2 rounded-lg flex flex-col items-center ${
-                    estado === 'parcial' ? 'bg-[#ffa40c]/20 border-2 border-[#ffa40c] shadow-md' : 'bg-gray-100 border border-gray-200'
-                  } transition-all`}
+                  className={`flex-1 p-2 rounded-lg flex flex-col items-center ${estado === 'parcial' ? 'bg-[#ffa40c]/20 border-2 border-[#ffa40c] shadow-md' : 'bg-gray-100 border border-gray-200'
+                    } transition-all`}
                   onClick={() => setEstado('parcial')}
                 >
                   <div className={`rounded-full flex items-center justify-center mb-1 ${estado === 'parcial' ? 'bg-[#ffa40c]' : ''}`}>
@@ -235,9 +231,8 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
                 </button>
 
                 <button
-                  className={`flex-1 p-2 rounded-lg flex flex-col items-center ${
-                    estado === 'pendiente' ? 'bg-[#e74b4b]/20 border-2 border-[#e74b4b] shadow-md' : 'bg-gray-100 border border-gray-200'
-                  } transition-all`}
+                  className={`flex-1 p-2 rounded-lg flex flex-col items-center ${estado === 'pendiente' ? 'bg-[#e74b4b]/20 border-2 border-[#e74b4b] shadow-md' : 'bg-gray-100 border border-gray-200'
+                    } transition-all`}
                   onClick={() => setEstado('pendiente')}
                 >
                   <div className={`rounded-full flex items-center justify-center mb-1 ${estado === 'pendiente' ? 'bg-[#e74b4b]' : ''}`}>
@@ -332,9 +327,26 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
             )}
 
             {/* Total a Pagar */}
-            <div className="mb-4 bg-green-50 rounded-lg p-3 shadow-sm">
-              <p className="text-lg font-bold text-[#45923a] text-center">Total a Pagar: S/{(total || 0).toFixed(2)}</p>
-            </div>
+<div className="flex items-center mb-4">
+  <div className="bg-green-50 rounded-lg p-3 shadow-sm flex-grow">
+    <p className="text-lg font-bold text-[#45923a] text-center">
+      Total a Pagar: S/{(total || 0).toFixed(2)}
+    </p>
+  </div>
+  <a
+    href="https://play.google.com/store/apps/details?id=pe.izipay.apps.izipay"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="ml-4"
+  >
+    <img
+      src={LogoIzipay}
+      alt="Pagar con Izipay"
+      className="w-12 h-12 object-cover rounded-lg hover:opacity-80 transition-opacity cursor-pointer"
+    />
+  </a>
+</div>
+
           </div>
 
           {/* Footer con botones */}

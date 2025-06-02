@@ -17,6 +17,11 @@ import {
   Barcode,
   ArrowLeftRight,
   X,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  SortAsc,
+  SortDesc,
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
@@ -44,8 +49,17 @@ const Productos = () => {
   const [userName] = useState('Usuario');
   const [notifications] = useState(3);
   const [activeTab, setActiveTab] = useState('productos');
-  const [selectedCategory, setSelectedCategory] = useState('all'); // New state for category filter
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [toast, setToast] = useState({ message: '', type: '', visible: false });
+
+  // Estados para filtros y paginación
+  const [priceSort, setPriceSort] = useState(''); // 'asc' o 'desc'
+  const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(6); // Productos por página
+  const [currentCategoryPage, setCategoryCurrentPage] = useState(1);
+  const [categoriesPerPage] = useState(8); // Categorías por página
+  const [appear, setAppear] = useState(false);
 
   // Drawer states para categorías
   const [showCategoryDrawer, setShowCategoryDrawer] = useState(false);
@@ -59,7 +73,6 @@ const Productos = () => {
   const [categoryToDelete, setCategoryToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [productosAsociadosPorCategoria, setProductosAsociadosPorCategoria] = useState({});
-  const [appear, setAppear] = useState(false);
 
   // Drawer states para productos
   const [showProductDrawer, setShowProductDrawer] = useState(false);
@@ -111,6 +124,15 @@ const Productos = () => {
   useEffect(() => {
     setAppear(true);
   }, []);
+
+  // Resetear páginas cuando cambian los filtros
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedCategory, priceSort]);
+
+  useEffect(() => {
+    setCategoryCurrentPage(1);
+  }, [searchTerm]);
 
   // Obtener el conteo de productos asociados por categoría
   useEffect(() => {
@@ -203,16 +225,27 @@ const Productos = () => {
     </div>
   );
 
-  // Filtrado de productos
-  const filteredProducts = productos.filter((product) => {
-    const categoriaNombre = obtenerCategoriaPorId(product.categoria_ref)?.nombre || '';
-    const matchesSearch =
-      product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      categoriaNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (product.codigo_barras || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || product.categoria_ref === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  // Filtrado y ordenamiento de productos
+  const getFilteredAndSortedProducts = () => {
+    let filtered = productos.filter((product) => {
+      const categoriaNombre = obtenerCategoriaPorId(product.categoria_ref)?.nombre || '';
+      const matchesSearch =
+        product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        categoriaNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (product.codigo_barras || '').toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = selectedCategory === 'all' || product.categoria_ref === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+
+    // Ordenar por precio si está seleccionado
+    if (priceSort === 'asc') {
+      filtered = filtered.sort((a, b) => a.precio - b.precio);
+    } else if (priceSort === 'desc') {
+      filtered = filtered.sort((a, b) => b.precio - a.precio);
+    }
+
+    return filtered;
+  };
 
   // Filtrado de categorías
   const filteredCategories = categorias.filter((category) => {
@@ -221,6 +254,97 @@ const Productos = () => {
       (category.descripcion || '').toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
+
+  // Paginación de productos
+  const filteredProducts = getFilteredAndSortedProducts();
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const indexOfLastProduct = currentPage * itemsPerPage;
+  const indexOfFirstProduct = indexOfLastProduct - itemsPerPage;
+  const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct);
+
+  // Paginación de categorías
+  const totalCategoryPages = Math.ceil(filteredCategories.length / categoriesPerPage);
+  const indexOfLastCategory = currentCategoryPage * categoriesPerPage;
+  const indexOfFirstCategory = indexOfLastCategory - categoriesPerPage;
+  const currentCategories = filteredCategories.slice(indexOfFirstCategory, indexOfLastCategory);
+
+  // Componente de Paginación
+  const Pagination = ({ currentPage, totalPages, onPageChange, type = 'productos' }) => {
+    if (totalPages <= 1) return null;
+
+    const getVisiblePages = () => {
+      const pages = [];
+      const maxVisible = 5;
+      
+      if (totalPages <= maxVisible) {
+        for (let i = 1; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        if (currentPage <= 3) {
+          for (let i = 1; i <= 4; i++) pages.push(i);
+          pages.push('...');
+          pages.push(totalPages);
+        } else if (currentPage >= totalPages - 2) {
+          pages.push(1);
+          pages.push('...');
+          for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+        } else {
+          pages.push(1);
+          pages.push('...');
+          for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+          pages.push('...');
+          pages.push(totalPages);
+        }
+      }
+      return pages;
+    };
+
+    return (
+      <div className="flex items-center justify-center gap-2 mt-6 pb-4">
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`p-2 rounded-lg border ${
+            currentPage === 1
+              ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+              : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+
+        {getVisiblePages().map((page, index) => (
+          <button
+            key={index}
+            onClick={() => typeof page === 'number' && onPageChange(page)}
+            disabled={page === '...'}
+            className={`px-3 py-2 rounded-lg text-sm font-medium ${
+              page === currentPage
+                ? 'bg-[#45923a] text-white'
+                : page === '...'
+                ? 'text-gray-400 cursor-default'
+                : 'text-gray-600 hover:bg-gray-50 border border-gray-300'
+            }`}
+          >
+            {page}
+          </button>
+        ))}
+
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`p-2 rounded-lg border ${
+            currentPage === totalPages
+              ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+              : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  };
 
   // Manejadores para productos
   const handleAddProduct = () => {
@@ -318,7 +442,7 @@ const Productos = () => {
     } catch (error) {
       console.error('Error al guardar producto:', error);
       setToast({ message: `Error al ${productFormData.id ? 'actualizar' : 'crear'} producto`, type: 'error', visible: true });
-      throw error; // El drawer manejará el error
+      throw error;
     }
   };
 
@@ -400,15 +524,24 @@ const Productos = () => {
     setToast(prev => ({ ...prev, visible: false }));
   };
 
+  // Función para limpiar filtros
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedCategory('all');
+    setPriceSort('');
+    setCurrentPage(1);
+    setCategoryCurrentPage(1);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
       {/* Toast */}
       {toast.visible && (
         <div className="fixed top-0 left-0 right-0 w-full z-50 rounded-b-xl overflow-hidden">
-          <div
-            className={`w-full shadow-lg transform transition-all duration-300 ease-in-out ${toast.visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
-              } ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
-              }`}
+          <div
+            className={`w-full shadow-lg transform transition-all duration-300 ease-in-out ${
+              toast.visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
+            } ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}
             role="alert"
             tabIndex="-1"
             aria-labelledby="header-notification"
@@ -428,10 +561,7 @@ const Productos = () => {
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <p
-                    id="header-notification"
-                    className="text-sm text-white font-medium"
-                  >
+                  <p id="header-notification" className="text-sm text-white font-medium">
                     {toast.message}
                   </p>
                 </div>
@@ -496,10 +626,13 @@ const Productos = () => {
               </div>
             </div>
           </div>
+
+          {/* Tabs */}
           <div className="mb-4 flex border-b border-gray-200">
             <button
-              className={`flex-1 py-3 font-medium text-sm text-center ${activeTab === 'productos' ? 'border-b-2 border-[#45923a] text-[#45923a]' : 'text-gray-500'
-                }`}
+              className={`flex-1 py-3 font-medium text-sm text-center ${
+                activeTab === 'productos' ? 'border-b-2 border-[#45923a] text-[#45923a]' : 'text-gray-500'
+              }`}
               onClick={() => setActiveTab('productos')}
             >
               <div className="flex justify-center items-center gap-2">
@@ -508,8 +641,9 @@ const Productos = () => {
               </div>
             </button>
             <button
-              className={`flex-1 py-3 font-medium text-sm text-center ${activeTab === 'categorias' ? 'border-b-2 border-[#45923a] text-[#45923a]' : 'text-gray-500'
-                }`}
+              className={`flex-1 py-3 font-medium text-sm text-center ${
+                activeTab === 'categorias' ? 'border-b-2 border-[#45923a] text-[#45923a]' : 'text-gray-500'
+              }`}
               onClick={() => setActiveTab('categorias')}
             >
               <div className="flex justify-center items-center gap-2">
@@ -518,6 +652,8 @@ const Productos = () => {
               </div>
             </button>
           </div>
+
+          {/* Búsqueda */}
           <div className="relative mb-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
@@ -534,31 +670,76 @@ const Productos = () => {
               />
             </div>
           </div>
+
+          {/* Filtros para productos */}
+          {activeTab === 'productos' && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="flex items-center gap-2 text-sm text-gray-600 hover:text-[#45923a] transition-colors"
+                >
+                  <Filter className="h-4 w-4" />
+                  Filtros {showFilters ? '▲' : '▼'}
+                </button>
+                {(searchTerm || selectedCategory !== 'all' || priceSort) && (
+                  <button
+                    onClick={clearFilters}
+                    className="text-sm text-red-600 hover:text-red-700 font-medium"
+                  >
+                    Limpiar filtros
+                  </button>
+                )}
+              </div>
+              
+              {showFilters && (
+                <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+                      <select
+                        value={selectedCategory}
+                        onChange={(e) => setSelectedCategory(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[#45923a] focus:outline-none"
+                      >
+                        <option value="all">Todas las Categorías</option>
+                        {categorias.map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Ordenar por Precio</label>
+                      <select
+                        value={priceSort}
+                        onChange={(e) => setPriceSort(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[#45923a] focus:outline-none"
+                      >
+                        <option value="">Sin ordenar</option>
+                        <option value="asc">Menor a Mayor</option>
+                        <option value="desc">Mayor a Menor</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Conteo de resultados */}
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
             <p className="text-sm text-gray-500">
               {loading
                 ? 'Cargando...'
                 : activeTab === 'productos'
-                  ? `${filteredProducts.length} ${filteredProducts.length === 1 ? 'producto' : 'productos'}`
-                  : `${filteredCategories.length} ${filteredCategories.length === 1 ? 'categoría' : 'categorías'}`}
+                ? `${filteredProducts.length} ${filteredProducts.length === 1 ? 'producto' : 'productos'}`
+                : `${filteredCategories.length} ${filteredCategories.length === 1 ? 'categoría' : 'categorías'}`}
             </p>
-            {activeTab === 'productos' && (
-              <div className="flex items-center gap-2">
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 focus:border-[#45923a] focus:outline-none"
-                >
-                  <option value="all">Todas las Categorías</option>
-                  {categorias.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
           </div>
+
+          {/* Lista de productos */}
           {activeTab === 'productos' && (
             loading ? (
               <div className="space-y-4">
@@ -568,8 +749,8 @@ const Productos = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {filteredProducts.length > 0 ? (
-                  filteredProducts.map((product) => (
+                {currentProducts.length > 0 ? (
+                  currentProducts.map((product) => (
                     <div
                       key={product.id}
                       className="relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow"
@@ -603,12 +784,13 @@ const Productos = () => {
                                   {product.tipo_unidad === 'kilogramo' && ' por kg'}
                                 </div>
                                 <div
-                                  className={`text-xs font-medium px-2 py-1 rounded-full ${product.stock > 20
-                                    ? 'bg-green-100 text-green-800'
-                                    : product.stock > 5
+                                  className={`text-xs font-medium px-2 py-1 rounded-full ${
+                                    product.stock > 20
+                                      ? 'bg-green-100 text-green-800'
+                                      : product.stock > 5
                                       ? 'bg-amber-100 text-amber-800'
                                       : 'bg-red-100 text-red-800'
-                                    }`}
+                                  }`}
                                 >
                                   {product.stock} {product.tipo_unidad === 'kilogramo' ? 'kg' : ''} en stock
                                 </div>
@@ -667,7 +849,7 @@ const Productos = () => {
                       className="flex items-center gap-2 rounded-lg px-5 py-3 text-sm font-medium text-white shadow-md"
                       style={{ backgroundColor: COLORS.secondary }}
                     >
-                      <Plus className="h-5 w-5" />
+                      <Plus className="h-5 w-5"He />
                       Agregar Producto
                     </button>
                   </div>
@@ -675,6 +857,8 @@ const Productos = () => {
               </div>
             )
           )}
+
+          {/* Lista de categorías */}
           {activeTab === 'categorias' && (
             loading ? (
               <div className="space-y-4">
@@ -684,8 +868,8 @@ const Productos = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {filteredCategories.length > 0 ? (
-                  filteredCategories.map((category) => (
+                {currentCategories.length > 0 ? (
+                  currentCategories.map((category) => (
                     <div
                       key={category.id}
                       className="relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow"
@@ -749,6 +933,24 @@ const Productos = () => {
                 )}
               </div>
             )
+          )}
+
+          {/* Paginación */}
+          {activeTab === 'productos' && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              type="productos"
+            />
+          )}
+          {activeTab === 'categorias' && (
+            <Pagination
+              currentPage={currentCategoryPage}
+              totalPages={totalCategoryPages}
+              onPageChange={setCategoryCurrentPage}
+              type="categorias"
+            />
           )}
         </div>
       </main>

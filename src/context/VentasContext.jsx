@@ -350,10 +350,7 @@ export const VentasProvider = ({ children }) => {
         throw new Error('Venta no encontrada');
       }
 
-      const ventaData = ventaDoc.data();
-      if (ventaData.historial_pagos?.length > 0 || ventaData.historial_retornables?.length > 0) {
-        throw new Error('No se puede eliminar una venta con pagos o devoluciones registradas');
-      }
+     
 
       await deleteDoc(ventaRef);
       return true;

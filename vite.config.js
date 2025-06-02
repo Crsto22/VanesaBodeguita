@@ -1,13 +1,34 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-// https://vite.dev/config/
+import { VitePWA } from 'vite-plugin-pwa'
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(),],
+  plugins: [react(), tailwindcss(), VitePWA({
+    registerType: 'autoUpdate',
+    manifest: {
+      name: 'Mi App',
+      short_name: 'MiApp',
+      description: 'Una app optimizada para móviles',
+      theme_color: '#ffffff',
+      icons: [
+        {
+          src: '/assets/Logo.svg',
+          sizes: '192x192',
+          type: 'image/svg+xml'
+        },
+        {
+          src: '/assets/Logo.svg',
+          sizes: '512x512',
+          type: 'image/svg+xml'
+        }
+      ]
+    }
+  })],
   server: {
-    host: true, // Expone el servidor a todos los dispositivos en la red local
-    port: 5173, // Puerto fijo (puedes cambiarlo si lo prefieres)
-    strictPort: true, // Falla si el puerto está ocupado, evita que Vite use otro puerto
-    open: false // Opcional: no abre el navegador automáticamente
+    host: true,
+    port: 5173,
+    strictPort: true,
+    open: false
   }
 })

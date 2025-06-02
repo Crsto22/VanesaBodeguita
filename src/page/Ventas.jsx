@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, Pencil, CreditCard, Users, History, Barcode, Package, User, PlusCircle, ScanBarcode, X, Milk, Minus, Plus } from 'lucide-react';
+import { ShoppingCart,Trash2, Pencil, CreditCard, Users, History, Barcode, Package, User, PlusCircle, ScanBarcode, X, Milk, Minus, Plus } from 'lucide-react';
 import Logo from '../assets/Logo.svg';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
@@ -321,6 +321,10 @@ const Ventas = () => {
     return selectedProductos.reduce((sum, p) => sum + parseFloat(p.subtotal), 0);
   };
 
+  const calcularTotalProductos = () => {
+    return selectedProductos.reduce((sum, p) => sum + p.cantidad, 0);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
       <Header menuOpen={menuOpen} setMenuOpen={setMenuOpen} notifications={notifications} />
@@ -331,7 +335,7 @@ const Ventas = () => {
         onOptionClick={handleOptionClick}
         logo={Logo}
       />
-      <main className="pt-3 px-2 sm:px-4 pb-8 flex flex-col h-full">
+      <main className="pt-3 px-2 sm:px-4 pb-28 flex flex-col h-full"> {/* Aumentado el padding-bottom */}
         <div className={`transition-opacity duration-500 ${appear ? 'opacity-100' : 'opacity-0'} flex flex-col h-full`}>
           {error && (
             <div className="mb-3 p-2 sm:p-3 bg-red-100 text-red-700 rounded-md text-xs sm:text-sm flex justify-between items-center">
@@ -409,148 +413,163 @@ const Ventas = () => {
             </div>
           </div>
           <div className="flex flex-col flex-1 p-1 min-h-0">
-            <div className="flex-1 rounded-lg bg-white shadow-md p-3 sm:p-4 flex flex-col border border-dashed border-gray-300 overflow-hidden">
+            <div className="flex-1 rounded-2xl bg-gradient-to-br from-white via-white to-gray-50 shadow-xl p-4 flex flex-col border-0 overflow-hidden backdrop-blur-lg">
               {selectedProductos.length === 0 ? (
                 <div className="flex flex-col items-center justify-center text-center max-w-md mx-auto flex-1">
-                  <div className="flex items-center justify-center mb-3">
-                    <img src={ProductoNinguno} className="h-24 sm:h-32 rounded-2xl text-gray-400" alt="Sin productos" />
+                  <div className="flex items-center justify-center mb-6">
+                    <div className="relative">
+                      <img src={ProductoNinguno} className="h-32 rounded-3xl opacity-90" alt="Sin productos" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-blue-500/10 to-transparent rounded-3xl"></div>
+                    </div>
                   </div>
-                  <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-2">
-                    No se ha agregado ningún producto
+                  <h3 className="text-xl font-bold  mb-3 bg-gradient-to-r from-gray-700 to-gray-900 bg-clip-text text-transparent">
+                    Lista de productos vacía
                   </h3>
-                  <p className="text-xs sm:text-sm text-gray-500">
-                    Busque el producto o escanee el código de barras para agregar productos a la venta.
+                  <p className="text-sm text-gray-500 leading-relaxed">
+                    Agrega productos escaneando códigos de barras o buscando en nuestro catálogo para comenzar tu venta.
                   </p>
                 </div>
               ) : (
                 <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
-                  <ul className="divide-y divide-gray-200 overflow-y-auto flex-1">
+                  <div className="space-y-3 overflow-y-auto flex-1 pb-2">
                     {selectedProductos.map((producto, index) => (
-                      <li key={index} className="py-3 flex items-start">
-                        <div className="flex-shrink-0 h-12 w-12 sm:h-14 sm:w-14 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden shadow-sm">
-                          {producto.imagen ? (
-                            <img src={producto.imagen} alt={producto.nombre} className="object-cover w-full h-full" />
-                          ) : (
-                            <Package className="h-6 w-6 text-gray-400" />
-                          )}
-                        </div>
-                        <div className="ml-3 flex-1">
-                          <div className="flex justify-between items-center">
-                            <p className="text-xs sm:text-sm font-medium text-gray-900 pr-2 break-words">{producto.nombre}</p>
-                            <button
-                              onClick={() => handleRemoveProducto(index)}
-                              className="p-1 rounded-full hover:bg-gray-200 flex-shrink-0"
-                              aria-label="Quitar producto"
-                            >
-                              <X size={16} strokeWidth={2.5} className="text-gray-500" />
-                            </button>
-                          </div>
-                          {producto.tipo_unidad === 'kilogramo' && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              Precio por kg: S/{producto.precio_referencia.toFixed(2)}
-                            </p>
-                          )}
-                          <div className="flex flex-wrap items-center gap-2 mt-2">
-                            {producto.tipo_unidad === 'kilogramo' ? (
-                              <>
-                                <div className="flex items-center">
-                                  <span className="px-3 text-sm sm:text-base font-medium text-gray-700">S/{producto.precio_unitario.toFixed(2)}</span>
-                                  <button
-                                    onClick={() => handleOpenEditarPrecio(index)}
-                                    className="bg-gray-100 hover:bg-gray-200 p-2 border border-gray-300 rounded-md"
-                                    aria-label="Editar precio"
-                                  >
-                                    <Pencil size={20} className="text-gray-600" />
-                                  </button>
-                                </div>
-                                <div className="flex gap-1">
-                                  <button
-                                    onClick={() => handleFractionPrice(index, 0.25)}
-                                    className="px-3 py-1.5 text-xs font-medium text-white bg-[#45923a] hover:bg-[#3a7d30] rounded-md shadow-sm"
-                                    title="250 gramos"
-                                  >
-                                    1/4 kg
-                                  </button>
-                                  <button
-                                    onClick={() => handleFractionPrice(index, 0.5)}
-                                    className="px-3 py-1.5 text-xs font-medium text-white bg-[#45923a] hover:bg-[#3a7d30] rounded-md shadow-sm"
-                                    title="500 gramos"
-                                  >
-                                    1/2 kg
-                                  </button>
-                                  <button
-                                    onClick={() => handleFractionPrice(index, 0.75)}
-                                    className="px-3 py-1.5 text-xs font-medium text-white bg-[#45923a] hover:bg-[#3a7d30] rounded-md shadow-sm"
-                                    title="750 gramos"
-                                  >
-                                    3/4 kg
-                                  </button>
-                                </div>
-                              </>
+                      <div 
+                        key={index} 
+                        className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100/50"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0 h-16 w-16 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden shadow-inner">
+                            {producto.imagen ? (
+                              <img src={producto.imagen} alt={producto.nombre} className="object-cover w-full h-full rounded-2xl" />
                             ) : (
-                              <>
-                                <div className="flex items-center border border-gray-300 rounded-md shadow-sm">
-                                  <button
-                                    onClick={() => handleUpdateCantidad(index, producto.cantidad - 1)}
-                                    className="p-2 text-gray-600 bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
-                                    disabled={producto.cantidad <= 1}
-                                  >
-                                    <Minus size={20} />
-                                  </button>
-                                  <span className="px-3 text-sm sm:text-base font-medium text-gray-700">{producto.cantidad}</span>
-                                  <button
-                                    onClick={() => handleUpdateCantidad(index, producto.cantidad + 1)}
-                                    className="p-2 text-gray-600 bg-gray-50 hover:bg-gray-100"
-                                  >
-                                    <Plus size={20} />
-                                  </button>
-                                </div>
-                                <span className="text-sm text-gray-600">x</span>
-                                <div className="flex items-center">
-                                  <span className="px-3 text-sm sm:text-base font-medium text-gray-700">S/{producto.precio_unitario.toFixed(2)}</span>
-                                  <button
-                                    onClick={() => handleOpenEditarPrecio(index)}
-                                    className="bg-gray-100 hover:bg-gray-200 p-2 border border-gray-300 rounded-md"
-                                    aria-label="Editar precio"
-                                  >
-                                    <Pencil size={20} className="text-gray-600" />
-                                  </button>
-                                </div>
-                              </>
+                              <Package className="h-8 w-8 text-gray-400" />
                             )}
-                            <span className="text-sm font-bold text-[#45923a]">
-                              = S/{producto.subtotal}
-                            </span>
                           </div>
-                          {producto.retornable && (
-                            <div className="mt-2 flex items-center gap-2">
-                              <Milk size={14} className="text-blue-600" />
-                              <span className="text-xs text-gray-600">Debe:</span>
-                              <select
-                                value={producto.cantidad_retornable}
-                                onChange={(e) => handleUpdateRetornables(index, parseInt(e.target.value) || 0)}
-                                className="p-1 border border-gray-300 rounded-md text-xs shadow-sm"
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start mb-2">
+                              <h4 className="text-sm font-bold text-gray-900 leading-tight pr-2 truncate">
+                                {producto.nombre}
+                              </h4>
+                              <button
+                                onClick={() => handleRemoveProducto(index)}
+                                className="p-2 rounded-full bg-red-50 hover:bg-red-100 transition-colors flex-shrink-0 group"
+                                aria-label="Quitar producto"
                               >
-                                {[...Array(producto.cantidad + 1)].map((_, i) => (
-                                  <option key={i} value={i}>
-                                    {i} {i === 1 ? 'botella' : 'botellas'}
-                                  </option>
-                                ))}
-                              </select>
+                                <Trash2 size={16} strokeWidth={2.75}  className="text-red-500 group-hover:text-red-700 transition-colors" />
+                              </button>
                             </div>
-                          )}
+                            
+                            {producto.tipo_unidad === 'kilogramo' && (
+                              <p className="text-xs text-gray-500 mb-3 bg-gray-50 px-2 py-1 rounded-lg inline-block">
+                                S/{producto.precio_referencia.toFixed(2)} por kg
+                              </p>
+                            )}
+                            
+                            <div className="space-y-3">
+                              {producto.tipo_unidad === 'kilogramo' ? (
+                                <>
+                                  <div className="flex items-center gap-3">
+                                    <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 px-4 py-2 rounded-xl flex items-center gap-2">
+                                      <span className="text-sm font-bold text-emerald-800">S/{producto.precio_unitario.toFixed(2)}</span>
+                                    </div>
+                                    <button
+                                      onClick={() => handleOpenEditarPrecio(index)}
+                                      className="bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 p-3 rounded-xl transition-all active:scale-95"
+                                      aria-label="Editar precio"
+                                    >
+                                      <Pencil size={16} className="text-blue-600" />
+                                    </button>
+                                  </div>
+                                  
+                                  <div className="flex gap-2">
+                                    {[
+                                      { fraction: 0.25, label: '1/4 kg', title: '250g' },
+                                      { fraction: 0.5, label: '1/2 kg', title: '500g' },
+                                      { fraction: 0.75, label: '3/4 kg', title: '750g' },
+                                    ].map(({ fraction, label, title }) => (
+                                      <button
+                                        key={fraction}
+                                        onClick={() => handleFractionPrice(index, fraction)}
+                                        className="px-3 py-2 text-xs font-bold text-white bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 rounded-xl shadow-md transition-all active:scale-95"
+                                        title={title}
+                                      >
+                                        {label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="flex items-center gap-3 flex-wrap">
+                                  <div className="flex items-center bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl overflow-hidden shadow-inner">
+                                    <button
+                                      onClick={() => handleUpdateCantidad(index, producto.cantidad - 1)}
+                                      className="p-3 text-gray-600 hover:bg-gray-200 disabled:opacity-50 transition-colors active:scale-95"
+                                      disabled={producto.cantidad <= 1}
+                                    >
+                                      <Minus size={16} />
+                                    </button>
+                                    <span className="px-4 text-sm font-bold text-gray-800 min-w-[40px] text-center">
+                                      {producto.cantidad}
+                                    </span>
+                                    <button
+                                      onClick={() => handleUpdateCantidad(index, producto.cantidad + 1)}
+                                      className="p-3 text-gray-600 hover:bg-gray-200 transition-colors active:scale-95"
+                                    >
+                                      <Plus size={16} />
+                                    </button>
+                                  </div>
+                                  
+                                  
+                                  <div className="flex items-center gap-2">
+                                    <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 px-4 py-2 rounded-xl">
+                                      <span className="text-sm font-bold text-[#45923a]">S/{producto.precio_unitario.toFixed(2)}</span>
+                                    </div>
+                                    <button
+                                      onClick={() => handleOpenEditarPrecio(index)}
+                                      className="bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 p-3 rounded-xl transition-all active:scale-95"
+                                      aria-label="Editar precio"
+                                    >
+                                      <Pencil size={16} className="text-blue-600" />
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Subtotal del producto */}
+                              <div className="flex justify-between items-center pt-2">
+                                <span className="text-sm font-medium text-gray-500">Subtotal:</span>
+                                <span className="text-base font-bold text-[#45923a]">
+                                  S/{producto.subtotal}
+                                </span>
+                              </div>
+                              
+                              {producto.retornable && (
+                                <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-3 rounded-xl border border-blue-200">
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2">
+                                      <Milk size={16} className="text-blue-600" />
+                                      <span className="text-sm font-medium text-blue-800">Botellas pendientes:</span>
+                                    </div>
+                                    <select
+                                      value={producto.cantidad_retornable}
+                                      onChange={(e) => handleUpdateRetornables(index, parseInt(e.target.value) || 0)}
+                                      className="px-3 py-1 border border-blue-300 rounded-lg text-sm bg-white shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    >
+                                      {[...Array(producto.cantidad + 1)].map((_, i) => (
+                                        <option key={i} value={i}>
+                                          {i} {i === 1 ? 'botella' : 'botellas'}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </li>
+                      </div>
                     ))}
-                  </ul>
-                  <div className="mt-3 p-3 bg-gray-50 rounded-lg shadow-sm border border-gray-100">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-700">Subtotal:</span>
-                      <span className="text-base sm:text-lg font-bold text-[#45923a]">S/{calcularTotal().toFixed(2)}</span>
-                    </div>
-                  </div>
-                  <div className="w-full mt-auto pt-3">
-                    {/* Botón de Registrar Venta se maneja en la sección fixed */}
                   </div>
                 </div>
               )}
@@ -559,17 +578,24 @@ const Ventas = () => {
         </div>
 
         {selectedProductos.length > 0 && (
-          <div className="fixed bottom-0 left-0 right-0 p-3 bg-white bg-opacity-95 backdrop-blur-sm border-t border-gray-200 shadow-lg z-20">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-base font-medium text-gray-800">Total:</span>
-              <span className="text-lg font-bold text-[#45923a]">S/{calcularTotal().toFixed(2)}</span>
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-xl border-t border-gray-200/50 shadow-2xl z-20">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <span className="text-sm font-medium text-gray-600">Total productos: {calcularTotalProductos()}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-lg font-bold text-gray-800">Total:</span>
+                <span className="text-2xl font-bold bg-[#45923a] bg-clip-text text-transparent ml-2">
+                  S/{calcularTotal().toFixed(2)}
+                </span>
+              </div>
             </div>
             <button
               onClick={handleRegistrarVenta}
-              className="w-full py-3 bg-gradient-to-r from-[#45923a] to-[#3d8433] hover:from-[#3a7d30] hover:to-[#326c29] text-white font-medium rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-[0.98]"
+              className="w-full py-4 bg-[#45923a] text-white font-bold rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl active:scale-[0.98]"
             >
-              <ShoppingCart size={20} strokeWidth={2} />
-              <span className="font-bold">Registrar Venta</span>
+              <ShoppingCart size={22} strokeWidth={2.5} />
+              <span className="text-lg">Registrar Venta</span>
             </button>
           </div>
         )}
@@ -581,7 +607,7 @@ const Ventas = () => {
       />
       <ProductosDrawer
         isOpen={drawerProductosOpen}
-        onClose={() => setDrawerProductosOpen(false)}
+        onClose={() =>setDrawerProductosOpen(false)}
         onSelectProducto={handleSelectProducto}
       />
       <ConfirmarVentaDrawer
