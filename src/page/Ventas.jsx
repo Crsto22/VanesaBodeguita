@@ -170,6 +170,7 @@ const Ventas = () => {
     console.log('Selected client:', cliente);
     setClienteSeleccionado(cliente);
     setDrawerClientesOpen(false);
+    showToast('Cliente seleccionado con éxito', 'success');
   };
 
   const handleRemoveCliente = (e) => {
@@ -196,7 +197,7 @@ const Ventas = () => {
               : 0,
         };
         return updatedProductos;
- zmar       }
+      }
       return [...prev, producto];
     });
     setDrawerProductosOpen(false);
@@ -272,7 +273,7 @@ const Ventas = () => {
     );
   };
 
-  const handleOpenEditarPrecio = ( Pindex) => {
+  const handleOpenEditarPrecio = (index) => {
     setProductoEditIndex(index);
     setDrawerEditarPrecioOpen(true);
   };
@@ -674,7 +675,7 @@ const Ventas = () => {
         isOpen={drawerEscanearOpen}
         onClose={() => setDrawerEscanearOpen(false)}
         onSelectProducto={handleSelectProducto}
-        setError={setToast} // Updated to use showToast internally
+        setError={setToast} // Usar setToast para manejar errores de escaneo
       />
     </div>
   );
