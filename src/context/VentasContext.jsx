@@ -19,6 +19,11 @@ export const VentasProvider = ({ children }) => {
   // Referencia a la colección de ventas
   const ventasCollection = collection(db, 'ventas');
 
+  // Función para formatear números a 2 decimales
+  const formatToTwoDecimals = (num) => {
+    return parseFloat(num.toFixed(2));
+  };
+
   // Obtener ventas en tiempo real (solo pendientes o parciales)
   useEffect(() => {
     if (!currentUser) {
@@ -81,28 +86,33 @@ export const VentasProvider = ({ children }) => {
         if (item.cantidad <= 0) throw new Error(`Cantidad inválida para ${producto.nombre}`);
         if (item.cantidad_retornable > item.cantidad) throw new Error(`Cantidad retornable inválida para ${producto.nombre}`);
         if (item.precio_unitario <= 0) throw new Error(`Precio unitario inválido para ${producto.nombre}`);
-        if (Math.abs(item.subtotal - item.cantidad * item.precio_unitario) > 0.01) {
+        
+        const subtotalCalculado = formatToTwoDecimals(item.cantidad * item.precio_unitario);
+        if (Math.abs(item.subtotal - subtotalCalculado) > 0.01) {
           throw new Error(`Subtotal inválido para ${producto.nombre}`);
         }
 
         const cantidadRetornable = producto.retornable ? item.cantidad_retornable || 0 : 0;
-        total += item.subtotal;
+        total += subtotalCalculado;
         totalRetornables += cantidadRetornable;
 
         return {
           producto_ref: item.producto_ref,
           nombre: producto.nombre,
           cantidad: item.cantidad,
-          precio_unitario: item.precio_unitario,
-          subtotal: item.subtotal,
+          precio_unitario: formatToTwoDecimals(item.precio_unitario),
+          subtotal: formatToTwoDecimals(subtotalCalculado),
           retornable: producto.retornable,
           cantidad_retornable: cantidadRetornable,
         };
       });
 
+      total = formatToTwoDecimals(total);
+      totalRetornables = formatToTwoDecimals(totalRetornables);
+
       // Validar montos y historial de pagos
-      const montoPagado = Number(ventaData.monto_pagado) || 0;
-      const montoPendiente = Number(ventaData.monto_pendiente) || 0;
+      const montoPagado = ventaData.monto_pagado ? formatToTwoDecimals(Number(ventaData.monto_pagado)) : 0;
+      const montoPendiente = ventaData.monto_pendiente ? formatToTwoDecimals(Number(ventaData.monto_pendiente)) : 0;
       const historialPagos = Array.isArray(ventaData.historial_pagos) ? ventaData.historial_pagos : [];
 
       if (Math.abs(total - (montoPagado + montoPendiente)) > 0.01) {
@@ -116,15 +126,9 @@ export const VentasProvider = ({ children }) => {
       } else if (ventaData.estado === 'pagado') {
         if (montoPagado !== total) throw new Error('Monto pagado debe igualar el total para estado pagado');
         if (montoPendiente !== 0) throw new Error('Monto pendiente debe ser 0 para estado pagado');
-        if (historialPagos.length > 0) throw new Error('Historial de pagos debe estar vacío para estado pagado');
       } else if (ventaData.estado === 'parcial') {
         if (montoPagado <= 0 || montoPagado >= total) {
           throw new Error('Monto pagado debe ser mayor a 0 y menor al total para estado parcial');
-        }
-        if (historialPagos.length !== 1) throw new Error('Historial de pagos debe tener exactamente un registro para estado parcial');
-        const pago = historialPagos[0];
-        if (Math.abs(pago.monto - montoPagado) > 0.01 || pago.cajero_ref !== currentUser.uid) {
-          throw new Error('El registro de pago no coincide con monto_pagado o cajero_ref');
         }
       }
 
@@ -140,7 +144,10 @@ export const VentasProvider = ({ children }) => {
         monto_pendiente: montoPendiente,
         total_retornables: totalRetornables,
         notas: ventaData.notas || '',
-        historial_pagos: historialPagos,
+        historial_pagos: historialPagos.map(pago => ({
+          ...pago,
+          monto: formatToTwoDecimals(Number(pago.monto)),
+        })),
         historial_retornables: [],
       };
 
@@ -152,11 +159,49 @@ export const VentasProvider = ({ children }) => {
     }
   };
 
+  // Pagar una venta completa
+  const pagarVenta = async (ventaId) => {
+    try {
+      if (!currentUser) throw new Error('Usuario no autenticado');
+
+      const ventaRef = doc(db, 'ventas', ventaId);
+      const ventaDoc = await getDoc(ventaRef);
+
+      if (!ventaDoc.exists()) {
+        throw new Error('Venta no encontrada');
+      }
+
+      const ventaData = ventaDoc.data();
+      const montoPendiente = formatToTwoDecimals(ventaData.monto_pendiente);
+      const montoPagado = formatToTwoDecimals(ventaData.monto_pagado + montoPendiente);
+
+      const pago = {
+        monto: montoPendiente,
+        fecha: new Date().toISOString(),
+        cajero_ref: currentUser.uid,
+        notas: '',
+      };
+
+      await updateDoc(ventaRef, {
+        estado: 'pagado',
+        monto_pagado: montoPagado,
+        monto_pendiente: 0,
+        historial_pagos: [...(ventaData.historial_pagos || []), pago],
+      });
+
+      return { ventaId, montoPagado };
+    } catch (error) {
+      console.error('Error al pagar venta:', error);
+      throw error;
+    }
+  };
+
   // Registrar un abono
   const registrarAbono = async (clienteId, montoAbono, notas) => {
     try {
       if (!currentUser) throw new Error('Usuario no autenticado');
-      if (montoAbono <= 0) throw new Error('El monto del abono debe ser mayor a 0');
+      const montoAbonoFormatted = formatToTwoDecimals(Number(montoAbono));
+      if (montoAbonoFormatted <= 0) throw new Error('El monto del abono debe ser mayor a 0');
       if (!obtenerClientePorId(clienteId)) throw new Error('Cliente no encontrado');
 
       const ventasQuery = query(
@@ -167,11 +212,12 @@ export const VentasProvider = ({ children }) => {
       const snapshot = await getDocs(ventasQuery);
       if (snapshot.empty) throw new Error('No hay ventas pendientes para este cliente');
 
-      let montoRestante = montoAbono;
+      let montoRestante = montoAbonoFormatted;
       let deudaTotal = 0;
-      snapshot.forEach(doc => deudaTotal += doc.data().monto_pendiente);
-      if (montoAbono > deudaTotal) {
-        throw new Error(`El abono de ${montoAbono} soles excede la deuda total de ${deudaTotal} soles`);
+      snapshot.forEach(doc => deudaTotal += formatToTwoDecimals(doc.data().monto_pendiente));
+      
+      if (montoAbonoFormatted > deudaTotal) {
+        throw new Error(`El abono de ${montoAbonoFormatted} soles excede la deuda total de ${deudaTotal} soles`);
       }
 
       const updates = [];
@@ -181,10 +227,10 @@ export const VentasProvider = ({ children }) => {
           if (montoRestante <= 0) return;
 
           const ventaData = doc.data();
-          const montoPendiente = ventaData.monto_pendiente;
-          const montoAPagar = Math.min(montoPendiente, montoRestante);
-          const nuevoMontoPagado = (ventaData.monto_pagado || 0) + montoAPagar;
-          const nuevoMontoPendiente = ventaData.total - nuevoMontoPagado;
+          const montoPendiente = formatToTwoDecimals(ventaData.monto_pendiente);
+          const montoAPagar = formatToTwoDecimals(Math.min(montoPendiente, montoRestante));
+          const nuevoMontoPagado = formatToTwoDecimals((ventaData.monto_pagado || 0) + montoAPagar);
+          const nuevoMontoPendiente = formatToTwoDecimals(ventaData.total - nuevoMontoPagado);
           const nuevoEstado = nuevoMontoPagado >= ventaData.total ? 'pagado' : 'parcial';
 
           const abono = {
@@ -204,7 +250,7 @@ export const VentasProvider = ({ children }) => {
             },
           });
 
-          montoRestante -= montoAPagar;
+          montoRestante = formatToTwoDecimals(montoRestante - montoAPagar);
         });
 
       await runTransaction(db, async (transaction) => {
@@ -244,7 +290,7 @@ export const VentasProvider = ({ children }) => {
 
       await runTransaction(db, async (transaction) => {
         transaction.update(ventaRef, {
-          total_retornables: venta.total_retornables - cantidadDevuelta,
+          total_retornables: formatToTwoDecimals(venta.total_retornables - cantidadDevuelta),
           historial_retornables: [...(venta.historial_retornables || []), devolucion],
         });
       });
@@ -270,6 +316,9 @@ export const VentasProvider = ({ children }) => {
         .map(doc => ({
           id: doc.id,
           ...doc.data(),
+          monto_pagado: formatToTwoDecimals(doc.data().monto_pagado || 0),
+          monto_pendiente: formatToTwoDecimals(doc.data().monto_pendiente || 0),
+          total: formatToTwoDecimals(doc.data().total || 0),
         }))
         .filter(venta => includePagado ? (venta.monto_pendiente > 0 || venta.total_retornables > 0) : venta.monto_pendiente > 0);
       return ventasData;
@@ -284,7 +333,7 @@ export const VentasProvider = ({ children }) => {
     try {
       const ventasCliente = ventas.filter(v => v.cliente_ref === clienteId);
       const deudaTotal = ventasCliente.reduce((sum, venta) => sum + (venta.monto_pendiente || 0), 0);
-      return Number(deudaTotal.toFixed(2));
+      return formatToTwoDecimals(deudaTotal);
     } catch (error) {
       console.error('Error al calcular deuda total por cliente:', error);
       return 0;
@@ -296,7 +345,16 @@ export const VentasProvider = ({ children }) => {
     try {
       const ventaRef = doc(db, 'ventas', id);
       const ventaDoc = await getDoc(ventaRef);
-      return ventaDoc.exists() ? { id: doc.id, ...ventaDoc.data() } : null;
+      if (!ventaDoc.exists()) return null;
+      
+      const ventaData = ventaDoc.data();
+      return {
+        id: ventaDoc.id,
+        ...ventaData,
+        monto_pagado: formatToTwoDecimals(ventaData.monto_pagado || 0),
+        monto_pendiente: formatToTwoDecimals(ventaData.monto_pendiente || 0),
+        total: formatToTwoDecimals(ventaData.total || 0),
+      };
     } catch (error) {
       console.error('Error al obtener venta por ID:', error);
       return null;
@@ -313,10 +371,7 @@ export const VentasProvider = ({ children }) => {
         throw new Error('Venta no encontrada');
       }
 
-      const ventaData = {
-        id: ventaDoc.id,
-        ...ventaDoc.data(),
-      };
+      const ventaData = ventaDoc.data();
 
       let nombreCajero = 'Desconocido';
       if (ventaData.cajero_ref) {
@@ -329,7 +384,11 @@ export const VentasProvider = ({ children }) => {
       }
 
       return {
+        id: ventaDoc.id,
         ...ventaData,
+        monto_pagado: formatToTwoDecimals(ventaData.monto_pagado || 0),
+        monto_pendiente: formatToTwoDecimals(ventaData.monto_pendiente || 0),
+        total: formatToTwoDecimals(ventaData.total || 0),
         nombre_cajero: nombreCajero,
       };
     } catch (error) {
@@ -350,8 +409,6 @@ export const VentasProvider = ({ children }) => {
         throw new Error('Venta no encontrada');
       }
 
-     
-
       await deleteDoc(ventaRef);
       return true;
     } catch (error) {
@@ -364,6 +421,7 @@ export const VentasProvider = ({ children }) => {
     ventas,
     loading,
     crearVenta,
+    pagarVenta,
     registrarAbono,
     registrarDevolucionRetornables,
     obtenerVentasPorCliente,

@@ -7,11 +7,11 @@ export default defineConfig({
   plugins: [react(), tailwindcss(), VitePWA({
     registerType: 'autoUpdate',
     manifest: {
-      name: 'Mi App',
-      short_name: 'MiApp',
+      name: 'VanesaBodeguita',
+      short_name: 'VanesaBodeguita',
       description: 'Una app optimizada para móviles',
       theme_color: '#ffffff',
-      icons: [
+      icons: [  
         {
           src: '/assets/Logo.svg',
           sizes: '192x192',

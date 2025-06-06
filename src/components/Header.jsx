@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, Menu, X, Home } from 'lucide-react';
+import { Bell, Menu, X, Home, ShoppingCart } from 'lucide-react';
 import Logo from '../assets/Logo.svg';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
@@ -32,6 +32,15 @@ const Header = ({ menuOpen, setMenuOpen, notifications }) => {
             aria-label="Ir a inicio"
           >
             <Home className="h-5 w-5 group-hover:scale-110 transition-transform" />
+          </Link>
+
+          {/* Sales Button - Only visible on mobile */}
+          <Link
+            to="/ventas"
+            className="md:hidden rounded-lg p-2 bg-[#45923a] text-white transition-all hover:bg-[#3a7d31] focus:outline-none focus:ring-2 focus:ring-[#45923a] group shadow-sm"
+            aria-label="Nueva venta"
+          >
+            <ShoppingCart className="h-5 w-5 group-hover:scale-110 transition-transform" />
           </Link>
           
           <div className="flex items-center gap-3">
