@@ -297,7 +297,7 @@ const PagarDeudaDrawer = ({ isOpen, onClose, cliente, onPagarDeuda }) => {
                 {modoAbono && (
                   <div className="p-4 space-y-4 border-t border-gray-100 bg-gradient-to-br from-orange-50/30 to-transparent">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                      <label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                         <Wallet className="h-4 w-4" />
                         Monto del abono
                       </label>

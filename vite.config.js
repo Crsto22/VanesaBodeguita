@@ -13,7 +13,7 @@ export default defineConfig({
       theme_color: '#ffffff',
       icons: [  
         {
-          src: '/assets/Logo.svg',
+          src: '/assets/Logo.png',
           sizes: '192x192',
           type: 'image/svg+xml'
         },
