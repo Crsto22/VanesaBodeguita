@@ -102,7 +102,6 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
         precio_referencia: producto.tipo_unidad === 'kilogramo' ? parseFloat(producto.precio) : null,
         imagen: producto.imagen || null
       });
-      setToast({ message: 'Producto agregado', type: 'success', visible: true });
     }
   };
 
@@ -120,14 +119,11 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
       precio_referencia: selectedProduct.tipo_unidad === 'kilogramo' ? parseFloat(selectedProduct.precio) : null,
       imagen: selectedProduct.imagen || null
     });
-    setToast({ message: 'Producto agregado', type: 'success', visible: true });
     setPriceModalOpen(false);
     setSelectedProduct(null);
   };
 
-  const closeToast = () => {
-    setToast(prev => ({ ...prev, visible: false }));
-  };
+ 
 
   const toggleCategorias = () => {
     setShowCategorias(!showCategorias);
@@ -151,45 +147,6 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
 
   return (
     <>
-      {toast.visible && (
-        <div className="fixed top-0 left-0 right-0 w-full z-[100] px-4 flex justify-center pointer-events-none">
-          <div
-            className={`max-w-md w-full shadow-lg rounded-lg transform transition-all duration-300 ease-in-out mt-4 pointer-events-auto
-              ${toast.visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'} 
-              ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}
-            role="alert"
-            tabIndex="-1"
-            aria-labelledby="header-notification"
-          >
-            <div className="flex items-center justify-between p-4">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg
-                    className="w-5 h-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 16 16"
-                    fill="currentColor"
-                  >
-                    <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <p id="header-notification" className="text-white font-medium">
-                    {toast.message}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={closeToast}
-                className="text-white hover:text-gray-200 focus:outline-none"
-                aria-label="Cerrar notificación"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {imageModalOpen && selectedProduct && (
         <>
