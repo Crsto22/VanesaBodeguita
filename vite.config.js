@@ -18,7 +18,7 @@ export default defineConfig({
           type: 'image/svg+xml'
         },
         {
-          src: '/assets/Logo.svg',
+          src: '/assets/Logo.png',
           sizes: '512x512',
           type: 'image/svg+xml'
         }
