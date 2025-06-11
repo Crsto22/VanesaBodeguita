@@ -4,6 +4,7 @@ import { useVentas } from '../context/VentasContext';
 import { Loader2, ArrowLeft, Printer, Download, Plus } from 'lucide-react';
 import Logo from '../assets/Logo.svg';
 import domtoimage from 'dom-to-image';
+import QRCode from 'react-qr-code';
 
 const NotaVenta = () => {
   const { id } = useParams();
@@ -12,8 +13,8 @@ const NotaVenta = () => {
   const [venta, setVenta] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [isDownloading, setIsDownloading] = useState(false); // State for download loading
-  const notaVentaRef = useRef(null); // Ref for capturing receipt content
+  const [isDownloading, setIsDownloading] = useState(false);
+  const notaVentaRef = useRef(null);
 
   useEffect(() => {
     const fetchVenta = async () => {
@@ -37,34 +38,40 @@ const NotaVenta = () => {
   }, [id, obtenerVentaCompletaPorId]);
 
   const handlePrint = () => {
-    window.print();
+    if (window.print) {
+      setTimeout(() => {
+        window.print();
+      }, 500);
+    } else {
+      alert('La función de imprimir no está disponible en este dispositivo. Use la opción de descargar.');
+    }
   };
 
   const handleDownload = async () => {
     try {
-      setIsDownloading(true); // Start loading
+      setIsDownloading(true);
       const dataUrl = await domtoimage.toPng(notaVentaRef.current, {
         bgcolor: '#ffffff',
         quality: 1,
-        width: 384 * 2,
-        height: notaVentaRef.current.clientHeight * 2,
+        width: 302 * 3,
+        height: notaVentaRef.current.clientHeight * 3,
         style: {
-          transform: 'scale(2)',
+          transform: 'scale(3)',
           transformOrigin: 'top left',
-          width: '384px',
+          width: '302px',
           height: `${notaVentaRef.current.clientHeight}px`
         }
       });
 
       const link = document.createElement('a');
-      link.download = `nota-venta-${id.slice(0, 8)}.png`;
+      link.download = `ticket-${id.slice(0, 8)}.png`;
       link.href = dataUrl;
       link.click();
     } catch (error) {
-      console.error('Error al generar la nota de venta:', error);
-      alert('Error al generar la nota de venta. Intente nuevamente.');
+      console.error('Error al generar el ticket:', error);
+      alert('Error al generar el ticket. Intente nuevamente.');
     } finally {
-      setIsDownloading(false); // Stop loading
+      setIsDownloading(false);
     }
   };
 
@@ -81,7 +88,7 @@ const NotaVenta = () => {
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="flex flex-col items-center">
           <Loader2 className="h-8 w-8 text-green-600 animate-spin" />
-          <p className="mt-2 text-gray-600 font-medium">Cargando nota de venta...</p>
+          <p className="mt-1 text-gray-600 font-medium text-lg">Cargando ticket...</p>
         </div>
       </div>
     );
@@ -91,10 +98,10 @@ const NotaVenta = () => {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 font-medium">{error}</p>
+          <p className="text-red-600 font-medium text-lg">{error}</p>
           <button
             onClick={handleBack}
-            className="mt-4 flex items-center gap-2 text-green-600 hover:text-green-700 font-medium"
+            className="mt-1 flex items-center gap-1 text-green-600 hover:text-green-700 font-medium text-lg"
           >
             <ArrowLeft size={16} />
             Volver
@@ -104,143 +111,191 @@ const NotaVenta = () => {
     );
   }
 
-  const renderContent = () => (
-    <div className="p-4 font-mono text-sm text-gray-800 bg-gray-50 border-t border-b border-gray-200">
-      {/* Logo and Header */}
-      <div className="text-center mb-4">
-        <img
-          src={Logo}
-          alt="Logo"
-          className="mx-auto mb-2"
-          style={{ maxWidth: '80px', height: 'auto' }}
-        />
-        <h2 className="text-lg font-bold text-gray-900">Nota de Venta</h2>
-        <p className="text-xs">Venta #{id}</p>
-        <p className="text-xs">
-          Fecha: {new Date(venta.fecha_creacion).toLocaleString('es-PE', {
-            dateStyle: 'short',
-            timeStyle: 'short',
-          })}
-        </p>
-        <p className="text-xs">Cajero: {venta.nombre_cajero || 'Desconocido'}</p>
-        <p className="text-xs">Cliente: {venta.nombre_cliente}</p>
-      </div>
+  const renderTicketContent = () => {
+    const fecha = new Date(venta.fecha_creacion);
+    const fechaFormateada = fecha.toLocaleString('es-PE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
 
-      {/* Separator */}
-      <div className="border-t border-dashed border-gray-400 my-2"></div>
+    const horaFormateada = fecha.toLocaleString('es-PE', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
 
-      {/* Products */}
-      <div className="mb-4">
-        <div className="flex justify-between font-bold text-xs">
-          <span>Descripción</span>
-          <span>Total</span>
+    return (
+      <div className="p-2 bg-white w-[302px] font-arial text-black text-lg font-bold leading-[1]">
+        <div className="text-center mb-1">
+          <img
+            src={Logo}
+            alt="Logo"
+            className="mx-auto mb-1 max-w-[70px] h-auto"
+          />
+          <div className="text-2xl">NOTA DE VENTA</div>
         </div>
-        {venta.productos.map((producto, index) => (
-          <div key={index} className="flex justify-between mt-1 text-xs">
-            <div>
-              <p className="font-medium">
-                {producto.nombre} x{producto.cantidad}
-              </p>
-              <p className="text-gray-600">
-                S/{producto.precio_unitario.toFixed(2)}/u
-                {producto.retornable && ` | Retornables: ${producto.cantidad_retornable}`}
-              </p>
-            </div>
-            <p className="font-medium">S/{producto.subtotal.toFixed(2)}</p>
+
+        <div className="border-t-2 border-dashed border-black my-1"></div>
+
+        <div className="mb-1">
+          <div className="flex justify-between text-sm">
+            <span>CLIENTE: {venta.nombre_cliente}</span>
           </div>
-        ))}
-      </div>
+          <div className="flex justify-between text-sm">
+            <span>CAJERO: {venta.nombre_cajero || 'SISTEMA'}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span>FECHA: {fechaFormateada}</span>
+            <span>HORA: {horaFormateada}</span>
+          </div>
+        </div>
 
-      {/* Separator */}
-      <div className="border-t border-dashed border-gray-400 my-2"></div>
+        <div className="border-t-2 border-dashed border-black my-1"></div>
 
-      {/* Totals */}
-      <div className="text-right mb-4">
-        <p className="text-xs font-bold">Total: S/{venta.total.toFixed(2)}</p>
-        {venta.estado === 'parcial' && (
+        <div className="mb-1">
+          <div className="grid grid-cols-[3fr_1fr_1fr_1fr] gap-x-2 text-sm border-b border-black mb-0.5">
+            <span>PRODUCTO</span>
+            <span className="text-center">CANT</span>
+            <span className="text-center">P.UNIT</span>
+            <span className="text-right">TOTAL</span>
+          </div>
+          {venta.productos.map((producto, index) => (
+            <div key={index} className="grid grid-cols-[3fr_1fr_1fr_1fr] gap-x-0.5 text-sm font-semibold mb-1">
+              <span className="text-sm">{producto.nombre}</span>
+              <span className="text-center">{producto.cantidad}</span>
+              <span className="text-center">{producto.precio_unitario.toFixed(2)}</span>
+              <span className="text-right">{producto.subtotal.toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t-2 border-dashed border-black my-1"></div>
+        <div className="grid grid-cols-[3fr_1fr_1fr_1fr] gap-x-0.5 text-sm border-b border-black mb-0.5">
+          <span className="text-right text-sm">SUBTOTAL</span>
+          <span className="text-end text-sm text-white">SUBTOTAL</span>
+          <span className="text-end text-sm text-white">SUBTOTAL</span>
+          <span className="text-end text-sm">{venta.total.toFixed(2)}</span>
+        </div>
+        <div className="mb-1">
+          <div className="flex justify-between text-2xl border-t-2 border-b-2 border-black py-0.5">
+            <span>TOTAL:</span>
+            <span>S/{venta.total.toFixed(2)}</span>
+          </div>
+
+          {venta.estado === 'parcial' && (
+            <>
+              <div className="flex justify-between text-base">
+                <span>Pagado:</span>
+                <span>S/{venta.monto_pagado.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-base text-red-700">
+                <span>Pendiente:</span>
+                <span>S/{venta.monto_pendiente.toFixed(2)}</span>
+              </div>
+            </>
+          )}
+
+          {venta.estado === 'pendiente' && (
+            <div className="flex justify-between text-base text-red-700">
+              <span>Pendiente:</span>
+              <span>S/{venta.monto_pendiente.toFixed(2)}</span>
+            </div>
+          )}
+
+          <div className="text-center my-1">
+            <span className={`inline-block text-base px-2 py-0.5 border-2 border-black
+              ${venta.estado === 'pagado' ? 'bg-green-200 text-green-800' :
+                venta.estado === 'parcial' ? 'bg-yellow-200 text-yellow-800' :
+                  'bg-red-200 text-red-800'}`}>
+              {venta.estado.toUpperCase()}
+            </span>
+          </div>
+
+          {venta.total_retornables > 0 && (
+            <div className="text-center text-base">
+              Botellas pendientes: {venta.total_retornables}
+            </div>
+          )}
+        </div>
+
+        {venta.historial_retornables && venta.historial_retornables.length > 0 && (
           <>
-            <p className="text-xs">Pagado: S/{venta.monto_pagado.toFixed(2)}</p>
-            <p className="text-xs text-red-600">Pendiente: S/{venta.monto_pendiente.toFixed(2)}</p>
+            <div className="border-t border-dashed border-black my-1"></div>
+            <div className="mb-1">
+              <div className="text-base">HISTORIAL</div>
+              {venta.historial_retornables.map((devolucion, index) => (
+                <div key={index} className="mb-0.5">
+                  <div className="flex justify-between text-sm">
+                    <span>
+                      {new Date(devolucion.fecha).toLocaleString('es-PE', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                    <span>{devolucion.cantidad_devuelta} devuelto</span>
+                  </div>
+                  {devolucion.notas && (
+                    <div className="text-xs text-gray-700">
+                      Notas: {devolucion.notas}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </>
         )}
-        {venta.estado === 'pendiente' && (
-          <p className="text-xs text-red-600">Pendiente: S/{venta.monto_pendiente.toFixed(2)}</p>
+
+        {venta.notas && (
+          <>
+            <div className="border-t border-dashed border-black my-1"></div>
+            <div className="mb-1">
+              <div className="text-base">NOTAS</div>
+              <div className="text-sm text-gray-700">{venta.notas}</div>
+            </div>
+          </>
         )}
-        <p
-          className={`text-xs font-medium capitalize ${
-            venta.estado === 'pagado'
-              ? 'text-green-600'
-              : venta.estado === 'parcial'
-              ? 'text-[#ffa40c]'
-              : 'text-red-600'
-          }`}
-        >
-          Estado: {venta.estado.charAt(0).toUpperCase() + venta.estado.slice(1)}
-        </p>
-        {venta.total_retornables > 0 && (
-          <p className="text-xs">Retornables pendientes: {venta.total_retornables}</p>
-        )}
+
+        <div className="border-t-2 border-dashed border-white my-1"></div>
+ <div className="border-t-2 border-dashed border-white my-1"></div>
+  <div className="border-t-2 border-dashed border-white my-1"></div>
+        <div className="text-center my-2">
+          <div style={{ background: 'white', padding: '8px', display: 'inline-block' }}>
+            <QRCode value={id} size={100} level="H" />
+          </div>
+        </div>
+
+        <div className="text-center text-base mb-6">
+          <div>¡Gracias por su compra!</div>
+        </div>
       </div>
-
-      {/* Returnables History */}
-      {venta.historial_retornables && venta.historial_retornables.length > 0 && (
-        <>
-          <div className="border-t border-dashed border-gray-400 my-2"></div>
-          <div className="mb-4">
-            <p className="font-bold text-xs">Historial de Retornables</p>
-            {venta.historial_retornables.map((devolucion, index) => (
-              <div key={index} className="text-xs mt-1">
-                <p>
-                  {new Date(devolucion.fecha).toLocaleString('es-PE', {
-                    dateStyle: 'short',
-                    timeStyle: 'short',
-                  })}
-                  : {devolucion.cantidad_devuelta} devuelto(s)
-                </p>
-                {devolucion.notas && <p className="text-gray-600">Notas: {devolucion.notas}</p>}
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* Notes */}
-      {venta.notas && (
-        <>
-          <div className="border-t border-dashed border-gray-400 my-2"></div>
-          <div>
-            <p className="font-bold text-xs">Notas</p>
-            <p className="text-xs text-gray-600">{venta.notas}</p>
-          </div>
-        </>
-      )}
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
-      {/* Header - Fixed */}
       <div className="fixed top-0 left-0 right-0 bg-white z-10 shadow-md">
         <div className="flex justify-between items-center p-4">
           <button
             onClick={handleBack}
-            className="flex items-center gap-1 text-green-600 hover:text-green-700 font-medium"
+            className="flex items-center gap-1 text-green-600 hover:text-green-700 font-medium text-lg"
           >
             <ArrowLeft size={16} />
-            <span className="text-sm">Volver</span>
+            <span>Volver</span>
           </button>
           <div className="flex items-center gap-3">
             <button
               onClick={handlePrint}
               className="text-[#45923a]"
-              aria-label="Imprimir nota de venta"
+              aria-label="Imprimir ticket"
             >
               <Printer size={20} />
             </button>
             <button
               onClick={handleDownload}
               className="text-[#45923a] relative"
-              aria-label="Descargar nota de venta"
+              aria-label="Descargar ticket"
               disabled={isDownloading}
             >
               {isDownloading ? (
@@ -253,31 +308,19 @@ const NotaVenta = () => {
         </div>
       </div>
 
-      {/* Content - Scrollable */}
-      <div className="mt-24 pb-6 flex justify-center px-4">
-        <div className="max-w-[384px] w-full bg-white rounded-lg shadow-lg">
-          {renderContent()}
+      <div className="mt-24 mb-24 pb-6 flex justify-center px-4">
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+          {renderTicketContent()}
         </div>
       </div>
 
-      {/* Hidden content for high-quality image generation */}
       <div className="fixed -left-[9999px]">
-        <div
-          ref={notaVentaRef}
-          className="bg-white w-[384px] text-sm"
-          style={{
-            fontFamily: "'Courier New', monospace",
-            lineHeight: '1.5',
-            color: '#000',
-            boxShadow: '0 0 0 1px rgba(0,0,0,0.1)'
-          }}
-        >
-          {renderContent()}
+        <div ref={notaVentaRef}>
+          {renderTicketContent()}
         </div>
       </div>
 
-      {/* Footer button - Fixed */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white z-10 shadow-t-md p-4">
+      <div className="fixed bottom-0 left-0 right-0 bg-white z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] p-4">
         <button
           onClick={handleNuevaVenta}
           className="flex items-center justify-center gap-2 w-full bg-[#45923a] text-white py-3 px-4 rounded-full hover:bg-green-700 transition-colors font-medium"
@@ -287,35 +330,74 @@ const NotaVenta = () => {
         </button>
       </div>
 
-      {/* Print styles */}
       <style jsx global>{`
+        .font-arial {
+          font-family: Arial, sans-serif !important;
+        }
+
         @media print {
-          body * {
-            visibility: hidden;
-          }
-          .bg-gray-100 {
-            background-color: white !important;
-          }
-          .max-w-[384px] {
-            max-width: 100% !important;
-          }
-          .shadow-lg {
+          * {
+            margin: 0 !important;
+            padding: 0 !important;
             box-shadow: none !important;
+            border-radius: 0 !important;
           }
+
+          body {
+            font-family: Arial, sans-serif !important;
+            background: white !important;
+            color: black !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          body * {
+            visibility: hidden !important;
+          }
+
+          .mt-24,
+          .mt-24 * {
+            visibility: visible !important;
+          }
+
           .mt-24 {
-            margin-top: 0 !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 80mm !important;
+            max-width: 80mm !important;
+            display: flex !important;
+            justify-content: center !important;
           }
-          .mt-24 *,
-          .mt-24 {
-            visibility: visible;
+
+          .mt-24 > div {
+            width: 80mm !important;
+            max-width: 80mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
-          .mt-24 {
-            position: absolute;
-            left: 0;
-            top: 0;
-          }
+
           .fixed {
             display: none !important;
+          }
+
+          .p-2 {
+            width: 80mm !important;
+            padding: 4mm !important;
+          }
+
+          img {
+            display: block !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+          }
+
+          @page {
+            size: 100mm auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
         }
       `}</style>

@@ -105,7 +105,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError })
                 onClose();
               }
             } else {
-              setError('No se encontró un producto con ese código de barras.');
+              setError({ message: 'Producto no encontrado', type: 'error', visible: true });
               onClose();
             }
           } catch (err) {
