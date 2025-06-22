@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { X, RefreshCw, Package, Check } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
@@ -13,6 +14,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError })
   const [selectedProduct, setSelectedProduct] = useState(null);
   const scannerRef = useRef(null);
   const scannerContainerRef = useRef(null);
+  const hasScannedRef = useRef(false); // Bandera para evitar múltiples escaneos
 
   const COLORS = {
     primary: '#45923a',
@@ -70,18 +72,25 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError })
     try {
       setIsScanning(true);
       setLocalError('');
+      hasScannedRef.current = false; // Reiniciar bandera al iniciar escáner
       await html5QrCode.start(
         { facingMode: 'environment' },
         {
-          fps: 15,
+          fps: 10, // Reducir FPS para disminuir la carga y evitar escaneos múltiples
           qrbox: { width: 300, height: 120 },
           aspectRatio: window.innerWidth < 600 ? 1.0 : 3 / 1,
           experimentalFeatures: { useBarCodeDetectorIfSupported: true },
         },
         async (decodedText) => {
+          // Ignorar si ya se procesó un escaneo
+          if (hasScannedRef.current) return;
+
+          // Marcar que se ha procesado un escaneo
+          hasScannedRef.current = true;
+
           try {
+            await stopScanner(); // Detener escáner inmediatamente
             const foundProduct = await obtenerProductoPorCodigoBarrasDirecto(decodedText);
-            await stopScanner();
             if (foundProduct) {
               setSelectedProduct(foundProduct);
               if (foundProduct.has_precio_alternativo && foundProduct.precio_alternativo) {
@@ -91,7 +100,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError })
                 onSelectProducto({
                   id: foundProduct.id,
                   nombre: foundProduct.nombre,
-                  cantidad: 1, // Siempre 1 unidad al escanear
+                  cantidad: 1, // Siempre 1 unidad
                   precio_unitario: precio,
                   subtotal: precio.toFixed(2),
                   retornable: foundProduct.retornable || false,
@@ -140,7 +149,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError })
       onSelectProducto({
         id: selectedProduct.id,
         nombre: selectedProduct.nombre,
-        cantidad: 1, // Siempre 1 unidad al seleccionar precio
+        cantidad: 1, // Siempre 1 unidad
         precio_unitario: parseFloat(precio),
         subtotal: parseFloat(precio).toFixed(2),
         retornable: selectedProduct.retornable || false,
