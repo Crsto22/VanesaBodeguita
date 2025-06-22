@@ -9,6 +9,7 @@ import EscanerNoEscaneo from '../../assets/Productos/EscanerNoEscaneo.svg';
 const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError }) => {
   const { loading, obtenerCategoriaPorId, obtenerProductoPorCodigoBarrasDirecto } = useProducts();
   const [isScanning, setIsScanning] = useState(false);
+  const [isSearching, setIsSearching] = useState(false); // Estado para el spinner de búsqueda
   const [localError, setLocalError] = useState('');
   const [priceModalOpen, setPriceModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -72,11 +73,12 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError })
     try {
       setIsScanning(true);
       setLocalError('');
-      hasScannedRef.current = false; // Reiniciar bandera al iniciar escáner
+      setIsSearching(false);
+      hasScannedRef.current = false; // Reiniciar bandera
       await html5QrCode.start(
         { facingMode: 'environment' },
         {
-          fps: 10, // Reducir FPS para disminuir la carga y evitar escaneos múltiples
+          fps: 10, // FPS reducido para evitar escaneos múltiples
           qrbox: { width: 300, height: 120 },
           aspectRatio: window.innerWidth < 600 ? 1.0 : 3 / 1,
           experimentalFeatures: { useBarCodeDetectorIfSupported: true },
@@ -88,9 +90,15 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError })
           // Marcar que se ha procesado un escaneo
           hasScannedRef.current = true;
 
+          // Detener el escáner inmediatamente
+          await stopScanner();
+
+          // Mostrar spinner de búsqueda
+          setIsSearching(true);
+
           try {
-            await stopScanner(); // Detener escáner inmediatamente
             const foundProduct = await obtenerProductoPorCodigoBarrasDirecto(decodedText);
+            setIsSearching(false); // Ocultar spinner
             if (foundProduct) {
               setSelectedProduct(foundProduct);
               if (foundProduct.has_precio_alternativo && foundProduct.precio_alternativo) {
@@ -116,7 +124,8 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError })
               onClose();
             }
           } catch (err) {
-            console.error('Error during scan cleanup:', err);
+            console.error('Error during product search:', err);
+            setIsSearching(false);
             setLocalError('Error al procesar el código escaneado.');
             setIsScanning(false);
           }
@@ -141,6 +150,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError })
 
   const handleScanAgain = async () => {
     setLocalError('');
+    setIsSearching(false);
     await startScanner();
   };
 
@@ -209,7 +219,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError })
             <>
               <div className="relative w-full max-w-lg mx-auto aspect-[4/3] rounded-2xl overflow-hidden bg-black shadow-md mt-4 border-2 border-[#45923a]">
                 <div id="barcode-scanner-drawer" ref={scannerContainerRef} className="w-full h-full" />
-                {isScanning && (
+                {isScanning && !isSearching && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <div
                       className="w-[300px] h-[120px] border-2 border-[#45923a] rounded-md bg-transparent relative"
@@ -226,17 +236,28 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError })
                     </div>
                   </div>
                 )}
+                {isSearching && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80">
+                    <div className="w-12 h-12 border-4 border-t-[#45923a] border-gray-200 rounded-full animate-spin" />
+                    <p className="text-white text-sm font-medium mt-4">Buscando producto...</p>
+                  </div>
+                )}
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
                   <div className="flex items-center">
-                    {isScanning ? (
+                    {isScanning && !isSearching ? (
                       <>
                         <div className="h-3 w-3 rounded-full bg-green-400 mr-2 animate-pulse" />
                         <p className="text-white text-sm font-medium">Escaneando...</p>
                       </>
-                    ) : (
+                    ) : !isScanning && !isSearching ? (
                       <>
                         <div className="h-3 w-3 rounded-full bg-yellow-400 mr-2" />
                         <p className="text-white text-sm font-medium">Preparando cámara...</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="h-3 w-3 rounded-full bg-blue-400 mr-2 animate-pulse" />
+                        <p className="text-white text-sm font-medium">Buscando producto...</p>
                       </>
                     )}
                   </div>
