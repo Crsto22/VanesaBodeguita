@@ -68,9 +68,15 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    let processedValue = value;
+    
+    if (name === 'nombre') {
+      processedValue = value.toUpperCase();
+    }
+    
     setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === 'checkbox' ? checked : processedValue,
     }));
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
@@ -140,31 +146,42 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
   return (
     <>
       {isOpen && (
-        <div className="fixed inset-0 bg-black/50 bg-opacity-50 z-40" onClick={onClose} />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40" onClick={onClose} />
       )}
       <div
-        className={`fixed inset-0 top-[6.25%] bg-white rounded-t-2xl shadow-lg z-50 transform transition-transform duration-300 ease-in-out ${
-          isOpen ? 'translate-y-0' : 'translate-y-full'
+        className={`fixed inset-0 bg-white shadow-2xl z-50 transform transition-all duration-300 ease-out ${
+          isOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
         }`}
         style={{
-          maxHeight: '93.75vh',
+          height: '100vh',
+          width: '100vw',
           overflowY: 'auto',
           '--tw-ring-color': colors.primary,
         }}
       >
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold">{isEditMode ? 'Editar Producto' : 'Nuevo Producto'}</h2>
+        {/* Header con diseño mejorado */}
+        <div className="sticky top-0 bg-white/95 backdrop-blur-sm border-b border-gray-100 p-3 sm:p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-1 h-6 sm:h-8 rounded-full" style={{ backgroundColor: colors.primary }}></div>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">{isEditMode ? 'Editar Producto' : 'Nuevo Producto'}</h2>
             </div>
-            <button onClick={onClose} disabled={isSubmitting}>
-              <X className="h-6 w-6 text-gray-500" />
+            <button 
+              onClick={onClose} 
+              disabled={isSubmitting}
+              className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors duration-200"
+            >
+              <X className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
             </button>
           </div>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3">
-            <div>
-              <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 mb-1">
-                Nombre *
+        </div>
+
+        <div className="px-3 sm:px-6 pb-6">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+            {/* Nombre del producto */}
+            <div className="space-y-1 sm:space-y-2">
+              <label htmlFor="nombre" className="block text-xs sm:text-sm font-semibold text-gray-800">
+                Nombre del Producto *
               </label>
               <input
                 type="text"
@@ -172,16 +189,20 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                 name="nombre"
                 value={formData.nombre}
                 onChange={handleChange}
-                className={`w-full rounded-lg border px-3 py-2 text-sm ${
-                  errors.nombre ? 'border-red-500' : 'border-gray-300'
-                } focus:outline-none focus:ring-2 focus:ring-opacity-50`}
-                placeholder="Ej. Super Glu"
+                className={`w-full rounded-lg sm:rounded-xl border-2 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 ${
+                  errors.nombre 
+                    ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200' 
+                    : 'border-gray-200 bg-gray-50 focus:border-blue-400 focus:bg-white hover:border-gray-300'
+                } focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-opacity-20`}
+                placeholder="SUPER GLU"
                 disabled={isSubmitting}
               />
-              {errors.nombre && <p className="mt-1 text-xs text-red-500">{errors.nombre}</p>}
+              {errors.nombre && <p className="text-xs text-red-600 font-medium">{errors.nombre}</p>}
             </div>
-            <div>
-              <label htmlFor="categoria_ref" className="block text-sm font-medium text-gray-700 mb-1">
+
+            {/* Categoría */}
+            <div className="space-y-1 sm:space-y-2">
+              <label htmlFor="categoria_ref" className="block text-xs sm:text-sm font-semibold text-gray-800">
                 Categoría *
               </label>
               <select
@@ -189,16 +210,18 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                 name="categoria_ref"
                 value={formData.categoria_ref}
                 onChange={handleChange}
-                className={`w-full rounded-lg border px-3 py-2 text-sm ${
-                  errors.categoria_ref ? 'border-red-500' : 'border-gray-300'
-                } focus:outline-none focus:ring-2 focus:ring-opacity-50`}
+                className={`w-full rounded-lg sm:rounded-xl border-2 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 ${
+                  errors.categoria_ref 
+                    ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200' 
+                    : 'border-gray-200 bg-gray-50 focus:border-blue-400 focus:bg-white hover:border-gray-300'
+                } focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-opacity-20`}
                 disabled={isSubmitting}
               >
                 {categorias.length === 0 ? (
                   <option value="">No hay categorías</option>
                 ) : (
                   <>
-                    <option value="">Seleccionar</option>
+                    <option value="">Seleccionar categoría</option>
                     {categorias.map((cat) => (
                       <option key={cat.id} value={cat.id}>
                         {cat.nombre}
@@ -207,11 +230,13 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                   </>
                 )}
               </select>
-              {errors.categoria_ref && <p className="mt-1 text-xs text-red-500">{errors.categoria_ref}</p>}
+              {errors.categoria_ref && <p className="text-xs text-red-600 font-medium">{errors.categoria_ref}</p>}
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="col-span-1">
-                <label htmlFor="tipo_unidad" className="block text-sm font-medium text-gray-700 mb-1">
+
+            {/* Tipo de unidad y precio */}
+            <div className="grid grid-cols-2 gap-2 sm:gap-4">
+              <div className="space-y-1 sm:space-y-2">
+                <label htmlFor="tipo_unidad" className="block text-xs sm:text-sm font-semibold text-gray-800">
                   Tipo de Unidad *
                 </label>
                 <select
@@ -219,15 +244,15 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                   name="tipo_unidad"
                   value={formData.tipo_unidad}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-opacity-50"
+                  className="w-full rounded-lg sm:rounded-xl border-2 border-gray-200 bg-gray-50 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-blue-200 focus:ring-opacity-20 hover:border-gray-300"
                   disabled={isSubmitting}
                 >
                   <option value="unidad">Unidad</option>
                   <option value="kilogramo">Kilogramo</option>
                 </select>
               </div>
-              <div className="col-span-1">
-                <label htmlFor="precio" className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="space-y-1 sm:space-y-2">
+                <label htmlFor="precio" className="block text-xs sm:text-sm font-semibold text-gray-800">
                   {precioLabel} *
                 </label>
                 <input
@@ -236,100 +261,108 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                   name="precio"
                   value={formData.precio}
                   onChange={handleChange}
-                  className={`w-full rounded-lg border px-3 py-2 text-sm ${
-                    errors.precio ? 'border-red-500' : 'border-gray-300'
-                  } focus:outline-none focus:ring-2 focus:ring-opacity-50`}
-                  placeholder={formData.tipo_unidad === 'kilogramo' ? 'Ej. 15.99' : 'Ej. 0.6'}
+                  className={`w-full rounded-lg sm:rounded-xl border-2 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 ${
+                    errors.precio 
+                      ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200' 
+                      : 'border-gray-200 bg-gray-50 focus:border-blue-400 focus:bg-white hover:border-gray-300'
+                  } focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-opacity-20`}
+                  placeholder={formData.tipo_unidad === 'kilogramo' ? '15.99' : '0.60'}
                   step="0.01"
                   disabled={isSubmitting}
                 />
-                {errors.precio && <p className="mt-1 text-xs text-red-500">{errors.precio}</p>}
+                {errors.precio && <p className="text-xs text-red-600 font-medium">{errors.precio}</p>}
               </div>
             </div>
+
+            {/* Precio alternativo */}
             {formData.tipo_unidad === 'unidad' && (
-              <div>
-                <label htmlFor="has_precio_alternativo" className="block text-sm font-medium text-gray-700 mb-1">
-                  ¿Incluir Precio Alternativo?
-                </label>
-                <div className="flex items-center">
+              <div className="space-y-3 sm:space-y-4 p-3 sm:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg sm:rounded-xl border border-blue-100">
+                <div className="flex items-center space-x-2 sm:space-x-3">
                   <input
                     type="checkbox"
                     id="has_precio_alternativo"
                     name="has_precio_alternativo"
                     checked={formData.has_precio_alternativo}
                     onChange={handleChange}
-                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-opacity-50"
+                    className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 border-2 border-gray-300 rounded focus:ring-2 focus:ring-blue-200"
                     disabled={isSubmitting}
                   />
-                  <label htmlFor="has_precio_alternativo" className="ml-2 text-sm text-gray-700">
-                    Sí
+                  <label htmlFor="has_precio_alternativo" className="text-xs sm:text-sm font-semibold text-gray-800">
+                    ¿Incluir Precio Alternativo?
                   </label>
                 </div>
+
+                {formData.has_precio_alternativo && (
+                  <div className="grid grid-cols-1 gap-3 sm:gap-4 pt-2">
+                    <div className="space-y-1 sm:space-y-2">
+                      <label htmlFor="precio_alternativo" className="block text-xs sm:text-sm font-semibold text-gray-800">
+                        Precio Alternativo
+                      </label>
+                      <input
+                        type="number"
+                        id="precio_alternativo"
+                        name="precio_alternativo"
+                        value={formData.precio_alternativo}
+                        onChange={handleChange}
+                        className={`w-full rounded-lg sm:rounded-xl border-2 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 ${
+                          errors.precio_alternativo 
+                            ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200' 
+                            : 'border-gray-200 bg-white focus:border-blue-400 hover:border-gray-300'
+                        } focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-opacity-20`}
+                        placeholder="0.80"
+                        step="0.01"
+                        disabled={isSubmitting}
+                      />
+                      {errors.precio_alternativo && <p className="text-xs text-red-600 font-medium">{errors.precio_alternativo}</p>}
+                    </div>
+                    <div className="space-y-1 sm:space-y-2">
+                      <label htmlFor="motivo_precio_alternativo" className="block text-xs sm:text-sm font-semibold text-gray-800">
+                        Motivo del Precio Alternativo
+                      </label>
+                      <input
+                        type="text"
+                        id="motivo_precio_alternativo"
+                        name="motivo_precio_alternativo"
+                        value={formData.motivo_precio_alternativo}
+                        onChange={handleChange}
+                        className="w-full rounded-lg sm:rounded-xl border-2 border-gray-200 bg-white px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 focus:border-blue-400 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-blue-200 focus:ring-opacity-20 hover:border-gray-300"
+                        placeholder="Bebida helada"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-            {formData.tipo_unidad === 'unidad' && formData.has_precio_alternativo && (
-              <>
-                <div>
-                  <label htmlFor="precio_alternativo" className="block text-sm font-medium text-gray-700 mb-1">
-                    Precio Alternativo (opcional)
-                  </label>
-                  <input
-                    type="number"
-                    id="precio_alternativo"
-                    name="precio_alternativo"
-                    value={formData.precio_alternativo}
-                    onChange={handleChange}
-                    className={`w-full rounded-lg border px-3 py-2 text-sm ${
-                      errors.precio_alternativo ? 'border-red-500' : 'border-gray-300'
-                    } focus:outline-none focus:ring-2 focus:ring-opacity-50`}
-                    placeholder="Ej. 0.8"
-                    step="0.01"
-                    disabled={isSubmitting}
-                  />
-                  {errors.precio_alternativo && <p className="mt-1 text-xs text-red-500">{errors.precio_alternativo}</p>}
-                </div>
-                <div>
-                  <label htmlFor="motivo_precio_alternativo" className="block text-sm font-medium text-gray-700 mb-1">
-                    Motivo del Precio Alternativo (opcional)
-                  </label>
-                  <input
-                    type="text"
-                    id="motivo_precio_alternativo"
-                    name="motivo_precio_alternativo"
-                    value={formData.motivo_precio_alternativo}
-                    onChange={handleChange}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-opacity-50"
-                    placeholder="Ej. Bebida helada"
-                    disabled={isSubmitting}
-                  />
-                </div>
-              </>
-            )}
-            <div>
-              <label htmlFor="stock" className="block text-sm font-medium text-gray-700 mb-1">
+
+            {/* Stock con botones de acción rápida */}
+            <div className="space-y-1 sm:space-y-2">
+              <label htmlFor="stock" className="block text-xs sm:text-sm font-semibold text-gray-800">
                 {stockLabel} *
               </label>
-              <div className="grid grid-cols-5 gap-2">
-                <div className="col-span-2">
+              <div className="flex gap-2 sm:gap-3">
+                <div className="flex-grow">
                   <input
                     type="number"
                     id="stock"
                     name="stock"
                     value={formData.stock}
                     onChange={handleChange}
-                    className={`w-full rounded-lg border px-3 py-2 text-sm ${
-                      errors.stock ? 'border-red-500' : 'border-gray-300'
-                    } focus:outline-none focus:ring-2 focus:ring-opacity-50`}
+                    className={`w-full rounded-lg sm:rounded-xl border-2 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 ${
+                      errors.stock 
+                        ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200' 
+                        : 'border-gray-200 bg-gray-50 focus:border-blue-400 focus:bg-white hover:border-gray-300'
+                    } focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-opacity-20`}
                     placeholder={stockPlaceholder}
                     step={formData.tipo_unidad === 'kilogramo' ? '0.1' : '1'}
                     disabled={isSubmitting}
                   />
                 </div>
-                <div className="col-span-3 grid grid-cols-3 gap-1">
+                <div className="flex gap-1 sm:gap-2">
                   <button
                     type="button"
                     onClick={() => handleStockQuickAction(formData.tipo_unidad === 'kilogramo' ? 0.5 : 5)}
-                    className="rounded px-2 py-1 bg-gray-100 text-xs border border-gray-300"
+                    className="px-2 py-2 sm:px-3 rounded-lg bg-gradient-to-r from-green-100 to-emerald-100 border border-green-200 text-green-700 text-xs font-semibold hover:from-green-200 hover:to-emerald-200 transition-all duration-200"
                     disabled={isSubmitting}
                   >
                     {formData.tipo_unidad === 'kilogramo' ? '+0.5' : '+5'}
@@ -337,7 +370,7 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                   <button
                     type="button"
                     onClick={() => handleStockQuickAction(formData.tipo_unidad === 'kilogramo' ? 1 : 10)}
-                    className="rounded px-2 py-1 bg-gray-100 text-xs border border-gray-300"
+                    className="px-2 py-2 sm:px-3 rounded-lg bg-gradient-to-r from-blue-100 to-cyan-100 border border-blue-200 text-blue-700 text-xs font-semibold hover:from-blue-200 hover:to-cyan-200 transition-all duration-200"
                     disabled={isSubmitting}
                   >
                     {formData.tipo_unidad === 'kilogramo' ? '+1' : '+10'}
@@ -345,103 +378,105 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                   <button
                     type="button"
                     onClick={() => handleStockQuickAction(formData.tipo_unidad === 'kilogramo' ? 2 : 20)}
-                    className="rounded px-2 py-1 bg-gray-100 text-xs border border-gray-300"
+                    className="px-2 py-2 sm:px-3 rounded-lg bg-gradient-to-r from-purple-100 to-violet-100 border border-purple-200 text-purple-700 text-xs font-semibold hover:from-purple-200 hover:to-violet-200 transition-all duration-200"
                     disabled={isSubmitting}
                   >
                     {formData.tipo_unidad === 'kilogramo' ? '+2' : '+20'}
                   </button>
                 </div>
               </div>
-              {errors.stock && <p className="mt-1 text-xs text-red-500">{errors.stock}</p>}
+              {errors.stock && <p className="text-xs text-red-600 font-medium">{errors.stock}</p>}
             </div>
-            <div>
-              <label htmlFor="retornable" className="block text-sm font-medium text-gray-700 mb-1">
+
+            {/* Producto retornable */}
+            <div className="flex items-center space-x-2 sm:space-x-3 p-3 sm:p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg sm:rounded-xl border border-amber-100">
+              <input
+                type="checkbox"
+                id="retornable"
+                name="retornable"
+                checked={formData.retornable}
+                onChange={handleChange}
+                className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 border-2 border-gray-300 rounded focus:ring-2 focus:ring-amber-200"
+                disabled={isSubmitting}
+              />
+              <label htmlFor="retornable" className="text-xs sm:text-sm font-semibold text-gray-800">
                 ¿Producto Retornable?
               </label>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="retornable"
-                  name="retornable"
-                  checked={formData.retornable}
-                  onChange={handleChange}
-                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-opacity-50"
-                  disabled={isSubmitting}
-                />
-                <label htmlFor="retornable" className="ml-2 text-sm text-gray-700">
-                  Sí
-                </label>
-              </div>
             </div>
-            <div>
-              <label htmlFor="codigo_barras" className="block text-sm font-medium text-gray-700 mb-1">
-                Código de Barras (opcional)
+
+            {/* Código de barras */}
+            <div className="space-y-1 sm:space-y-2">
+              <label htmlFor="codigo_barras" className="block text-xs sm:text-sm font-semibold text-gray-800">
+                Código de Barras
               </label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 sm:gap-3">
                 <input
                   type="text"
                   id="codigo_barras"
                   name="codigo_barras"
                   value={formData.codigo_barras}
                   onChange={handleChange}
-                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-opacity-50"
-                  placeholder="Ej. 7501234567890"
+                  className="flex-1 rounded-lg sm:rounded-xl border-2 border-gray-200 bg-gray-50 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-blue-200 focus:ring-opacity-20 hover:border-gray-300"
+                  placeholder="7501234567890"
                   disabled={isSubmitting}
                 />
                 <button
                   type="button"
                   onClick={handleScanBarcode}
-                  className="flex items-center justify-center rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 text-sm"
+                  className="flex items-center justify-center gap-1 sm:gap-2 rounded-lg sm:rounded-xl border-2 border-gray-300 bg-gradient-to-r from-gray-100 to-gray-200 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-semibold text-gray-700 hover:from-gray-200 hover:to-gray-300 transition-all duration-200"
                   disabled={isSubmitting || isScannerOpen}
                 >
-                  <Barcode className="h-5 w-5" />
-                  <span className="ml-1">Escanear</span>
+                  <Barcode className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Escanear</span>
                 </button>
               </div>
             </div>
-            <div>
-              <label htmlFor="imagen" className="block text-sm font-medium text-gray-700 mb-1">
-                Imagen (opcional)
+
+            {/* Imagen */}
+            <div className="space-y-1 sm:space-y-2">
+              <label htmlFor="imagen" className="block text-xs sm:text-sm font-semibold text-gray-800">
+                Imagen del Producto
               </label>
               <input
                 type="file"
                 id="imagen"
                 accept="image/*"
                 onChange={handleImagenChange}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                className="w-full rounded-lg sm:rounded-xl border-2 border-gray-200 bg-gray-50 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-blue-200 focus:ring-opacity-20 hover:border-gray-300"
                 disabled={isSubmitting}
               />
+              {formData.imagen && (
+                <div className="mt-2 sm:mt-3">
+                  <img src={formData.imagen} alt="Vista previa" className="h-16 w-16 sm:h-20 sm:w-20 object-cover rounded-lg sm:rounded-xl border-2 border-gray-200 shadow-sm" />
+                </div>
+              )}
             </div>
-            {formData.imagen && (
-              <div className="mt-1 mb-3">
-                <img src={formData.imagen} alt="Vista previa" className="h-16 w-16 object-cover rounded-lg" />
-              </div>
-            )}
-            <div className="mt-2">
+
+            {/* Campos adicionales */}
+            <div className="border-t border-gray-200 pt-3 sm:pt-4">
               <button
                 type="button"
                 onClick={() => setShowAdditionalFields(!showAdditionalFields)}
-                className="flex items-center text-sm font-medium text-gray-700"
+                className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors duration-200"
               >
                 {showAdditionalFields ? (
                   <>
-                    <ChevronUp className="h-4 w-4 mr-1" />
+                    <ChevronUp className="h-3 w-3 sm:h-4 sm:w-4" />
                     Ocultar campos adicionales
                   </>
                 ) : (
                   <>
-                    <ChevronDown className="h-4 w-4 mr-1" />
+                    <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4" />
                     Mostrar campos adicionales
                   </>
                 )}
               </button>
-            </div>
-            {showAdditionalFields && (
-              <>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="col-span-1">
-                    <label htmlFor="marca" className="block text-sm font-medium text-gray-700 mb-1">
-                      Marca (opcional)
+              
+              {showAdditionalFields && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4 p-3 sm:p-4 bg-gray-50 rounded-lg sm:rounded-xl border border-gray-200">
+                  <div className="space-y-1 sm:space-y-2">
+                    <label htmlFor="marca" className="block text-xs sm:text-sm font-semibold text-gray-800">
+                      Marca
                     </label>
                     <input
                       type="text"
@@ -449,14 +484,14 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                       name="marca"
                       value={formData.marca}
                       onChange={handleChange}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-opacity-50"
-                      placeholder="Ej. Faber-Castell"
+                      className="w-full rounded-lg sm:rounded-xl border-2 border-gray-200 bg-white px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 focus:border-blue-400 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-blue-200 focus:ring-opacity-20 hover:border-gray-300"
+                      placeholder="Faber-Castell"
                       disabled={isSubmitting}
                     />
                   </div>
-                  <div className="col-span-1">
-                    <label htmlFor="fecha_vencimiento" className="block text-sm font-medium text-gray-700 mb-1">
-                      Fecha Vencimiento (opcional)
+                  <div className="space-y-1 sm:space-y-2">
+                    <label htmlFor="fecha_vencimiento" className="block text-xs sm:text-sm font-semibold text-gray-800">
+                      Fecha de Vencimiento
                     </label>
                     <input
                       type="date"
@@ -464,49 +499,57 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                       name="fecha_vencimiento"
                       value={formData.fecha_vencimiento}
                       onChange={handleChange}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-opacity-50"
+                      className="w-full rounded-lg sm:rounded-xl border-2 border-gray-200 bg-white px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 focus:border-blue-400 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-blue-200 focus:ring-opacity-20 hover:border-gray-300"
                       disabled={isSubmitting}
                     />
                   </div>
                 </div>
-              </>
-            )}
-            <div className="grid grid-cols-2 gap-2 mt-4">
+              )}
+            </div>
+
+            {/* Botones de acción */}
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 pt-4 sm:pt-6">
               <button
                 type="button"
                 onClick={onClose}
-                className="col-span-1 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
+                className="rounded-lg sm:rounded-xl border-2 border-gray-200 bg-white px-4 py-2 sm:px-6 sm:py-3 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200"
                 disabled={isSubmitting}
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="col-span-1 rounded-lg px-4 py-2 text-sm font-medium text-white"
-                style={{ backgroundColor: isSubmitting ? '#6b7280' : colors.primary }}
+                className="rounded-lg sm:rounded-xl px-4 py-2 sm:px-6 sm:py-3 text-xs sm:text-sm font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ 
+                  backgroundColor: isSubmitting ? '#6b7280' : colors.primary,
+                  boxShadow: isSubmitting ? 'none' : `0 4px 14px 0 ${colors.primary}30`
+                }}
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
-                  <svg
-                    className="animate-spin h-5 w-5 text-white mx-auto"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
+                  <div className="flex items-center justify-center gap-2">
+                    <svg
+                      className="animate-spin h-3 w-3 sm:h-4 sm:w-4 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Guardando...
+                  </div>
                 ) : isEditMode ? (
                   'Guardar Cambios'
                 ) : (

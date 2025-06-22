@@ -14,7 +14,7 @@ export const VentasProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const { currentUser } = useAuth();
   const { clientes, obtenerClientePorId } = useClientes();
-  const { productos, obtenerProductoPorId } = useProducts();
+  const { obtenerProductoPorIdDirecto } = useProducts();
 
   // Referencia a la colección de ventas
   const ventasCollection = collection(db, 'ventas');
@@ -80,8 +80,8 @@ export const VentasProvider = ({ children }) => {
       // Validar y procesar productos
       let total = 0;
       let totalRetornables = 0;
-      const productosProcesados = ventaData.productos.map(item => {
-        const producto = obtenerProductoPorId(item.producto_ref);
+      const productosProcesados = await Promise.all(ventaData.productos.map(async (item) => {
+        const producto = await obtenerProductoPorIdDirecto(item.producto_ref);
         if (!producto) throw new Error(`Producto ${item.producto_ref} no encontrado`);
         if (item.cantidad <= 0) throw new Error(`Cantidad inválida para ${producto.nombre}`);
         if (item.cantidad_retornable > item.cantidad) throw new Error(`Cantidad retornable inválida para ${producto.nombre}`);
@@ -105,7 +105,7 @@ export const VentasProvider = ({ children }) => {
           retornable: producto.retornable,
           cantidad_retornable: cantidadRetornable,
         };
-      });
+      }));
 
       total = formatToTwoDecimals(total);
       totalRetornables = formatToTwoDecimals(totalRetornables);

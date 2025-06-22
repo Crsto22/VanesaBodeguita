@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { RotateCcw, X, Milk, AlertCircle, Plus, Minus } from 'lucide-react';
+import { RotateCcw, X, Milk, AlertCircle, Plus, Minus, Package } from 'lucide-react';
 import { useVentas } from '../../context/VentasContext';
 import { useProducts } from '../../context/ProductContext';
 
 const DevolverBotellasDrawer = ({ isOpen, onClose, cliente, onDevolverBotellas }) => {
   const { obtenerVentasPorCliente, registrarDevolucionRetornables } = useVentas();
-  const { obtenerProductoPorId } = useProducts();
+  const { obtenerProductoPorId, obtenerProductoPorIdDirecto } = useProducts();
   const [ventas, setVentas] = useState([]);
   const [cantidades, setCantidades] = useState({});
   const [notas, setNotas] = useState('');
@@ -104,10 +104,33 @@ const DevolverBotellasDrawer = ({ isOpen, onClose, cliente, onDevolverBotellas }
     });
   };
 
-  const getProductDetails = (productoRef) => {
-    const producto = obtenerProductoPorId(productoRef);
+  const getProductDetails = async (productoRef) => {
+    let producto = obtenerProductoPorId(productoRef);
+    if (!producto) {
+      producto = await obtenerProductoPorIdDirecto(productoRef);
+    }
     return producto || { nombre: 'Producto Desconocido', imagen: '' };
   };
+
+  const [productDetailsCache, setProductDetailsCache] = useState({});
+
+  useEffect(() => {
+    if (ventas.length > 0) {
+      const fetchProductDetails = async () => {
+        const cache = {};
+        for (const venta of ventas) {
+          for (const producto of venta.productos.filter(p => p.retornable && p.cantidad_retornable > 0)) {
+            if (!productDetailsCache[producto.producto_ref]) {
+              const details = await getProductDetails(producto.producto_ref);
+              cache[producto.producto_ref] = details;
+            }
+          }
+        }
+        setProductDetailsCache(prev => ({ ...prev, ...cache }));
+      };
+      fetchProductDetails();
+    }
+  }, [ventas]);
 
   return (
     <>
@@ -230,20 +253,27 @@ const DevolverBotellasDrawer = ({ isOpen, onClose, cliente, onDevolverBotellas }
                     {venta.productos
                       .filter((p) => p.retornable && p.cantidad_retornable > 0)
                       .map((producto) => {
-                        const { nombre, imagen } = getProductDetails(producto.producto_ref);
+                        const { nombre, imagen } = productDetailsCache[producto.producto_ref] || { nombre: 'Cargando...', imagen: null };
                         return (
                           <div
                             key={producto.producto_ref}
                             className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg"
                           >
-                            <img
-                              src={imagen || 'https://via.placeholder.com/40?text=40x40'}
-                              alt={nombre}
-                              className="w-10 h-10 rounded-lg object-cover border border-gray-100"
-                              onError={(e) => {
-                                e.target.src = 'https://via.placeholder.com/40?text=40x40';
-                              }}
-                            />
+                            {imagen ? (
+                              <img
+                                src={imagen}
+                                alt={nombre}
+                                className="w-10 h-10 rounded-lg object-cover border border-gray-100"
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-100 border border-gray-100">
+                                <Package className="h-5 w-5 text-gray-400" />
+                              </div>
+                            )}
                             <div className="flex-1">
                               <p className="text-xs font-medium text-gray-800 truncate">
                                 {nombre}
@@ -285,7 +315,6 @@ const DevolverBotellasDrawer = ({ isOpen, onClose, cliente, onDevolverBotellas }
                   </div>
                 </div>
               ))}
-
               {/* Notas */}
               <div className="bg-white border border-gray-200 p-3 rounded-xl shadow-sm mx-4 mt-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">

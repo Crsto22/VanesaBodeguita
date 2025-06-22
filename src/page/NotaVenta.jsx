@@ -153,29 +153,21 @@ const NotaVenta = () => {
         <div className="border-t-2 border-dashed border-black my-1"></div>
 
         <div className="mb-1">
-          <div className="grid grid-cols-[3fr_1fr_1fr_1fr] gap-x-2 text-sm border-b border-black mb-0.5">
-            <span>PRODUCTO</span>
-            <span className="text-center">CANT</span>
-            <span className="text-center">P.UNIT</span>
-            <span className="text-right">TOTAL</span>
-          </div>
           {venta.productos.map((producto, index) => (
-            <div key={index} className="grid grid-cols-[3fr_1fr_1fr_1fr] gap-x-0.5 text-sm font-semibold mb-1">
-              <span className="text-sm">{producto.nombre}</span>
-              <span className="text-center">{producto.cantidad}</span>
-              <span className="text-center">{producto.precio_unitario.toFixed(2)}</span>
-              <span className="text-right">{producto.subtotal.toFixed(2)}</span>
+            <div key={index} className="mb-1">
+              <div className="flex justify-between">
+                <div>
+                  <div className="text-sm font-semibold">{producto.nombre}</div>
+                  <div className="text-sm font-semibold">{producto.cantidad} x S/{producto.precio_unitario.toFixed(2)}</div>
+                </div>
+                <div className="text-sm font-semibold">S/{producto.subtotal.toFixed(2)}</div>
+              </div>
             </div>
           ))}
         </div>
 
         <div className="border-t-2 border-dashed border-black my-1"></div>
-        <div className="grid grid-cols-[3fr_1fr_1fr_1fr] gap-x-0.5 text-sm border-b border-black mb-0.5">
-          <span className="text-right text-sm">SUBTOTAL</span>
-          <span className="text-end text-sm text-white">SUBTOTAL</span>
-          <span className="text-end text-sm text-white">SUBTOTAL</span>
-          <span className="text-end text-sm">{venta.total.toFixed(2)}</span>
-        </div>
+        
         <div className="mb-1">
           <div className="flex justify-between text-2xl border-t-2 border-b-2 border-black py-0.5">
             <span>TOTAL:</span>
@@ -258,8 +250,8 @@ const NotaVenta = () => {
         )}
 
         <div className="border-t-2 border-dashed border-white my-1"></div>
- <div className="border-t-2 border-dashed border-white my-1"></div>
-  <div className="border-t-2 border-dashed border-white my-1"></div>
+        <div className="border-t-2 border-dashed border-white my-1"></div>
+        <div className="border-t-2 border-dashed border-white my-1"></div>
         <div className="text-center my-2">
           <div style={{ background: 'white', padding: '8px', display: 'inline-block' }}>
             <QRCode value={id} size={100} level="H" />
