@@ -91,7 +91,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError })
                 onSelectProducto({
                   id: foundProduct.id,
                   nombre: foundProduct.nombre,
-                  cantidad: foundProduct.tipo_unidad === 'kilogramo' ? 1 : 1,
+                  cantidad: 1, // Siempre 1 unidad al escanear
                   precio_unitario: precio,
                   subtotal: precio.toFixed(2),
                   retornable: foundProduct.retornable || false,
@@ -140,7 +140,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError })
       onSelectProducto({
         id: selectedProduct.id,
         nombre: selectedProduct.nombre,
-        cantidad: selectedProduct.tipo_unidad === 'kilogramo' ? 1 : 1,
+        cantidad: 1, // Siempre 1 unidad al seleccionar precio
         precio_unitario: parseFloat(precio),
         subtotal: parseFloat(precio).toFixed(2),
         retornable: selectedProduct.retornable || false,
