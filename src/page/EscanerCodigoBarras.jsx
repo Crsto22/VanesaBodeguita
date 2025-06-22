@@ -17,7 +17,7 @@ import { useAuth } from '../context/AuthContext';
 const EscanerCodigoBarras = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { productos, loading } = useProducts();
+  const { loading, obtenerProductoPorCodigoBarrasDirecto } = useProducts();
   const [error, setError] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [scannedProduct, setScannedProduct] = useState(null);
@@ -47,10 +47,8 @@ const EscanerCodigoBarras = () => {
   };
 
   const startScanner = async () => {
-    // Ensure any existing scanner is stopped
     await stopScanner();
 
-    // Clear the scanner container
     if (scannerContainerRef.current) {
       scannerContainerRef.current.innerHTML = '';
     }
@@ -85,9 +83,7 @@ const EscanerCodigoBarras = () => {
         },
         async (decodedText) => {
           try {
-            const foundProduct = productos.find(
-              (producto) => producto.codigo_barras === decodedText
-            );
+            const foundProduct = await obtenerProductoPorCodigoBarrasDirecto(decodedText);
             await stopScanner();
             if (foundProduct) {
               setScannedProduct(foundProduct);

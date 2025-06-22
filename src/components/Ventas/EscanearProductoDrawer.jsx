@@ -6,7 +6,7 @@ import Escaner from '../../assets/Productos/Escaner.svg';
 import EscanerNoEscaneo from '../../assets/Productos/EscanerNoEscaneo.svg';
 
 const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError }) => {
-  const { productos, loading, obtenerCategoriaPorId } = useProducts();
+  const { loading, obtenerCategoriaPorId, obtenerProductoPorCodigoBarrasDirecto } = useProducts();
   const [isScanning, setIsScanning] = useState(false);
   const [localError, setLocalError] = useState('');
   const [priceModalOpen, setPriceModalOpen] = useState(false);
@@ -80,9 +80,7 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError })
         },
         async (decodedText) => {
           try {
-            const foundProduct = productos.find(
-              (producto) => producto.codigo_barras === decodedText
-            );
+            const foundProduct = await obtenerProductoPorCodigoBarrasDirecto(decodedText);
             await stopScanner();
             if (foundProduct) {
               setSelectedProduct(foundProduct);

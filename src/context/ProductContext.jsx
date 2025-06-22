@@ -13,7 +13,7 @@ import {
   limit, 
   startAfter, 
   getDocs,
-  getDoc // Nueva importación para obtener documento por ID
+  getDoc,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useAuth } from './AuthContext';
@@ -26,6 +26,7 @@ export const useProducts = () => useContext(ProductContext);
 export const ProductProvider = ({ children }) => {
   const [categorias, setCategorias] = useState([]);
   const [productos, setProductos] = useState([]);
+  const [todosLosProductos, setTodosLosProductos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [productosLoading, setProductosLoading] = useState(false);
   
@@ -38,6 +39,7 @@ export const ProductProvider = ({ children }) => {
   
   // Estado para búsqueda
   const [searchQuery, setSearchQuery] = useState('');
+  const [modoFiltrado, setModoFiltrado] = useState(false);
 
   const { currentUser } = useAuth();
   const PRODUCTOS_POR_PAGINA = 5;
@@ -70,30 +72,62 @@ export const ProductProvider = ({ children }) => {
     return () => unsubscribeCategorias();
   }, [currentUser]);
 
-  // Cargar primera página de productos
-  const cargarPrimerasPagina = async (search = '') => {
+  // Cargar todos los productos para búsqueda local
+  const cargarTodosLosProductos = async () => {
+    if (!currentUser) return;
+
+    try {
+      const productosQuery = query(
+        productosCollection,
+        where('estado', '==', 'activo'),
+        orderBy('nombre')
+      );
+
+      const snapshot = await getDocs(productosQuery);
+      const todosProductosData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      setTodosLosProductos(todosProductosData);
+    } catch (error) {
+      console.error('Error al cargar todos los productos:', error);
+    }
+  };
+
+  // Filtrar productos localmente
+  const filtrarProductosLocal = (query) => {
+    if (!query.trim()) {
+      return todosLosProductos;
+    }
+
+    const queryNormalizado = query.toLowerCase().trim();
+    return todosLosProductos.filter(producto => 
+      producto.nombre.toLowerCase().includes(queryNormalizado) ||
+      producto.codigo_barras?.includes(query) ||
+      producto.marca?.toLowerCase().includes(queryNormalizado)
+    );
+  };
+
+  // Paginar productos filtrados
+  const paginarProductos = (productosArray, pagina) => {
+    const inicio = (pagina - 1) * PRODUCTOS_POR_PAGINA;
+    const fin = inicio + PRODUCTOS_POR_PAGINA;
+    return productosArray.slice(inicio, fin);
+  };
+
+  // Cargar primera página de productos (sin búsqueda)
+  const cargarPrimerasPagina = async () => {
     if (!currentUser) return;
     
     setProductosLoading(true);
     try {
-      let productosQuery;
-      if (search) {
-        productosQuery = query(
-          productosCollection,
-          where('estado', '==', 'activo'),
-          where('nombre', '>=', search.toUpperCase()),
-          where('nombre', '<=', search.toUpperCase() + '\uf8ff'),
-          orderBy('nombre'),
-          limit(PRODUCTOS_POR_PAGINA)
-        );
-      } else {
-        productosQuery = query(
-          productosCollection,
-          where('estado', '==', 'activo'),
-          orderBy('nombre'),
-          limit(PRODUCTOS_POR_PAGINA)
-        );
-      }
+      const productosQuery = query(
+        productosCollection,
+        where('estado', '==', 'activo'),
+        orderBy('nombre'),
+        limit(PRODUCTOS_POR_PAGINA)
+      );
 
       const snapshot = await getDocs(productosQuery);
       
@@ -127,32 +161,34 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
-  // Cargar siguiente página
+  // Cargar siguiente página (solo para navegación sin búsqueda)
   const cargarSiguientePagina = async () => {
+    if (modoFiltrado) {
+      // Si estamos en modo filtrado, usar paginación local
+      const productosFiltrados = filtrarProductosLocal(searchQuery);
+      const siguientePagina = paginaActual + 1;
+      const productosParaMostrar = paginarProductos(productosFiltrados, siguientePagina);
+      
+      if (productosParaMostrar.length > 0) {
+        setProductos(productosParaMostrar);
+        setPaginaActual(siguientePagina);
+        const totalPaginas = Math.ceil(productosFiltrados.length / PRODUCTOS_POR_PAGINA);
+        setHayMasPaginas(siguientePagina < totalPaginas);
+      }
+      return;
+    }
+
     if (!ultimoDocumento || !hayMasPaginas || productosLoading) return;
 
     setProductosLoading(true);
     try {
-      let productosQuery;
-      if (searchQuery) {
-        productosQuery = query(
-          productosCollection,
-          where('estado', '==', 'activo'),
-          where('nombre', '>=', searchQuery.toUpperCase()),
-          where('nombre', '<=', searchQuery.toUpperCase() + '\uf8ff'),
-          orderBy('nombre'),
-          startAfter(ultimoDocumento),
-          limit(PRODUCTOS_POR_PAGINA)
-        );
-      } else {
-        productosQuery = query(
-          productosCollection,
-          where('estado', '==', 'activo'),
-          orderBy('nombre'),
-          startAfter(ultimoDocumento),
-          limit(PRODUCTOS_POR_PAGINA)
-        );
-      }
+      const productosQuery = query(
+        productosCollection,
+        where('estado', '==', 'activo'),
+        orderBy('nombre'),
+        startAfter(ultimoDocumento),
+        limit(PRODUCTOS_POR_PAGINA)
+      );
 
       const snapshot = await getDocs(productosQuery);
 
@@ -186,6 +222,18 @@ export const ProductProvider = ({ children }) => {
   const cargarPaginaAnterior = async () => {
     if (paginaActual <= 1 || productosLoading) return;
 
+    if (modoFiltrado) {
+      // Si estamos en modo filtrado, usar paginación local
+      const productosFiltrados = filtrarProductosLocal(searchQuery);
+      const paginaAnterior = paginaActual - 1;
+      const productosParaMostrar = paginarProductos(productosFiltrados, paginaAnterior);
+      
+      setProductos(productosParaMostrar);
+      setPaginaActual(paginaAnterior);
+      setHayMasPaginas(true);
+      return;
+    }
+
     setProductosLoading(true);
     try {
       const nuevaPagina = paginaActual - 1;
@@ -193,43 +241,20 @@ export const ProductProvider = ({ children }) => {
       
       let productosQuery;
       if (nuevaPagina === 1) {
-        if (searchQuery) {
-          productosQuery = query(
-            productosCollection,
-            where('estado', '==', 'activo'),
-            where('nombre', '>=', searchQuery.toUpperCase()),
-            where('nombre', '<=', searchQuery.toUpperCase() + '\uf8ff'),
-            orderBy('nombre'),
-            limit(PRODUCTOS_POR_PAGINA)
-          );
-        } else {
-          productosQuery = query(
-            productosCollection,
-            where('estado', '==', 'activo'),
-            orderBy('nombre'),
-            limit(PRODUCTOS_POR_PAGINA)
-          );
-        }
+        productosQuery = query(
+          productosCollection,
+          where('estado', '==', 'activo'),
+          orderBy('nombre'),
+          limit(PRODUCTOS_POR_PAGINA)
+        );
       } else {
-        if (searchQuery) {
-          productosQuery = query(
-            productosCollection,
-            where('estado', '==', 'activo'),
-            where('nombre', '>=', searchQuery.toUpperCase()),
-            where('nombre', '<=', searchQuery.toUpperCase() + '\uf8ff'),
-            orderBy('nombre'),
-            startAfter(documentoInicio),
-            limit(PRODUCTOS_POR_PAGINA)
-          );
-        } else {
-          productosQuery = query(
-            productosCollection,
-            where('estado', '==', 'activo'),
-            orderBy('nombre'),
-            startAfter(documentoInicio),
-            limit(PRODUCTOS_POR_PAGINA)
-          );
-        }
+        productosQuery = query(
+          productosCollection,
+          where('estado', '==', 'activo'),
+          orderBy('nombre'),
+          startAfter(documentoInicio),
+          limit(PRODUCTOS_POR_PAGINA)
+        );
       }
 
       const snapshot = await getDocs(productosQuery);
@@ -263,24 +288,75 @@ export const ProductProvider = ({ children }) => {
     setPrimerDocumento(null);
     setHayMasPaginas(true);
     setHistorialPaginacion([]);
-    await cargarPrimerasPagina(searchQuery);
+    setModoFiltrado(false);
+    setSearchQuery('');
+    await cargarPrimerasPagina();
+    await cargarTodosLosProductos();
   };
 
-  // Función de búsqueda debounced
+  // Función de búsqueda mejorada
   const buscarProductos = debounce(async (query) => {
+    setProductosLoading(true);
     setSearchQuery(query);
-    setPaginaActual(1);
-    setUltimoDocumento(null);
-    setPrimerDocumento(null);
-    setHayMasPaginas(true);
-    setHistorialPaginacion([]);
-    await cargarPrimerasPagina(query);
-  }, 1000);
+    
+    if (!query.trim()) {
+      // Si no hay búsqueda, volver al modo normal
+      setModoFiltrado(false);
+      setPaginaActual(1);
+      setUltimoDocumento(null);
+      setPrimerDocumento(null);
+      setHayMasPaginas(true);
+      setHistorialPaginacion([]);
+      await cargarPrimerasPagina();
+      setProductosLoading(false);
+      return;
+    }
+
+    try {
+      // Activar modo filtrado
+      setModoFiltrado(true);
+      
+      // Asegurar que tenemos todos los productos cargados
+      if (todosLosProductos.length === 0) {
+        await cargarTodosLosProductos();
+      }
+      
+      // Filtrar productos localmente
+      const productosFiltrados = filtrarProductosLocal(query);
+      
+      // Paginar resultados
+      const productosParaMostrar = paginarProductos(productosFiltrados, 1);
+      
+      // Actualizar estados
+      setProductos(productosParaMostrar);
+      setPaginaActual(1);
+      const totalPaginas = Math.ceil(productosFiltrados.length / PRODUCTOS_POR_PAGINA);
+      setHayMasPaginas(totalPaginas > 1);
+      
+      // Limpiar estados de paginación de Firestore
+      setUltimoDocumento(null);
+      setPrimerDocumento(null);
+      setHistorialPaginacion([]);
+
+    } catch (error) {
+      console.error('Error al buscar productos:', error);
+    } finally {
+      setProductosLoading(false);
+    }
+  }, 500);
+
+  // Limpiar búsqueda
+  const limpiarBusqueda = async () => {
+    setSearchQuery('');
+    setModoFiltrado(false);
+    await recargarProductos();
+  };
 
   // Cargar productos al montar el componente o cambiar usuario
   useEffect(() => {
     if (currentUser) {
       cargarPrimerasPagina();
+      cargarTodosLosProductos();
     }
   }, [currentUser]);
 
@@ -324,7 +400,7 @@ export const ProductProvider = ({ children }) => {
 
   // Obtener categoría por ID
   const obtenerCategoriaPorId = (id) => {
-   return categorias.find(categoria => categoria.id === id);
+    return categorias.find(categoria => categoria.id === id);
   };
 
   // Crear un nuevo producto con imagen
@@ -428,10 +504,11 @@ export const ProductProvider = ({ children }) => {
 
   // Obtener producto por ID (desde el estado local)
   const obtenerProductoPorId = (id) => {
-    return productos.find(producto => producto.id === id);
+    return productos.find(producto => producto.id === id) || 
+           todosLosProductos.find(producto => producto.id === id);
   };
 
-  // Nueva función: Obtener producto por ID directamente desde Firestore
+  // Obtener producto por ID directamente desde Firestore
   const obtenerProductoPorIdDirecto = async (id) => {
     try {
       const productoRef = doc(db, 'productos', id);
@@ -449,17 +526,44 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
+  // Nueva función: Obtener producto por código de barras directamente desde Firestore
+  const obtenerProductoPorCodigoBarrasDirecto = async (codigoBarras) => {
+    try {
+      const productosQuery = query(
+        productosCollection,
+        where('codigo_barras', '==', codigoBarras),
+        where('estado', '==', 'activo'),
+        limit(1)
+      );
+      const snapshot = await getDocs(productosQuery);
+      if (snapshot.empty) {
+        return null;
+      }
+      const productoDoc = snapshot.docs[0];
+      return {
+        id: productoDoc.id,
+        ...productoDoc.data(),
+      };
+    } catch (error) {
+      console.error('Error al obtener producto por código de barras:', error);
+      return null;
+    }
+  };
+
   const value = {
     categorias,
     productos,
+    todosLosProductos,
     loading,
     productosLoading,
     paginaActual,
     hayMasPaginas,
+    modoFiltrado,
     PRODUCTOS_POR_PAGINA,
     searchQuery,
     setSearchQuery,
     buscarProductos,
+    limpiarBusqueda,
     cargarSiguientePagina,
     cargarPaginaAnterior,
     recargarProductos,
@@ -471,7 +575,8 @@ export const ProductProvider = ({ children }) => {
     actualizarProducto,
     eliminarProducto,
     obtenerProductoPorId,
-    obtenerProductoPorIdDirecto, // Exportar la nueva función
+    obtenerProductoPorIdDirecto,
+    obtenerProductoPorCodigoBarrasDirecto, // Nueva función añadida
   };
 
   return (
