@@ -10,13 +10,16 @@ import {
   Menu,
   X,
   Search,
-  ArrowRight
+  ArrowRight,
+  ShoppingBag,
+  Truck
 } from 'lucide-react';
 import Logo from '../assets/Logo.svg';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import { useAuth } from '../context/AuthContext';
 import IconoInicio from "../assets/IconoInicio.svg"
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const { currentUser, userData } = useAuth();
@@ -35,6 +38,14 @@ const Dashboard = () => {
       path: '/ventas'
     },
     {
+      id: 'compras',
+      title: 'Compras',
+      icon: <ShoppingBag className="h-6 w-6" />,
+      color: 'bg-indigo-500',
+      description: 'Registrar compras e inventario',
+      path: '/compras'
+    },
+    {
       id: 'deudas',
       title: 'Pagar Deudas',
       icon: <CreditCard className="h-6 w-6" />,
@@ -49,6 +60,14 @@ const Dashboard = () => {
       color: 'bg-blue-500',
       description: 'Administrar base de clientes',
       path: '/clientes'
+    },
+    {
+      id: 'proveedores',
+      title: 'Proveedores',
+      icon: <Truck className="h-6 w-6" />,
+      color: 'bg-orange-500',
+      description: 'Gestionar proveedores y contactos',
+      path: '/proveedores'
     },
     {
       id: 'escaner',
