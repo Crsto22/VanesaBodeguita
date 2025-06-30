@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { X, Barcode, ChevronDown, ChevronUp } from 'lucide-react';
 import DrawerEscanearCodigoBarras from './DrawerEscanearCodigoBarras';
+import { upload } from '@imagekit/react';
+import CryptoJS from 'crypto-js';
 
+// DrawerEditarAñadirProducto Component
 const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData, onSubmit, colors, categorias }) => {
   const [formData, setFormData] = useState({
     categoria_ref: '',
@@ -23,6 +26,7 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAdditionalFields, setShowAdditionalFields] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   useEffect(() => {
     if (initialData) {
@@ -41,11 +45,7 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
         precio_alternativo: initialData.precio_alternativo || '',
         motivo_precio_alternativo: initialData.motivo_precio_alternativo || '',
       });
-      if (initialData.marca || initialData.fecha_vencimiento) {
-        setShowAdditionalFields(true);
-      } else {
-        setShowAdditionalFields(false);
-      }
+      setShowAdditionalFields(!!initialData.marca || !!initialData.fecha_vencimiento);
     }
   }, [initialData, categorias]);
 
@@ -69,11 +69,9 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     let processedValue = value;
-    
     if (name === 'nombre') {
       processedValue = value.toUpperCase();
     }
-    
     setFormData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : processedValue,
@@ -120,19 +118,12 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
 
     setIsSubmitting(true);
     try {
-      await onSubmit(
-        {
-          ...formData,
-          precio: parseFloat(formData.precio),
-          stock: parseFloat(formData.stock),
-          precio_alternativo: formData.has_precio_alternativo && formData.precio_alternativo ? parseFloat(formData.precio_alternativo) : null,
-          motivo_precio_alternativo: formData.has_precio_alternativo ? formData.motivo_precio_alternativo || null : null,
-        },
-        imagenFile
-      );
+      await onSubmit(formData, imagenFile);
       setImagenFile(null);
+      setUploadProgress(0);
       onClose();
     } catch (error) {
+      console.error('Error saving product:', error);
       alert('Error al guardar el producto. Intenta de nuevo.');
     } finally {
       setIsSubmitting(false);
@@ -159,7 +150,6 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
           '--tw-ring-color': colors.primary,
         }}
       >
-        {/* Header con diseño mejorado */}
         <div className="sticky top-0 bg-white/95 backdrop-blur-sm border-b border-gray-100 p-3 sm:p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-3">
@@ -178,7 +168,6 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
 
         <div className="px-3 sm:px-6 pb-6">
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-            {/* Nombre del producto */}
             <div className="space-y-1 sm:space-y-2">
               <label htmlFor="nombre" className="block text-xs sm:text-sm font-semibold text-gray-800">
                 Nombre del Producto *
@@ -200,7 +189,6 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
               {errors.nombre && <p className="text-xs text-red-600 font-medium">{errors.nombre}</p>}
             </div>
 
-            {/* Categoría */}
             <div className="space-y-1 sm:space-y-2">
               <label htmlFor="categoria_ref" className="block text-xs sm:text-sm font-semibold text-gray-800">
                 Categoría *
@@ -233,7 +221,6 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
               {errors.categoria_ref && <p className="text-xs text-red-600 font-medium">{errors.categoria_ref}</p>}
             </div>
 
-            {/* Tipo de unidad y precio */}
             <div className="grid grid-cols-2 gap-2 sm:gap-4">
               <div className="space-y-1 sm:space-y-2">
                 <label htmlFor="tipo_unidad" className="block text-xs sm:text-sm font-semibold text-gray-800">
@@ -274,7 +261,6 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
               </div>
             </div>
 
-            {/* Precio alternativo */}
             {formData.tipo_unidad === 'unidad' && (
               <div className="space-y-3 sm:space-y-4 p-3 sm:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg sm:rounded-xl border border-blue-100">
                 <div className="flex items-center space-x-2 sm:space-x-3">
@@ -335,7 +321,6 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
               </div>
             )}
 
-            {/* Stock con botones de acción rápida */}
             <div className="space-y-1 sm:space-y-2">
               <label htmlFor="stock" className="block text-xs sm:text-sm font-semibold text-gray-800">
                 {stockLabel} *
@@ -388,7 +373,6 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
               {errors.stock && <p className="text-xs text-red-600 font-medium">{errors.stock}</p>}
             </div>
 
-            {/* Producto retornable */}
             <div className="flex items-center space-x-2 sm:space-x-3 p-3 sm:p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg sm:rounded-xl border border-amber-100">
               <input
                 type="checkbox"
@@ -404,7 +388,6 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
               </label>
             </div>
 
-            {/* Código de barras */}
             <div className="space-y-1 sm:space-y-2">
               <label htmlFor="codigo_barras" className="block text-xs sm:text-sm font-semibold text-gray-800">
                 Código de Barras
@@ -432,7 +415,6 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
               </div>
             </div>
 
-            {/* Imagen */}
             <div className="space-y-1 sm:space-y-2">
               <label htmlFor="imagen" className="block text-xs sm:text-sm font-semibold text-gray-800">
                 Imagen del Producto
@@ -442,9 +424,15 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                 id="imagen"
                 accept="image/*"
                 onChange={handleImagenChange}
-                className="w-full rounded-lg sm:rounded-xl border-2 border-gray-200 bg-gray-50 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-blue-200 focus:ring-opacity-20 hover:border-gray-300"
+                className="w-full rounded-lg sm:rounded-xl border-2 border-gray-200 bg-gray-50 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200"
                 disabled={isSubmitting}
               />
+              {uploadProgress > 0 && uploadProgress < 100 && (
+                <div className="mt-2">
+                  <progress value={uploadProgress} max="100" className="w-full h-2 rounded-full"></progress>
+                  <p className="text-xs text-gray-600">Subiendo {uploadProgress.toFixed(1)}%</p>
+                </div>
+              )}
               {formData.imagen && (
                 <div className="mt-2 sm:mt-3">
                   <img src={formData.imagen} alt="Vista previa" className="h-16 w-16 sm:h-20 sm:w-20 object-cover rounded-lg sm:rounded-xl border-2 border-gray-200 shadow-sm" />
@@ -452,7 +440,6 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
               )}
             </div>
 
-            {/* Campos adicionales */}
             <div className="border-t border-gray-200 pt-3 sm:pt-4">
               <button
                 type="button"
@@ -507,7 +494,6 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
               )}
             </div>
 
-            {/* Botones de acción */}
             <div className="grid grid-cols-2 gap-3 sm:gap-4 pt-4 sm:pt-6">
               <button
                 type="button"
@@ -532,7 +518,7 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                       className="animate-spin h-3 w-3 sm:h-4 sm:w-4 text-white"
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
-                      viewBox="0 0 24 24"
+                      viewBox="0 24 24"
                     >
                       <circle
                         className="opacity-25"
@@ -569,5 +555,4 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
     </>
   );
 };
-
 export default DrawerEditarAñadirProducto;

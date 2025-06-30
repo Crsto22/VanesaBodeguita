@@ -11,15 +11,15 @@ import DrawerEditarAñadirProducto from '../components/Productos/DrawerEditarAñ
 import DeleteDrawerProducto from '../components/Productos/DeleteDrawer';
 import { motion, AnimatePresence } from "framer-motion";
 
-// Colores personalizados
+// Custom colors
 const COLORS = {
-  primary: '#45923a', // Verde
-  secondary: '#ffa40c', // Naranja/Ámbar
-  delete: '#ef4444', // Rojo para eliminación
+  primary: '#45923a',
+  secondary: '#ffa40c',
+  delete: '#ef4444',
 };
 
 const Productos = () => {
-  // Estados básicos
+  // Basic states
   const [menuOpen, setMenuOpen] = useState(false);
   const [userName] = useState('Usuario');
   const [notifications] = useState(3);
@@ -28,7 +28,7 @@ const Productos = () => {
   const [appear, setAppear] = useState(false);
   const [localSearchQuery, setLocalSearchQuery] = useState('');
 
-  // Estados para categorías y productos
+  // Category states
   const [showCategoryDrawer, setShowCategoryDrawer] = useState(false);
   const [categoryFormData, setCategoryFormData] = useState({
     id: null,
@@ -40,7 +40,7 @@ const Productos = () => {
   const [categoryToDelete, setCategoryToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Estados para productos
+  // Product states
   const [showProductDrawer, setShowProductDrawer] = useState(false);
   const [productFormData, setProductFormData] = useState({
     id: null,
@@ -62,7 +62,7 @@ const Productos = () => {
   const [productToDelete, setProductToDelete] = useState(null);
   const [deleteProductLoading, setDeleteProductLoading] = useState(false);
 
-  // Obtener datos y funciones del ProductContext
+  // Context data and functions
   const {
     categorias,
     productos,
@@ -101,7 +101,7 @@ const Productos = () => {
     setAppear(true);
   }, []);
 
-  // Manejadores para productos
+  // Product handlers
   const handleAddProduct = () => {
     setProductFormData({
       id: null,
@@ -202,7 +202,7 @@ const Productos = () => {
     }
   };
 
-  // Manejadores para categorías
+  // Category handlers
   const handleAddCategory = () => {
     setCategoryFormData({
       id: null,
@@ -275,12 +275,12 @@ const Productos = () => {
     }
   };
 
-  // Función para cerrar el toast manualmente
+  // Function to close the toast manually
   const closeToast = () => {
     setToast(prev => ({ ...prev, visible: false }));
   };
 
-  // Manejar cambio en el input de búsqueda
+  // Handle search input change
   const handleSearchChange = (e) => {
     const value = e.target.value.toUpperCase();
     setLocalSearchQuery(value);
@@ -288,11 +288,17 @@ const Productos = () => {
     buscarProductos(value);
   };
 
-  // Limpiar búsqueda
+  // Clear search
   const clearSearch = () => {
     setLocalSearchQuery('');
     setSearchQuery('');
     buscarProductos('');
+  };
+
+  // Function to optimize image URL with ImageKit
+  const optimizeImageUrl = (url) => {
+    if (!url) return url;
+    return `${url}?tr=w-100,h-100`;
   };
 
   return (
@@ -417,10 +423,10 @@ const Productos = () => {
             </button>
           </div>
 
-          {/* Lista de productos */}
+          {/* Product List */}
           {activeTab === 'productos' && (
             <>
-              {/* Input de búsqueda */}
+              {/* Search Input */}
               <div className="mb-4 relative">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                   <Search className="h-5 w-5 text-gray-400" />
@@ -430,7 +436,7 @@ const Productos = () => {
                   value={localSearchQuery}
                   onChange={handleSearchChange}
                   className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#45923a] text-sm uppercase"
-                  placeholder="BUSCAR PRODUCTO..."
+                  placeholder="Buscar producto..."
                   disabled={productosLoading || loading}
                 />
                 {localSearchQuery && (
@@ -481,7 +487,7 @@ const Productos = () => {
                           <div className="flex items-start gap-3">
                             <div className="h-20 w-20 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
                               {product.imagen ? (
-                                <img src={product.imagen} alt={product.nombre} className="object-cover w-full h-full" />
+                                <img src={optimizeImageUrl(product.imagen)} alt={product.nombre} className="object-cover w-full h-full" />
                               ) : (
                                 <Package className="h-10 w-10 text-gray-400" />
                               )}
@@ -555,7 +561,7 @@ const Productos = () => {
                   )}
                 </div>
               )}
-              {/* Controles de paginación */}
+              {/* Pagination controls */}
               {productos.length > 0 && (
                 <div className="mt-6 flex justify-between items-center">
                   <button
@@ -590,7 +596,7 @@ const Productos = () => {
             </>
           )}
 
-          {/* Lista de categorías */}
+          {/* Category List */}
           {activeTab === 'categorias' && (
             loading ? (
               <div className="space-y-4">
@@ -676,7 +682,7 @@ const Productos = () => {
           onClose={() => setShowDeleteDrawer(false)}
           onConfirm={confirmDeleteCategory}
           categoryName={categoryToDelete?.nombre || ''}
-          productosAsociados={0} // Para mantener compatibilidad
+          productosAsociados={0}
           colors={COLORS}
           loading={deleteLoading}
         />

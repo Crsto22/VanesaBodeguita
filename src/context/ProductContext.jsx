@@ -1,5 +1,6 @@
+// ProductProvider Component
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { db, storage } from '../firebase/firebase';
+import { db } from '../firebase/firebase';
 import { 
   collection, 
   addDoc, 
@@ -15,7 +16,8 @@ import {
   getDocs,
   getDoc,
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { upload } from '@imagekit/react';
+import CryptoJS from 'crypto-js';
 import { useAuth } from './AuthContext';
 import debounce from 'lodash.debounce';
 
@@ -30,25 +32,63 @@ export const ProductProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [productosLoading, setProductosLoading] = useState(false);
   
-  // Estados para paginación
   const [paginaActual, setPaginaActual] = useState(1);
   const [ultimoDocumento, setUltimoDocumento] = useState(null);
   const [primerDocumento, setPrimerDocumento] = useState(null);
   const [hayMasPaginas, setHayMasPaginas] = useState(true);
   const [historialPaginacion, setHistorialPaginacion] = useState([]);
   
-  // Estado para búsqueda
   const [searchQuery, setSearchQuery] = useState('');
   const [modoFiltrado, setModoFiltrado] = useState(false);
 
   const { currentUser } = useAuth();
   const PRODUCTOS_POR_PAGINA = 5;
 
-  // Referencias a colecciones
   const categoriasCollection = collection(db, 'categorias');
   const productosCollection = collection(db, 'productos');
 
-  // Obtener categorías en tiempo real
+  // ImageKit Authenticator (INSECURE for frontend, use server-side in production)
+  const authenticator = () => {
+    const privateKey = 'private_pSNg9URbLW/oSPfPxVuTSWLgLPQ=';
+    const publicKey = 'public_tYwmzcByvWvOQ21qtLqTdoHJneQ=';
+    const token = Math.random().toString(36).substring(2);
+    const expire = Math.floor(Date.now() / 1000) + 600;
+    const signature = CryptoJS.HmacSHA1(`${token}${expire}`, privateKey).toString(CryptoJS.enc.Hex);
+
+    return { signature, expire: expire.toString(), token, publicKey };
+  };
+
+  // Upload image to ImageKit
+  const uploadImageToImageKit = async (imagenFile, productName) => {
+    if (!imagenFile) return null;
+
+    try {
+      const { signature, expire, token, publicKey } = authenticator();
+      const sanitizedProductName = productName
+        .replace(/[^a-zA-Z0-9.-]/g, '_')
+        .replace(/\s+/g, '_');
+      const sanitizedFileName = imagenFile.name
+        .replace(/[^a-zA-Z0-9.-]/g, '_')
+        .replace(/\s+/g, '_');
+      const uploadResponse = await upload({
+        expire,
+        token,
+        signature,
+        publicKey,
+        file: imagenFile,
+        fileName: `producto_${Date.now()}_${sanitizedFileName}`,
+        folder: `/Productos/${sanitizedProductName}`,
+        tags: ['producto'],
+        useUniqueFileName: true,
+        urlEndpoint: 'https://ik.imagekit.io/vanesabodeguita',
+      });
+      return uploadResponse.url;
+    } catch (error) {
+      console.error('Error uploading image to ImageKit:', error);
+      throw error;
+    }
+  };
+
   useEffect(() => {
     if (!currentUser) {
       setCategorias([]);
@@ -58,11 +98,11 @@ export const ProductProvider = ({ children }) => {
 
     const categoriasQuery = query(categoriasCollection, where('estado', '==', 'activo'));
     const unsubscribeCategorias = onSnapshot(categoriasQuery, (snapshot) => {
-      const categoriasData = snapshot.docs.map(doc => ({
+      const categoriaData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
       }));
-      setCategorias(categoriasData);
+      setCategorias(categoriaData);
       setLoading(false);
     }, (error) => {
       console.error('Error al obtener categorías:', error);
@@ -72,7 +112,6 @@ export const ProductProvider = ({ children }) => {
     return () => unsubscribeCategorias();
   }, [currentUser]);
 
-  // Cargar todos los productos para búsqueda local
   const cargarTodosLosProductos = async () => {
     if (!currentUser) return;
 
@@ -95,7 +134,6 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
-  // Filtrar productos localmente
   const filtrarProductosLocal = (query) => {
     if (!query.trim()) {
       return todosLosProductos;
@@ -109,14 +147,12 @@ export const ProductProvider = ({ children }) => {
     );
   };
 
-  // Paginar productos filtrados
   const paginarProductos = (productosArray, pagina) => {
     const inicio = (pagina - 1) * PRODUCTOS_POR_PAGINA;
     const fin = inicio + PRODUCTOS_POR_PAGINA;
     return productosArray.slice(inicio, fin);
   };
 
-  // Cargar primera página de productos (sin búsqueda)
   const cargarPrimerasPagina = async () => {
     if (!currentUser) return;
     
@@ -161,10 +197,8 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
-  // Cargar siguiente página (solo para navegación sin búsqueda)
   const cargarSiguientePagina = async () => {
     if (modoFiltrado) {
-      // Si estamos en modo filtrado, usar paginación local
       const productosFiltrados = filtrarProductosLocal(searchQuery);
       const siguientePagina = paginaActual + 1;
       const productosParaMostrar = paginarProductos(productosFiltrados, siguientePagina);
@@ -218,12 +252,10 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
-  // Cargar página anterior
   const cargarPaginaAnterior = async () => {
     if (paginaActual <= 1 || productosLoading) return;
 
     if (modoFiltrado) {
-      // Si estamos en modo filtrado, usar paginación local
       const productosFiltrados = filtrarProductosLocal(searchQuery);
       const paginaAnterior = paginaActual - 1;
       const productosParaMostrar = paginarProductos(productosFiltrados, paginaAnterior);
@@ -281,7 +313,6 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
-  // Recargar productos
   const recargarProductos = async () => {
     setPaginaActual(1);
     setUltimoDocumento(null);
@@ -294,13 +325,11 @@ export const ProductProvider = ({ children }) => {
     await cargarTodosLosProductos();
   };
 
-  // Función de búsqueda mejorada
   const buscarProductos = debounce(async (query) => {
     setProductosLoading(true);
     setSearchQuery(query);
     
     if (!query.trim()) {
-      // Si no hay búsqueda, volver al modo normal
       setModoFiltrado(false);
       setPaginaActual(1);
       setUltimoDocumento(null);
@@ -313,27 +342,21 @@ export const ProductProvider = ({ children }) => {
     }
 
     try {
-      // Activar modo filtrado
       setModoFiltrado(true);
       
-      // Asegurar que tenemos todos los productos cargados
       if (todosLosProductos.length === 0) {
         await cargarTodosLosProductos();
       }
       
-      // Filtrar productos localmente
       const productosFiltrados = filtrarProductosLocal(query);
       
-      // Paginar resultados
       const productosParaMostrar = paginarProductos(productosFiltrados, 1);
       
-      // Actualizar estados
       setProductos(productosParaMostrar);
       setPaginaActual(1);
       const totalPaginas = Math.ceil(productosFiltrados.length / PRODUCTOS_POR_PAGINA);
       setHayMasPaginas(totalPaginas > 1);
       
-      // Limpiar estados de paginación de Firestore
       setUltimoDocumento(null);
       setPrimerDocumento(null);
       setHistorialPaginacion([]);
@@ -345,14 +368,12 @@ export const ProductProvider = ({ children }) => {
     }
   }, 500);
 
-  // Limpiar búsqueda
   const limpiarBusqueda = async () => {
     setSearchQuery('');
     setModoFiltrado(false);
     await recargarProductos();
   };
 
-  // Cargar productos al montar el componente o cambiar usuario
   useEffect(() => {
     if (currentUser) {
       cargarPrimerasPagina();
@@ -360,7 +381,6 @@ export const ProductProvider = ({ children }) => {
     }
   }, [currentUser]);
 
-  // Crear una nueva categoría
   const crearCategoria = async (categoriaData) => {
     try {
       const nuevaCategoria = {
@@ -376,7 +396,6 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
-  // Actualizar una categoría
   const actualizarCategoria = async (id, categoriaData) => {
     try {
       const categoriaRef = doc(db, 'categorias', id);
@@ -387,7 +406,6 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
-  // Eliminar una categoría
   const eliminarCategoria = async (id) => {
     try {
       const categoriaRef = doc(db, 'categorias', id);
@@ -398,36 +416,28 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
-  // Obtener categoría por ID
   const obtenerCategoriaPorId = (id) => {
     return categorias.find(categoria => categoria.id === id);
   };
 
-  // Crear un nuevo producto con imagen
   const crearProducto = async (productoData, imagenFile) => {
     try {
       let imagenUrl = '';
-      const sanitizedProductName = productoData.nombre
-        .replace(/[^a-zA-Z0-9.-]/g, '_')
-        .replace(/\s+/g, '_');
-
       if (imagenFile) {
-        const sanitizedFileName = imagenFile.name
-          .replace(/[^a-zA-Z0-9.-]/g, '_')
-          .replace(/\s+/g, '_');
-        const imagenName = `${Date.now()}_${sanitizedFileName}`;
-        const imagenRef = ref(storage, `productos/${sanitizedProductName}/${imagenName}`);
-        await uploadBytes(imagenRef, imagenFile);
-        imagenUrl = await getDownloadURL(imagenRef);
+        imagenUrl = await uploadImageToImageKit(imagenFile, productoData.nombre);
       }
 
       const nuevoProducto = {
         ...productoData,
         categoria_ref: productoData.categoria_ref,
         nombre: productoData.nombre.toUpperCase(),
-        imagen: imagenUrl,
+        imagen: imagenUrl || null,
         estado: 'activo',
         fecha_creacion: new Date().toISOString(),
+        precio: parseFloat(productoData.precio),
+        stock: parseFloat(productoData.stock),
+        precio_alternativo: productoData.has_precio_alternativo && productoData.precio_alternativo ? parseFloat(productoData.precio_alternativo) : null,
+        motivo_precio_alternativo: productoData.has_precio_alternativo ? productoData.motivo_precio_alternativo || null : null,
       };
       
       const docRef = await addDoc(productosCollection, nuevoProducto);
@@ -439,41 +449,27 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
-  // Actualizar un producto
   const actualizarProducto = async (id, productoData, imagenFile) => {
     try {
       let imagenUrl = productoData.imagen || '';
-      const sanitizedProductName = productoData.nombre
-        .replace(/[^a-zA-Z0-9.-]/g, '_')
-        .replace(/\s+/g, '_');
-
       if (imagenFile) {
-        if (productoData.imagen) {
-          try {
-            const oldImagenRef = ref(storage, productoData.imagen);
-            await deleteObject(oldImagenRef);
-          } catch (error) {
-            console.warn('No se pudo eliminar la imagen anterior:', error);
-          }
-        }
-        
-        const sanitizedFileName = imagenFile.name
-          .replace(/[^a-zA-Z0-9.-]/g, '_')
-          .replace(/\s+/g, '_');
-        const imagenName = `${Date.now()}_${sanitizedFileName}`;
-        const imagenRef = ref(storage, `productos/${sanitizedProductName}/${imagenName}`);
-        await uploadBytes(imagenRef, imagenFile);
-        imagenUrl = await getDownloadURL(imagenRef);
+        // Note: ImageKit doesn't provide a direct delete API in the JS SDK; deletion should be handled server-side if needed
+        imagenUrl = await uploadImageToImageKit(imagenFile, productoData.nombre);
       }
 
       const productoRef = doc(db, 'productos', id);
-      await updateDoc(productoRef, {
+      const updatedProducto = {
         ...productoData,
         categoria_ref: productoData.categoria_ref,
         nombre: productoData.nombre.toUpperCase(),
-        imagen: imagenUrl,
-      });
+        imagen: imagenUrl || null,
+        precio: parseFloat(productoData.precio),
+        stock: parseFloat(productoData.stock),
+        precio_alternativo: productoData.has_precio_alternativo && productoData.precio_alternativo ? parseFloat(productoData.precio_alternativo) : null,
+        motivo_precio_alternativo: productoData.has_precio_alternativo ? productoData.motivo_precio_alternativo || null : null,
+      };
 
+      await updateDoc(productoRef, updatedProducto);
       await recargarProductos();
     } catch (error) {
       console.error('Error al actualizar producto:', error);
@@ -481,18 +477,9 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
-  // Eliminar un producto
   const eliminarProducto = async (id, imagenUrl) => {
     try {
-      if (imagenUrl) {
-        try {
-          const imagenRef = ref(storage, imagenUrl);
-          await deleteObject(imagenRef);
-        } catch (error) {
-          console.warn('No se pudo eliminar la imagen:', error);
-        }
-      }
-      
+      // Note: ImageKit image deletion requires server-side API calls; not implemented here
       const productoRef = doc(db, 'productos', id);
       await updateDoc(productoRef, { estado: 'inactivo' });
       await recargarProductos();
@@ -502,13 +489,11 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
-  // Obtener producto por ID (desde el estado local)
   const obtenerProductoPorId = (id) => {
     return productos.find(producto => producto.id === id) || 
            todosLosProductos.find(producto => producto.id === id);
   };
 
-  // Obtener producto por ID directamente desde Firestore
   const obtenerProductoPorIdDirecto = async (id) => {
     try {
       const productoRef = doc(db, 'productos', id);
@@ -526,7 +511,6 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
-  // Nueva función: Obtener producto por código de barras directamente desde Firestore
   const obtenerProductoPorCodigoBarrasDirecto = async (codigoBarras) => {
     try {
       const productosQuery = query(
@@ -576,7 +560,7 @@ export const ProductProvider = ({ children }) => {
     eliminarProducto,
     obtenerProductoPorId,
     obtenerProductoPorIdDirecto,
-    obtenerProductoPorCodigoBarrasDirecto, // Nueva función añadida
+    obtenerProductoPorCodigoBarrasDirecto,
   };
 
   return (

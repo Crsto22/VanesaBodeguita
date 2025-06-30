@@ -58,7 +58,7 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
     setImageModalOpen(true);
   };
 
-  // Handle add product click - LIMPIAR BÚSQUEDA AL AGREGAR
+  // Handle add product click - LIMPIAR BÚSQUEDA Y CERRAR DRAWER
   const handleAddClick = (producto) => {
     if (producto.has_precio_alternativo && producto.precio_alternativo) {
       setSelectedProduct(producto);
@@ -77,10 +77,11 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
         imagen: producto.imagen || null,
       });
       clearSearch();
+      onClose(); // CERRAR EL DRAWER DESPUÉS DE SELECCIONAR EL PRODUCTO
     }
   };
 
-  // Handle price selection - LIMPIAR BÚSQUEDA AL SELECCIONAR PRECIO
+  // Handle price selection - LIMPIAR BÚSQUEDA Y CERRAR DRAWER
   const handleSelectPrecio = (precio) => {
     if (!selectedProduct) return;
     onSelectProducto({
@@ -98,6 +99,7 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
     setPriceModalOpen(false);
     setSelectedProduct(null);
     clearSearch();
+    onClose(); // CERRAR EL DRAWER DESPUÉS DE SELECCIONAR EL PRECIO
   };
 
   // Handle add new product
@@ -111,6 +113,7 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
       await crearProducto(productoData, imagenFile);
       setShowProductDrawer(false);
       await recargarProductos();
+      onClose(); // CERRAR EL DRAWER DESPUÉS DE CREAR EL PRODUCTO
     } catch (error) {
       console.error('Error al crear producto:', error);
       throw error;
@@ -199,6 +202,7 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
                   onClick={() => {
                     handleAddClick(selectedProduct);
                     setImageModalOpen(false);
+                    onClose(); // CERRAR EL DRAWER DESPUÉS DE AGREGAR DESDE EL MODAL
                   }}
                   className="w-full py-3 bg-gradient-to-r from-[#ffa40c] to-[#ff8c00] hover:from-[#ff8c00] hover:to-[#ff7400] text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95"
                 >
@@ -216,7 +220,10 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
         <>
           <div
             className="fixed inset-0 bg-black/70 backdrop-blur-md z-[90] transition-opacity duration-300"
-            onClick={() => setPriceModalOpen(false)}
+            onClick={() => {
+              setPriceModalOpen(false);
+              onClose(); // CERRAR EL DRAWER AL CERRAR EL MODAL DE PRECIOS
+            }}
           />
           <div className="fixed inset-0 flex items-center justify-center z-[95] p-3">
             <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full mx-auto overflow-hidden">
@@ -224,7 +231,10 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-bold text-gray-900">Selecciona el precio</h3>
                   <button
-                    onClick={() => setPriceModalOpen(false)}
+                    onClick={() => {
+                      setPriceModalOpen(false);
+                      onClose(); // CERRAR EL DRAWER AL CERRAR EL MODAL DE PRECIOS
+                    }}
                     className="p-2 rounded-full hover:bg-gray-100 transition-colors"
                   >
                     <X className="h-4 w-4 text-gray-500" />

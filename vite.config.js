@@ -15,12 +15,12 @@ export default defineConfig({
         {
           src: '/assets/Logo.png',
           sizes: '192x192',
-          type: 'image/svg+xml'
+          type: 'image/png+xml'
         },
         {
           src: '/assets/Logo.png',
           sizes: '512x512',
-          type: 'image/svg+xml'
+          type: 'image/png+xml'
         }
       ]
     }

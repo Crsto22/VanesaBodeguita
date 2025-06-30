@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, Trash2, Pencil, CreditCard, Users, History, Barcode, Package, User, PlusCircle, ScanBarcode, X, Milk, Minus, Plus } from 'lucide-react';
+import { ShoppingCart, Trash2, Pencil, CreditCard, Users, History, Barcode, Package, User, PlusCircle, ScanBarcode, X, Milk, Minus, Plus, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Logo from '../assets/Logo.svg';
 import Sidebar from '../components/Sidebar';
@@ -8,6 +8,7 @@ import Header from '../components/Header';
 import { useAuth } from '../context/AuthContext';
 import { useClientes } from '../context/ClientesContext';
 import { useVentas } from '../context/VentasContext';
+import { useProducts } from '../context/ProductContext';
 import ProductoNinguno from '../assets/Ventas/ProductoNinguno.svg';
 import ClientesDrawer from '../components/Ventas/ClientesDrawer';
 import ProductosDrawer from '../components/Ventas/ProductosDrawer';
@@ -20,6 +21,9 @@ const Ventas = () => {
   const { currentUser } = useAuth();
   const { clientes, obtenerClientePorId, loading: clientesLoading } = useClientes();
   const { crearVenta } = useVentas();
+  const { obtenerProductoPorCodigoBarrasDirecto, obtenerCategoriaPorId } = useProducts();
+
+  // Estados existentes
   const [appear, setAppear] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifications] = useState(3);
@@ -33,6 +37,13 @@ const Ventas = () => {
   const [selectedProductos, setSelectedProductos] = useState([]);
   const [toast, setToast] = useState({ message: '', type: '', visible: false });
   const [ventaId, setVentaId] = useState(null);
+
+  // Estados para el escáner de pistola
+  const [barcodeInput, setBarcodeInput] = useState('');
+  const [priceModalOpen, setPriceModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const barcodeInputRef = useRef(null);
+  const isProcessingRef = useRef(false); // Para evitar procesar códigos mientras uno está en curso
 
   const quickAccessOptions = [
     {
@@ -81,16 +92,40 @@ const Ventas = () => {
   useEffect(() => {
     if (toast.visible) {
       const timer = setTimeout(() => {
-        setToast(prev => ({ ...prev, visible: false }));
+        setToast((prev) => ({ ...prev, visible: false }));
       }, 3000);
       return () => clearTimeout(timer);
     }
   }, [toast.visible]);
 
+  // Enfocar el input al montar el componente
   useEffect(() => {
     setAppear(true);
+    barcodeInputRef.current?.focus();
   }, []);
 
+  // Reenfocar el input después de cualquier clic en la página, si no hay drawers/modales abiertos
+  useEffect(() => {
+    const handleGlobalClick = (e) => {
+      if (
+        !drawerEscanearOpen &&
+        !drawerClientesOpen &&
+        !drawerProductosOpen &&
+        !drawerConfirmarOpen &&
+        !drawerEditarPrecioOpen &&
+        !priceModalOpen &&
+        barcodeInputRef.current
+      ) {
+        console.log('Reenfocando input después de clic global');
+        barcodeInputRef.current.focus();
+      }
+    };
+
+    document.addEventListener('click', handleGlobalClick);
+    return () => document.removeEventListener('click', handleGlobalClick);
+  }, [drawerEscanearOpen, drawerClientesOpen, drawerProductosOpen, drawerConfirmarOpen, drawerEditarPrecioOpen, priceModalOpen]);
+
+  // Cargar datos de localStorage
   useEffect(() => {
     try {
       const ventaGuardada = localStorage.getItem('ventaEnProgreso');
@@ -120,8 +155,10 @@ const Ventas = () => {
       localStorage.removeItem('ventaEnProgreso');
       setToast({ message: 'Error al recuperar datos guardados', type: 'error', visible: true });
     }
+    barcodeInputRef.current?.focus();
   }, [obtenerClientePorId]);
 
+  // Guardar datos en localStorage
   useEffect(() => {
     try {
       localStorage.setItem(
@@ -137,6 +174,7 @@ const Ventas = () => {
     }
   }, [clienteSeleccionado, selectedProductos]);
 
+  // Actualizar cliente seleccionado
   useEffect(() => {
     if (clienteSeleccionado && !clientesLoading) {
       const clienteActual = obtenerClientePorId(clienteSeleccionado.id);
@@ -150,15 +188,89 @@ const Ventas = () => {
         setClienteSeleccionado(clienteActual);
       }
     }
+    barcodeInputRef.current?.focus();
   }, [clientes, clientesLoading, clienteSeleccionado, obtenerClientePorId]);
+
+  // Lógica para manejar el escáner de pistola
+  useEffect(() => {
+    const handleKeyDown = async (e) => {
+      if (e.key === 'Enter' && barcodeInput && !isProcessingRef.current && !drawerEscanearOpen && !drawerClientesOpen && !drawerProductosOpen && !drawerConfirmarOpen && !drawerEditarPrecioOpen) {
+        console.log('Código escaneado:', barcodeInput); // Para depuración
+        isProcessingRef.current = true; // Bloquear procesamiento de nuevos códigos
+        try {
+          // Validar que el código sea un string válido
+          if (!/^\d+$/.test(barcodeInput)) {
+            setToast({ message: 'Código de barras inválido', type: 'error', visible: true });
+            setBarcodeInput('');
+            barcodeInputRef.current?.focus();
+            isProcessingRef.current = false;
+            return;
+          }
+          const foundProduct = await obtenerProductoPorCodigoBarrasDirecto(barcodeInput);
+          if (foundProduct) {
+            setSelectedProduct(foundProduct);
+            if (foundProduct.has_precio_alternativo && foundProduct.precio_alternativo) {
+              setPriceModalOpen(true);
+            } else {
+              handleSelectProducto({
+                id: foundProduct.id,
+                nombre: foundProduct.nombre,
+                cantidad: 1,
+                precio_unitario: parseFloat(foundProduct.precio),
+                subtotal: parseFloat(foundProduct.precio).toFixed(2),
+                retornable: foundProduct.retornable || false,
+                cantidad_retornable: foundProduct.retornable && foundProduct.tipo_unidad !== 'kilogramo' ? 1 : 0,
+                tipo_unidad: foundProduct.tipo_unidad || 'unidad',
+                precio_referencia: foundProduct.tipo_unidad === 'kilogramo' ? parseFloat(foundProduct.precio) : null,
+                imagen: foundProduct.imagen || null,
+              });
+              barcodeInputRef.current?.focus();
+            }
+          } else {
+            setToast({ message: 'Producto no encontrado', type: 'error', visible: true });
+            barcodeInputRef.current?.focus();
+          }
+        } catch (err) {
+          console.error('Error al buscar producto:', err);
+          setToast({ message: 'Error al procesar el código de barras', type: 'error', visible: true });
+          barcodeInputRef.current?.focus();
+        }
+        setBarcodeInput('');
+        setTimeout(() => {
+          isProcessingRef.current = false; // Liberar después de un pequeño retraso
+        }, 100);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [barcodeInput, obtenerProductoPorCodigoBarrasDirecto, drawerEscanearOpen, drawerClientesOpen, drawerProductosOpen, drawerConfirmarOpen, drawerEditarPrecioOpen]);
+
+  // Reenfocar el input cuando el modal de precios se cierra
+  useEffect(() => {
+    if (!priceModalOpen) {
+      console.log('Reenfocando input después de cerrar modal de precios');
+      barcodeInputRef.current?.focus();
+    }
+  }, [priceModalOpen]);
+
+  // Reenfocar el input cuando los drawers se cierran
+  useEffect(() => {
+    if (!drawerEscanearOpen && !drawerClientesOpen && !drawerProductosOpen && !drawerConfirmarOpen && !drawerEditarPrecioOpen) {
+      console.log('Reenfocando input después de cerrar drawers');
+      barcodeInputRef.current?.focus();
+    }
+  }, [drawerEscanearOpen, drawerClientesOpen, drawerProductosOpen, drawerConfirmarOpen, drawerEditarPrecioOpen]);
 
   const showToast = (message, type) => {
     setToast({ message, type, visible: true });
+    barcodeInputRef.current?.focus();
   };
 
   const handleOptionClick = (path) => {
     navigate(path);
     setMenuOpen(false);
+    barcodeInputRef.current?.focus();
   };
 
   const handleSelectCliente = (cliente) => {
@@ -171,6 +283,7 @@ const Ventas = () => {
     setClienteSeleccionado(cliente);
     setDrawerClientesOpen(false);
     showToast('Cliente seleccionado con éxito', 'success');
+    barcodeInputRef.current?.focus();
   };
 
   const handleRemoveCliente = (e) => {
@@ -178,6 +291,7 @@ const Ventas = () => {
     console.log('Removing client:', clienteSeleccionado);
     setClienteSeleccionado(null);
     showToast('Cliente removido con éxito', 'success');
+    barcodeInputRef.current?.focus();
   };
 
   const handleSelectProducto = (producto) => {
@@ -200,13 +314,16 @@ const Ventas = () => {
       }
       return [...prev, producto];
     });
-    setDrawerProductosOpen(false);
+    setPriceModalOpen(false);
+    setSelectedProduct(null);
     showToast('Producto añadido con éxito', 'success');
+    barcodeInputRef.current?.focus();
   };
 
   const handleRemoveProducto = (index) => {
     setSelectedProductos((prev) => prev.filter((_, i) => i !== index));
     showToast('Producto eliminado con éxito', 'success');
+    barcodeInputRef.current?.focus();
   };
 
   const handleUpdateCantidad = (index, nuevaCantidad) => {
@@ -223,6 +340,7 @@ const Ventas = () => {
           : p
       )
     );
+    barcodeInputRef.current?.focus();
   };
 
   const handleUpdatePrecio = (index, nuevoPrecio) => {
@@ -244,6 +362,7 @@ const Ventas = () => {
     );
     setDrawerEditarPrecioOpen(false);
     showToast('Precio actualizado con éxito', 'success');
+    barcodeInputRef.current?.focus();
   };
 
   const handleFractionPrice = (index, fraction) => {
@@ -258,6 +377,7 @@ const Ventas = () => {
           : p
       )
     );
+    barcodeInputRef.current?.focus();
   };
 
   const handleUpdateRetornables = (index, retornablesDevueltos) => {
@@ -271,6 +391,7 @@ const Ventas = () => {
           : p
       )
     );
+    barcodeInputRef.current?.focus();
   };
 
   const handleOpenEditarPrecio = (index) => {
@@ -320,6 +441,7 @@ const Ventas = () => {
       setSelectedProductos([]);
       localStorage.removeItem('ventaEnProgreso');
       setDrawerConfirmarOpen(false);
+      barcodeInputRef.current?.focus();
       return ventaId;
     } catch (error) {
       showToast(`Error al registrar venta: ${error.message}`, 'error');
@@ -333,6 +455,7 @@ const Ventas = () => {
     } else {
       showToast('No se pudo cargar la nota de venta: ID no disponible', 'error');
     }
+    barcodeInputRef.current?.focus();
   };
 
   const calcularTotal = () => {
@@ -341,6 +464,23 @@ const Ventas = () => {
 
   const calcularTotalProductos = () => {
     return selectedProductos.reduce((sum, p) => sum + p.cantidad, 0);
+  };
+
+  const handleSelectPrecio = (precio) => {
+    if (selectedProduct) {
+      handleSelectProducto({
+        id: selectedProduct.id,
+        nombre: selectedProduct.nombre,
+        cantidad: 1,
+        precio_unitario: parseFloat(precio),
+        subtotal: parseFloat(precio).toFixed(2),
+        retornable: selectedProduct.retornable || false,
+        cantidad_retornable: selectedProduct.retornable && selectedProduct.tipo_unidad !== 'kilogramo' ? 1 : 0,
+        tipo_unidad: selectedProduct.tipo_unidad || 'unidad',
+        precio_referencia: selectedProduct.tipo_unidad === 'kilogramo' ? parseFloat(selectedProduct.precio) : null,
+        imagen: selectedProduct.imagen || null,
+      });
+    }
   };
 
   const toastVariants = {
@@ -389,7 +529,7 @@ const Ventas = () => {
                   </div>
                 </div>
                 <button
-                  onClick={() => setToast(prev => ({ ...prev, visible: false }))}
+                  onClick={() => setToast((prev) => ({ ...prev, visible: false }))}
                   className="text-white hover:text-gray-200 focus:outline-none transition-colors"
                   aria-label="Cerrar notificación"
                 >
@@ -400,6 +540,106 @@ const Ventas = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Modal de selección de precios */}
+      {priceModalOpen && selectedProduct && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90]"
+            onClick={() => {
+              setPriceModalOpen(false);
+              barcodeInputRef.current?.focus();
+            }}
+          />
+          <div className="fixed inset-0 flex items-center justify-center z-[95] p-4">
+            <div
+              className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-auto overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-lg font-bold text-gray-800">Seleccionar Precio</h3>
+                  <button
+                    onClick={() => {
+                      setPriceModalOpen(false);
+                      barcodeInputRef.current?.focus();
+                    }}
+                    className="p-2 rounded-full hover:bg-gray-100"
+                  >
+                    <X className="h-5 w-5 text-gray-500" />
+                  </button>
+                </div>
+                <div className="mb-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      {selectedProduct.imagen ? (
+                        <img
+                          src={selectedProduct.imagen}
+                          alt={selectedProduct.nombre}
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                      ) : (
+                        <Package className="h-6 w-6 text-gray-400" />
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-800">{selectedProduct.nombre}</h4>
+                      <span className="text-xs text-gray-500">
+                        {obtenerCategoriaPorId(selectedProduct.categoria_ref)?.nombre || 'Sin categoría'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => {
+                      handleSelectPrecio(selectedProduct.precio);
+                      barcodeInputRef.current?.focus();
+                    }}
+                    className="flex-1 p-3 rounded-xl border border-gray-200 hover:border-[#45923a] hover:bg-[#f9fdf8] transition-all focus:outline-none focus:ring-2 focus:ring-[#45923a] group relative"
+                  >
+                    <div className="flex flex-col items-center text-center">
+                      <h5 className="font-bold text-gray-800">Precio Normal</h5>
+                      <p className="text-xs text-gray-500 mb-2">Precio estándar del producto</p>
+                      <span className="text-xl font-bold text-[#45923a] mb-1">
+                        S/{parseFloat(selectedProduct.precio).toFixed(2)}
+                        {selectedProduct.tipo_unidad === 'kilogramo' && <span className="text-xs ml-1">/kg</span>}
+                      </span>
+                      <div className="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center group-hover:border-[#45923a] mt-1">
+                        <Check className="h-4 w-4 text-[#45923a] opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    </div>
+                    <div className="absolute inset-0 rounded-xl border-2 border-[#45923a] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleSelectPrecio(parseFloat(selectedProduct.precio_alternativo));
+                      barcodeInputRef.current?.focus();
+                    }}
+                    className="flex-1 p-3 rounded-xl border border-gray-200 hover:border-[#ffa40c] hover:bg-[#fff8e6] transition-all focus:outline-none focus:ring-2 focus:ring-[#ffa40c] group relative"
+                  >
+                    <div className="flex flex-col items-center text-center">
+                      <h5 className="font-bold text-gray-800">
+                        Precio {selectedProduct.motivo_precio_alternativo || 'Alternativo'}
+                      </h5>
+                      <p className="text-xs text-gray-500 mb-2">Precio especial</p>
+                      <span className="text-xl font-bold text-[#ffa40c] mb-1">
+                        S/{parseFloat(selectedProduct.precio_alternativo).toFixed(2)}
+                        {selectedProduct.tipo_unidad === 'kilogramo' && <span className="text-xs ml-1">/kg</span>}
+                      </span>
+                      <div className="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center group-hover:border-[#ffa40c] mt-1">
+                        <Check className="h-4 w-4 text-[#ffa40c] opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    </div>
+                    <div className="absolute inset-0 rounded-xl border-2 border-[#ffa40c] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       <Header menuOpen={menuOpen} setMenuOpen={setMenuOpen} notifications={notifications} />
       <Sidebar
         isOpen={menuOpen}
@@ -409,6 +649,15 @@ const Ventas = () => {
         logo={Logo}
       />
       <main className="pt-3 px-2 sm:px-4 pb-28 flex flex-col h-full">
+        <input
+          ref={barcodeInputRef}
+          type="text"
+          value={barcodeInput}
+          onChange={(e) => setBarcodeInput(e.target.value)}
+          className="absolute opacity-0 pointer-events-none"
+          autoFocus
+          aria-hidden="true"
+        />
         <div className={`transition-opacity duration-500 ${appear ? 'opacity-100' : 'opacity-0'} flex flex-col h-full`}>
           <div className="flex flex-col items-center gap-4 mb-4">
             <button
@@ -432,8 +681,8 @@ const Ventas = () => {
                     {clientesLoading
                       ? 'Cargando clientes...'
                       : clienteSeleccionado
-                        ? clienteSeleccionado.nombre
-                        : 'Cliente Genérico'}
+                      ? clienteSeleccionado.nombre
+                      : 'Cliente Genérico'}
                   </span>
                 </button>
                 {clienteSeleccionado && (
@@ -675,8 +924,23 @@ const Ventas = () => {
         isOpen={drawerEscanearOpen}
         onClose={() => setDrawerEscanearOpen(false)}
         onSelectProducto={handleSelectProducto}
-        setError={setToast} // Usar setToast para manejar errores de escaneo
+        setError={setToast}
       />
+      <style jsx global>{`
+        .animate-in {
+          animation: animateIn 0.3s ease-in-out;
+        }
+        @keyframes animateIn {
+          0% {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+      `}</style>
     </div>
   );
 };
