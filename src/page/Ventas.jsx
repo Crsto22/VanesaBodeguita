@@ -332,11 +332,11 @@ const Ventas = () => {
       prev.map((p, i) =>
         i === index
           ? {
-              ...p,
-              cantidad: nuevaCantidad,
-              subtotal: (nuevaCantidad * p.precio_unitario).toFixed(2),
-              cantidad_retornable: p.retornable && p.tipo_unidad !== 'kilogramo' ? nuevaCantidad : 0,
-            }
+            ...p,
+            cantidad: nuevaCantidad,
+            subtotal: (nuevaCantidad * p.precio_unitario).toFixed(2),
+            cantidad_retornable: p.retornable && p.tipo_unidad !== 'kilogramo' ? nuevaCantidad : 0,
+          }
           : p
       )
     );
@@ -353,10 +353,10 @@ const Ventas = () => {
       prev.map((p, i) =>
         i === index
           ? {
-              ...p,
-              precio_unitario: precio,
-              subtotal: (p.cantidad * precio).toFixed(2),
-            }
+            ...p,
+            precio_unitario: precio,
+            subtotal: (p.cantidad * precio).toFixed(2),
+          }
           : p
       )
     );
@@ -370,10 +370,10 @@ const Ventas = () => {
       prev.map((p, i) =>
         i === index && p.tipo_unidad === 'kilogramo'
           ? {
-              ...p,
-              precio_unitario: parseFloat((p.precio_referencia * fraction).toFixed(2)),
-              subtotal: parseFloat((p.cantidad * p.precio_referencia * fraction).toFixed(2)),
-            }
+            ...p,
+            precio_unitario: parseFloat((p.precio_referencia * fraction).toFixed(2)),
+            subtotal: parseFloat((p.cantidad * p.precio_referencia * fraction).toFixed(2)),
+          }
           : p
       )
     );
@@ -385,9 +385,9 @@ const Ventas = () => {
       prev.map((p, i) =>
         i === index
           ? {
-              ...p,
-              cantidad_retornable: retornablesDevueltos,
-            }
+            ...p,
+            cantidad_retornable: retornablesDevueltos,
+          }
           : p
       )
     );
@@ -500,9 +500,8 @@ const Ventas = () => {
             className="fixed top-0 left-0 right-0 w-full z-50 rounded-b-xl overflow-hidden"
           >
             <div
-              className={`w-full shadow-lg ${
-                toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
-              }`}
+              className={`w-full shadow-lg ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+                }`}
               role="alert"
               aria-labelledby="header-notification"
             >
@@ -655,7 +654,8 @@ const Ventas = () => {
           value={barcodeInput}
           onChange={(e) => setBarcodeInput(e.target.value)}
           className="absolute opacity-0 pointer-events-none"
-          autoFocus
+          inputMode="none"      // ← Esto evita el teclado en móviles
+          autoComplete="off"
           aria-hidden="true"
         />
         <div className={`transition-opacity duration-500 ${appear ? 'opacity-100' : 'opacity-0'} flex flex-col h-full`}>
@@ -670,9 +670,8 @@ const Ventas = () => {
             <div className="flex flex-row justify-center gap-2 sm:gap-6">
               <div className="relative">
                 <button
-                  className={`flex btn rounded-full flex-row items-center justify-center p-3 border-none text-white shadow-md transition-all ${
-                    clienteSeleccionado ? 'bg-[#ffa40c] hover:bg-[#e69500] pr-10' : 'bg-[#ffa40c] hover:bg-[#e69500]'
-                  }`}
+                  className={`flex btn rounded-full flex-row items-center justify-center p-3 border-none text-white shadow-md transition-all ${clienteSeleccionado ? 'bg-[#ffa40c] hover:bg-[#e69500] pr-10' : 'bg-[#ffa40c] hover:bg-[#e69500]'
+                    }`}
                   onClick={() => setDrawerClientesOpen(true)}
                   disabled={clientesLoading}
                 >
@@ -681,8 +680,8 @@ const Ventas = () => {
                     {clientesLoading
                       ? 'Cargando clientes...'
                       : clienteSeleccionado
-                      ? clienteSeleccionado.nombre
-                      : 'Cliente Genérico'}
+                        ? clienteSeleccionado.nombre
+                        : 'Cliente Genérico'}
                   </span>
                 </button>
                 {clienteSeleccionado && (
