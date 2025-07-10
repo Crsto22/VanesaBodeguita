@@ -54,7 +54,7 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
 
   const handleSearchChange = (e) => {
     searchInitiatedByUser.current = true;
-    setLocalSearchTerm(e.target.value);
+    setLocalSearchTerm(e.target.value.toUpperCase());
   };
 
   const handleSelect = (producto) => {

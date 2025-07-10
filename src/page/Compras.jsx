@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, Truck, History, Barcode, Package, User, PlusCircle, ScanBarcode, X, CheckCircle } from 'lucide-react';
+import { ShoppingCart,Trash2, Truck, History, Barcode, Package, User, PlusCircle, ScanBarcode, X, CheckCircle, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Logo from '../assets/Logo.svg';
 import Sidebar from '../components/Sidebar';
@@ -38,167 +38,89 @@ const Compras = () => {
   const isProcessingRef = useRef(false);
 
   const quickAccessOptions = [
-    {
-      id: 'ventas',
-      title: 'Ventas',
-      icon: <ShoppingCart className="h-6 w-6" />,
-      color: 'bg-emerald-500',
-      description: 'Registrar ventas y ver historial',
-      path: '/ventas',
-    },
-    {
-      id: 'deudas',
-      title: 'Pagar Deudas',
-      icon: <ShoppingCart className="h-6 w-6" />,
-      color: 'bg-amber-500',
-      description: 'Gestionar pagos pendientes',
-      path: '/deudas',
-    },
-    {
-      id: 'clientes',
-      title: 'Clientes',
-      icon: <User className="h-6 w-6" />,
-      color: 'bg-blue-500',
-      description: 'Administrar base de clientes',
-      path: '/clientes',
-    },
-    {
-      id: 'escaner',
-      title: 'Escáner de Códigos',
-      icon: <Barcode className="h-6 w-6" />,
-      color: 'bg-violet-500',
-      description: 'Consultar precios por código de barras',
-      path: '/escaner',
-    },
-    {
-      id: 'productos',
-      title: 'Productos',
-      icon: <Package className="h-6 w-6" />,
-      color: 'bg-rose-500',
-      description: 'Inventario y catálogo',
-      path: '/productos',
-    },
+    { id: 'ventas', title: 'Ventas', icon: <ShoppingCart className="h-6 w-6" />, color: 'bg-emerald-500', description: 'Registrar ventas y ver historial', path: '/ventas' },
+    { id: 'deudas', title: 'Pagar Deudas', icon: <ShoppingCart className="h-6 w-6" />, color: 'bg-amber-500', description: 'Gestionar pagos pendientes', path: '/deudas' },
+    { id: 'clientes', title: 'Clientes', icon: <User className="h-6 w-6" />, color: 'bg-blue-500', description: 'Administrar base de clientes', path: '/clientes' },
+    { id: 'escaner', title: 'Escáner de Códigos', icon: <Barcode className="h-6 w-6" />, color: 'bg-violet-500', description: 'Consultar precios por código de barras', path: '/escaner' },
+    { id: 'productos', title: 'Productos', icon: <Package className="h-6 w-6" />, color: 'bg-rose-500', description: 'Inventario y catálogo', path: '/productos' },
   ];
 
-  // Auto-dismiss toast
   useEffect(() => {
     if (toast.visible) {
-      const timer = setTimeout(() => {
-        setToast((prev) => ({ ...prev, visible: false }));
-      }, 3000);
+      const timer = setTimeout(() => setToast((prev) => ({ ...prev, visible: false })), 3000);
       return () => clearTimeout(timer);
     }
   }, [toast.visible]);
 
-  // Set initial appearance and focus
   useEffect(() => {
     setAppear(true);
     barcodeInputRef.current?.focus();
   }, []);
 
-  // Re-focus input after interactions
   useEffect(() => {
     const handleGlobalClick = () => {
       if (!drawerProveedoresOpen && !drawerProductosOpen && !drawerDetallesOpen && !drawerEscanearOpen && barcodeInputRef.current) {
+        console.log('Reenfocando input después de clic global');
         barcodeInputRef.current.focus();
       }
     };
-
     document.addEventListener('click', handleGlobalClick);
     return () => document.removeEventListener('click', handleGlobalClick);
   }, [drawerProveedoresOpen, drawerProductosOpen, drawerDetallesOpen, drawerEscanearOpen]);
 
-  // Load saved purchase data
   useEffect(() => {
     try {
       const compraGuardada = localStorage.getItem('compraEnProgreso');
       if (compraGuardada) {
-        const { proveedorSeleccionado, selectedProductos } = JSON.parse(compraGuardada);
-        if (proveedorSeleccionado?.id) {
-          const proveedorActual = obtenerProveedorPorId(proveedorSeleccionado.id);
-          if (proveedorActual) {
-            setProveedorSeleccionado(proveedorActual);
-          } else {
-            localStorage.removeItem('compraEnProgreso');
-            setToast({ message: 'Proveedor guardado no encontrado', type: 'error', visible: true });
-          }
+        const { proveedorSeleccionado: savedProvider, selectedProductos: savedProducts } = JSON.parse(compraGuardada);
+        if (savedProvider?.id) {
+          const proveedorActual = obtenerProveedorPorId(savedProvider.id);
+          setProveedorSeleccionado(proveedorActual || null);
         }
-        if (Array.isArray(selectedProductos)) {
-          const validProductos = selectedProductos
-            .map((p) => {
-              const productoActual = obtenerProductoPorId(p.id);
-              return productoActual ? {
-                ...productoActual,
-                cantidad: p.cantidad,
-                precioCompra: p.precioCompra,
-                precio_venta: p.precio_venta,
-                precio_alternativo: p.has_precio_alternativo && p.precio_alternativo ? p.precio_alternativo : null,
-                motivo_precio_alternativo: p.has_precio_alternativo && p.motivo_precio_alternativo ? p.motivo_precio_alternativo : null,
-                has_precio_alternativo: !!p.has_precio_alternativo,
-              } : null;
-            })
-            .filter((p) => p !== null);
+        if (Array.isArray(savedProducts)) {
+          const validProductos = savedProducts.map(p => {
+            const productoActual = obtenerProductoPorId(p.id);
+            return productoActual ? { ...productoActual, ...p } : null;
+          }).filter(Boolean);
           setSelectedProductos(validProductos);
         }
       }
     } catch (err) {
       console.error('Error al recuperar datos de localStorage:', err);
       localStorage.removeItem('compraEnProgreso');
-      setToast({ message: 'Error al recuperar datos guardados', type: 'error', visible: true });
+      showToast('Error al recuperar datos guardados', 'error');
     }
     barcodeInputRef.current?.focus();
   }, [obtenerProveedorPorId, obtenerProductoPorId]);
 
-  // Save purchase data to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem(
-        'compraEnProgreso',
-        JSON.stringify({
-          proveedorSeleccionado,
-          selectedProductos: selectedProductos.map((p) => ({
-            id: p.id,
-            cantidad: p.cantidad,
-            precioCompra: p.precioCompra,
-            precio_venta: p.precio_venta,
-            precio_alternativo: p.has_precio_alternativo && p.precio_alternativo ? p.precio_alternativo : null,
-            motivo_precio_alternativo: p.has_precio_alternativo && p.motivo_precio_alternativo ? p.motivo_precio_alternativo : null,
-            has_precio_alternativo: !!p.has_precio_alternativo,
-          })),
-        })
-      );
+      localStorage.setItem('compraEnProgreso', JSON.stringify({ proveedorSeleccionado, selectedProductos }));
     } catch (err) {
       console.error('Error al guardar en localStorage:', err);
-      setToast({ message: 'Error al guardar datos', type: 'error', visible: true });
+      showToast('Error al guardar el progreso', 'error');
     }
   }, [proveedorSeleccionado, selectedProductos]);
 
-  // Update selected provider
   useEffect(() => {
     if (proveedorSeleccionado && !proveedoresLoading) {
       const proveedorActual = obtenerProveedorPorId(proveedorSeleccionado.id);
       if (!proveedorActual) {
-        setToast({ message: 'El proveedor seleccionado ya no está disponible', type: 'error', visible: true });
         setProveedorSeleccionado(null);
-        localStorage.removeItem('compraEnProgreso');
-      } else if (
-        proveedorActual.razon_social !== proveedorSeleccionado.razon_social ||
-        proveedorActual.telefono !== proveedorSeleccionado.telefono
-      ) {
-        setProveedorSeleccionado(proveedorActual);
+        showToast('El proveedor seleccionado ya no existe', 'error');
       }
     }
     barcodeInputRef.current?.focus();
   }, [proveedores, proveedoresLoading, proveedorSeleccionado, obtenerProveedorPorId]);
 
-  // Barcode scanning logic
   useEffect(() => {
     const handleKeyDown = async (e) => {
       if (e.key === 'Enter' && barcodeInput && !isProcessingRef.current && !drawerProveedoresOpen && !drawerProductosOpen && !drawerDetallesOpen && !drawerEscanearOpen) {
+        console.log('Código escaneado:', barcodeInput);
         isProcessingRef.current = true;
         try {
           if (!/^\d+$/.test(barcodeInput)) {
-            setToast({ message: 'Código de barras inválido', type: 'error', visible: true });
+            showToast('Código de barras inválido', 'error');
             setBarcodeInput('');
             barcodeInputRef.current?.focus();
             isProcessingRef.current = false;
@@ -208,28 +130,25 @@ const Compras = () => {
           if (producto) {
             setSelectedProduct(producto);
             setDrawerDetallesOpen(true);
-            setBarcodeInput('');
           } else {
-            setToast({ message: 'Producto no encontrado', type: 'error', visible: true });
-            setBarcodeInput('');
+            showToast('Producto no encontrado', 'error');
           }
         } catch (error) {
-          setToast({ message: `Error al procesar código de barras: ${error.message}`, type: 'error', visible: true });
-          setBarcodeInput('');
+          showToast(`Error al buscar producto: ${error.message}`, 'error');
         } finally {
+          setBarcodeInput('');
           isProcessingRef.current = false;
           barcodeInputRef.current?.focus();
         }
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [barcodeInput, obtenerProductoPorCodigoBarrasDirecto, drawerProveedoresOpen, drawerProductosOpen, drawerDetallesOpen, drawerEscanearOpen]);
 
-  // Re-focus input when drawers close
   useEffect(() => {
     if (!drawerProveedoresOpen && !drawerProductosOpen && !drawerDetallesOpen && !drawerEscanearOpen) {
+      console.log('Reenfocando input después de cerrar drawers');
       barcodeInputRef.current?.focus();
     }
   }, [drawerProveedoresOpen, drawerProductosOpen, drawerDetallesOpen, drawerEscanearOpen]);
@@ -246,9 +165,8 @@ const Compras = () => {
   };
 
   const handleSelectProveedor = (proveedor) => {
-    if (!proveedor?.id) {
+    if (!proveedor || !proveedor.id) {
       showToast('Proveedor inválido seleccionado', 'error');
-      console.error('Invalid proveedor selected:', proveedor);
       return;
     }
     setProveedorSeleccionado(proveedor);
@@ -265,59 +183,48 @@ const Compras = () => {
   };
 
   const handleSelectProducto = (producto) => {
-    if (!producto?.id) {
+    if (!producto?.id || !producto.nombre) {
       showToast('Producto inválido seleccionado', 'error');
       return;
     }
     setSelectedProductos((prev) => {
-      const existingProduct = prev.find((p) => p.id === producto.id);
-      if (existingProduct) {
-        return prev.map((p) =>
-          p.id === producto.id
-            ? {
-                ...p,
-                cantidad: p.cantidad + producto.cantidad,
-                precioCompra: producto.precioCompra,
-                precio_venta: producto.precio_venta,
-                precio_alternativo: producto.has_precio_alternativo && producto.precio_alternativo ? producto.precio_alternativo : null,
-                motivo_precio_alternativo: producto.has_precio_alternativo && producto.motivo_precio_alternativo ? producto.motivo_precio_alternativo : null,
-                has_precio_alternativo: !!producto.has_precio_alternativo,
-              }
-            : p
-        );
-      }
-      return [
-        ...prev,
-        {
-          ...producto,
-          cantidad: producto.cantidad,
-          precioCompra: producto.precioCompra,
-          precio_venta: producto.precio_venta,
-          precio_alternativo: producto.has_precio_alternativo && producto.precio_alternativo ? producto.precio_alternativo : null,
-          motivo_precio_alternativo: producto.has_precio_alternativo && producto.motivo_precio_alternativo ? producto.motivo_precio_alternativo : null,
+      const existingProductIndex = prev.findIndex((p) => p.id === producto.id);
+      if (existingProductIndex !== -1) {
+        const updatedProductos = [...prev];
+        updatedProductos[existingProductIndex] = {
+          ...updatedProductos[existingProductIndex],
+          cantidad: updatedProductos[existingProductIndex].cantidad + producto.cantidad,
+          subtotal: (
+            (updatedProductos[existingProductIndex].cantidad + producto.cantidad) * updatedProductos[existingProductIndex].precioCompra
+          ).toFixed(2),
+          precio_venta: producto.precio_venta || updatedProductos[existingProductIndex].precio_venta,
+          precio_alternativo: producto.has_precio_alternativo ? producto.precio_alternativo : null,
+          motivo_precio_alternativo: producto.has_precio_alternativo ? producto.motivo_precio_alternativo : null,
           has_precio_alternativo: !!producto.has_precio_alternativo,
-        },
-      ];
+        };
+        return updatedProductos;
+      }
+      return [...prev, {
+        ...producto,
+        subtotal: (producto.cantidad * producto.precioCompra).toFixed(2),
+      }];
     });
     setDrawerProductosOpen(false);
     setDrawerDetallesOpen(false);
     setDrawerEscanearOpen(false);
     setSelectedProduct(null);
-    showToast(`Producto ${producto.nombre} añadido`, 'success');
+    showToast(`Producto ${producto.nombre} añadido con éxito`, 'success');
     barcodeInputRef.current?.focus();
   };
 
-  const handleRemoveProducto = (productoId) => {
-    setSelectedProductos((prev) => prev.filter((p) => p.id !== productoId));
-    showToast('Producto removido', 'success');
+  const handleRemoveProducto = (index) => {
+    setSelectedProductos((prev) => prev.filter((_, i) => i !== index));
+    showToast('Producto eliminado con éxito', 'success');
     barcodeInputRef.current?.focus();
   };
 
-  const handleChangeCantidad = (productoId, cantidad) => {
-    if (isNaN(cantidad) || cantidad < 1) return;
-    setSelectedProductos((prev) =>
-      prev.map((p) => (p.id === productoId ? { ...p, cantidad: Number(cantidad) } : p))
-    );
+  const handleOpenEditarCantidad = (index) => {
+    showToast('Función de edición de cantidad en desarrollo', 'info');
     barcodeInputRef.current?.focus();
   };
 
@@ -330,23 +237,21 @@ const Compras = () => {
       showToast('Debes añadir al menos un producto', 'error');
       return;
     }
-
     try {
       const compraData = {
         proveedor_ref: proveedorSeleccionado.id,
         productos: selectedProductos.map((p) => ({
           producto_ref: p.id,
           cantidad: p.cantidad,
-          precio_unitario: p.precioCompra,
-          subtotal: p.cantidad * p.precioCompra,
-          precio_venta: p.precio_venta,
-          precio_alternativo: p.has_precio_alternativo && p.precio_alternativo ? p.precio_alternativo : null,
-          motivo_precio_alternativo: p.has_precio_alternativo && p.motivo_precio_alternativo ? p.motivo_precio_alternativo : null,
+          precio_unitario: parseFloat(p.precioCompra),
+          subtotal: parseFloat(p.subtotal),
+          precio_venta: parseFloat(p.precio_venta),
+          precio_alternativo: p.has_precio_alternativo ? parseFloat(p.precio_alternativo) : null,
+          motivo_precio_alternativo: p.has_precio_alternativo ? p.motivo_precio_alternativo : null,
           has_precio_alternativo: !!p.has_precio_alternativo,
         })),
         notas: '',
       };
-
       const compraId = await crearCompra(compraData);
       setSelectedProductos([]);
       setProveedorSeleccionado(null);
@@ -356,7 +261,14 @@ const Compras = () => {
     } catch (error) {
       showToast(`Error al registrar compra: ${error.message}`, 'error');
     }
-    barcodeInputRef.current?.focus();
+  };
+
+  const calcularTotal = () => {
+    return selectedProductos.reduce((sum, p) => sum + parseFloat(p.subtotal), 0);
+  };
+
+  const calcularTotalProductos = () => {
+    return selectedProductos.reduce((sum, p) => sum + p.cantidad, 0);
   };
 
   const toastVariants = {
@@ -376,7 +288,9 @@ const Compras = () => {
             className="fixed top-0 left-0 right-0 w-full z-50 rounded-b-xl overflow-hidden"
           >
             <div
-              className={`w-full shadow-lg ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}
+              className={`w-full shadow-lg ${
+                toast.type === 'success' ? 'bg-green-600' : toast.type === 'info' ? 'bg-blue-600' : 'bg-red-600'
+              }`}
               role="alert"
               aria-labelledby="header-notification"
             >
@@ -423,12 +337,25 @@ const Compras = () => {
         onOptionClick={handleOptionClick}
         logo={Logo}
       />
+
       <main className="pt-3 px-2 sm:px-4 pb-28 flex flex-col h-full">
+        <input
+          ref={barcodeInputRef}
+          type="text"
+          value={barcodeInput}
+          onChange={(e) => setBarcodeInput(e.target.value.toUpperCase())}
+          className="absolute opacity-0 pointer-events-none"
+          inputMode="none"
+          autoComplete="off"
+          aria-hidden="true"
+          aria-label="Entrada para escáner de códigos de barras"
+        />
         <div className={`transition-opacity duration-500 ${appear ? 'opacity-100' : 'opacity-0'} flex flex-col h-full`}>
           <div className="flex flex-col items-center gap-4 mb-4">
             <button
               className="btn border-none rounded-2xl flex flex-row items-center justify-center p-3 w-80 bg-blue-500 text-white shadow-md transition-all"
               onClick={() => navigate('/compras/historial')}
+              aria-label="Ver historial de compras"
             >
               <History size={17} className="flex-shrink-0" />
               <span className="text-sm truncate max-w-[150px]">Ver Historial</span>
@@ -479,27 +406,15 @@ const Compras = () => {
                 <ScanBarcode strokeWidth={2.5} size={20} />
               </button>
             </div>
-            <input
-              ref={barcodeInputRef}
-              type="text"
-              value={barcodeInput}
-              onChange={(e) => setBarcodeInput(e.target.value)}
-              className="absolute opacity-0 pointer-events-none"
-              inputMode="none"
-              autoComplete="off"
-              aria-hidden="true"
-              aria-label="Entrada para escáner de códigos de barras"
-            />
           </div>
+
           <div className="flex flex-col flex-1 p-1 min-h-0">
             <div className="flex-1 rounded-2xl bg-gradient-to-br from-white via-white to-gray-50 shadow-xl p-4 flex flex-col border-0 overflow-hidden backdrop-blur-lg">
               {selectedProductos.length === 0 ? (
                 <div className="flex flex-col items-center justify-center text-center max-w-md mx-auto flex-1">
-                  <div className="flex items-center justify-center mb-6">
-                    <div className="relative">
-                      <img src={ProductoNinguno} className="h-32 rounded-3xl opacity-90" alt="Sin productos" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-blue-500/10 to-transparent rounded-3xl"></div>
-                    </div>
+                  <div className="relative">
+                    <img src={ProductoNinguno} className="h-32 rounded-3xl opacity-90" alt="Sin productos" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-blue-500/10 to-transparent rounded-3xl"></div>
                   </div>
                   <h3 className="text-xl font-bold mb-3 bg-gradient-to-r from-gray-700 to-gray-900 bg-clip-text text-transparent">
                     Lista de productos vacía
@@ -509,72 +424,115 @@ const Compras = () => {
                   </p>
                 </div>
               ) : (
-                <div className="flex-1 overflow-y-auto">
-                  <ul className="divide-y divide-gray-200">
-                    {selectedProductos.map((producto) => (
-                      <li key={producto.id} className="py-3 flex items-center justify-between">
-                        <div className="flex items-center">
-                          <div className="h-10 w-10 rounded-full bg-[#ffa40c] flex items-center justify-center text-white">
+                <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
+                  <div className="space-y-3 overflow-y-auto flex-1 pb-2">
+                    {selectedProductos.map((producto, index) => (
+                      <div
+                        key={`${producto.id}-${index}`}
+                        className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100/50"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0 h-16 w-16 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden shadow-inner">
                             {producto.imagen ? (
-                              <img
-                                src={producto.imagen}
-                                alt={producto.nombre}
-                                className="h-10 w-10 rounded-full object-cover"
-                              />
+                              <img src={producto.imagen} alt={producto.nombre} className="object-cover w-full h-full rounded-2xl" />
                             ) : (
-                              <Package className="h-5 w-5" />
+                              <Package className="h-8 w-8 text-gray-400" />
                             )}
                           </div>
-                          <div className="ml-3">
-                            <p className="text-sm font-medium text-gray-900">{producto.nombre}</p>
-                            <p className="text-xs text-gray-500">Cantidad: {producto.cantidad} {producto.tipo_unidad}</p>
-                            <p className="text-xs text-gray-500">Precio Compra: S/ {producto.precioCompra?.toFixed(2)}</p>
-                            <p className="text-xs text-gray-500">Costo Total: S/ {(producto.cantidad * producto.precioCompra).toFixed(2)}</p>
-                            <p className="text-xs text-gray-500">Precio Venta: S/ {producto.precio_venta?.toFixed(2)}</p>
-                            {producto.has_precio_alternativo && (
-                              <>
-                                <p className="text-xs text-gray-500">Precio Alternativo: S/ {producto.precio_alternativo?.toFixed(2)}</p>
-                                {producto.motivo_precio_alternativo && (
-                                  <p className="text-xs text-gray-500">Motivo: {producto.motivo_precio_alternativo}</p>
-                                )}
-                              </>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start mb-2">
+                              <h4 className="text-sm font-bold text-gray-900 leading-tight pr-2">
+                                {producto.nombre}
+                              </h4>
+                              <button
+                                onClick={() => handleRemoveProducto(index)}
+                                className="p-2 rounded-full bg-red-50 hover:bg-red-100 transition-colors flex-shrink-0 group"
+                                aria-label={`Quitar producto ${producto.nombre}`}
+                              >
+                                <Trash2 size={16} strokeWidth={2.75} className="text-red-500 group-hover:text-red-700 transition-colors" />
+                              </button>
+                            </div>
+                            {producto.tipo_unidad === 'kilogramo' && (
+                              <p className="text-xs text-gray-500 mb-3 bg-gray-50 px-2 py-1 rounded-lg inline-block">
+                                S/{parseFloat(producto.precio_venta).toFixed(2)} por kg
+                              </p>
                             )}
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-3 flex-wrap">
+                                <div className="flex items-center gap-2">
+                                  <div className="bg-gradient-to-r from-blue-50 to-blue-100 px-4 py-2 rounded-xl">
+                                    <span className="text-sm font-bold text-blue-600">
+                                      Compra: S/{parseFloat(producto.precioCompra).toFixed(2)}
+                                    </span>
+                                  </div>
+                                  <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 px-4 py-2 rounded-xl">
+                                    <span className="text-sm font-bold text-[#45923a]">
+                                      Venta: S/{parseFloat(producto.precio_venta).toFixed(2)}
+                                    </span>
+                                  </div>
+                                  <button
+                                    onClick={() => handleOpenEditarCantidad(index)}
+                                    className="bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 p-3 rounded-xl transition-all active:scale-95"
+                                    aria-label={`Editar cantidad de ${producto.nombre}`}
+                                  >
+                                    <Settings size={16} className="text-blue-600" />
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="flex justify-between items-center pt-2">
+                                <span className="text-sm font-medium text-gray-500">Subtotal:</span>
+                                <span className="text-base font-bold text-[#45923a]">
+                                  S/{producto.subtotal}
+                                </span>
+                              </div>
+                              {producto.has_precio_alternativo && producto.precio_alternativo && (
+                                <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 p-3 rounded-xl border border-yellow-200">
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-sm font-medium text-yellow-800">
+                                      Precio Alternativo: S/{parseFloat(producto.precio_alternativo).toFixed(2)}
+                                      {producto.tipo_unidad === 'kilogramo' && <span className="ml-1">/kg</span>}
+                                    </span>
+                                    {producto.motivo_precio_alternativo && (
+                                      <span className="text-xs text-gray-500">
+                                        Motivo: {producto.motivo_precio_alternativo}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min="1"
-                            value={producto.cantidad}
-                            onChange={(e) => handleChangeCantidad(producto.id, parseInt(e.target.value))}
-                            className="w-16 p-1 border border-gray-300 rounded-md text-sm"
-                            aria-label={`Cantidad de ${producto.nombre}`}
-                          />
-                          <button
-                            onClick={() => handleRemoveProducto(producto.id)}
-                            className="p-1 rounded-full hover:bg-gray-200"
-                            aria-label={`Eliminar ${producto.nombre}`}
-                          >
-                            <X size={16} className="text-gray-500" />
-                          </button>
-                        </div>
-                      </li>
+                      </div>
                     ))}
-                  </ul>
-                  <div className="mt-4 p-4 border-t border-gray-200">
-                    <button
-                      onClick={handleConfirmarCompra}
-                      className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#45923a] hover:bg-[#3a7d30]"
-                      aria-label="Confirmar compra"
-                    >
-                      <CheckCircle size={17} className="inline mr-2" />
-                      Confirmar Compra
-                    </button>
                   </div>
                 </div>
               )}
             </div>
           </div>
+          {selectedProductos.length > 0 && (
+            <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-xl border-t border-gray-200/50 shadow-2xl z-20">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <span className="text-sm font-medium text-gray-600">Total productos: {calcularTotalProductos()}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-lg font-bold text-gray-800">Total:</span>
+                  <span className="text-2xl font-bold bg-[#45923a] bg-clip-text text-transparent ml-2">
+                    S/{calcularTotal().toFixed(2)}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={handleConfirmarCompra}
+                className="w-full py-4 bg-[#45923a] text-white font-bold rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl active:scale-[0.98]"
+                aria-label="Confirmar compra"
+              >
+                <ShoppingCart size={22} strokeWidth={2.5} />
+                <span className="text-lg">Confirmar Compra</span>
+              </button>
+            </div>
+          )}
         </div>
       </main>
 
@@ -610,6 +568,21 @@ const Compras = () => {
         }}
         setError={setToast}
       />
+      <style jsx global>{`
+        .animate-in {
+          animation: animateIn 0.3s ease-in-out;
+        }
+        @keyframes animateIn {
+          0% {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+      `}</style>
     </div>
   );
 };

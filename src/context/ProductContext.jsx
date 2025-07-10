@@ -1,3 +1,4 @@
+// ProductProvider Component
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../firebase/firebase';
 import { 
@@ -88,7 +89,6 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
-  // Real-time listener for categories
   useEffect(() => {
     if (!currentUser) {
       setCategorias([]);
@@ -112,58 +112,26 @@ export const ProductProvider = ({ children }) => {
     return () => unsubscribeCategorias();
   }, [currentUser]);
 
-  // Real-time listener for products
-  useEffect(() => {
-    if (!currentUser) {
-      setProductos([]);
-      setTodosLosProductos([]);
-      setLoading(false);
-      return;
-    }
+  const cargarTodosLosProductos = async () => {
+    if (!currentUser) return;
 
-    const productosQuery = query(
-      productosCollection,
-      where('estado', '==', 'activo'),
-      orderBy('nombre')
-    );
+    try {
+      const productosQuery = query(
+        productosCollection,
+        where('estado', '==', 'activo'),
+        orderBy('nombre')
+      );
 
-    const unsubscribeProductos = onSnapshot(productosQuery, (snapshot) => {
+      const snapshot = await getDocs(productosQuery);
       const todosProductosData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
       }));
 
       setTodosLosProductos(todosProductosData);
-
-      // Update paginated products for the current page
-      const productosParaMostrar = paginarProductos(todosProductosData, paginaActual);
-      setProductos(productosParaMostrar);
-      setHayMasPaginas(todosProductosData.length > paginaActual * PRODUCTOS_POR_PAGINA);
-      
-      if (snapshot.docs.length > 0) {
-        setPrimerDocumento(snapshot.docs[0]);
-        setUltimoDocumento(snapshot.docs[Math.min(snapshot.docs.length - 1, PRODUCTOS_POR_PAGINA - 1)]);
-        setHistorialPaginacion([snapshot.docs[0]]);
-      } else {
-        setPrimerDocumento(null);
-        setUltimoDocumento(null);
-        setHistorialPaginacion([]);
-        setHayMasPaginas(false);
-      }
-
-      setLoading(false);
-    }, (error) => {
-      console.error('Error al obtener productos:', error);
-      setLoading(false);
-    });
-
-    return () => unsubscribeProductos();
-  }, [currentUser, paginaActual]);
-
-  const paginarProductos = (productosArray, pagina) => {
-    const inicio = (pagina - 1) * PRODUCTOS_POR_PAGINA;
-    const fin = inicio + PRODUCTOS_POR_PAGINA;
-    return productosArray.slice(inicio, fin);
+    } catch (error) {
+      console.error('Error al cargar todos los productos:', error);
+    }
   };
 
   const filtrarProductosLocal = (query) => {
@@ -177,6 +145,56 @@ export const ProductProvider = ({ children }) => {
       producto.codigo_barras?.includes(query) ||
       producto.marca?.toLowerCase().includes(queryNormalizado)
     );
+  };
+
+  const paginarProductos = (productosArray, pagina) => {
+    const inicio = (pagina - 1) * PRODUCTOS_POR_PAGINA;
+    const fin = inicio + PRODUCTOS_POR_PAGINA;
+    return productosArray.slice(inicio, fin);
+  };
+
+  const cargarPrimerasPagina = async () => {
+    if (!currentUser) return;
+    
+    setProductosLoading(true);
+    try {
+      const productosQuery = query(
+        productosCollection,
+        where('estado', '==', 'activo'),
+        orderBy('nombre'),
+        limit(PRODUCTOS_POR_PAGINA)
+      );
+
+      const snapshot = await getDocs(productosQuery);
+      
+      if (snapshot.empty) {
+        setProductos([]);
+        setHayMasPaginas(false);
+        setPaginaActual(1);
+        setUltimoDocumento(null);
+        setPrimerDocumento(null);
+        setHistorialPaginacion([]);
+        setProductosLoading(false);
+        return;
+      }
+
+      const productosData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      setProductos(productosData);
+      setPaginaActual(1);
+      setPrimerDocumento(snapshot.docs[0]);
+      setUltimoDocumento(snapshot.docs[snapshot.docs.length - 1]);
+      setHayMasPaginas(snapshot.docs.length === PRODUCTOS_POR_PAGINA);
+      setHistorialPaginacion([snapshot.docs[0]]);
+
+    } catch (error) {
+      console.error('Error al cargar primera página:', error);
+    } finally {
+      setProductosLoading(false);
+    }
   };
 
   const cargarSiguientePagina = async () => {
@@ -194,7 +212,7 @@ export const ProductProvider = ({ children }) => {
       return;
     }
 
-    if (!hayMasPaginas || productosLoading) return;
+    if (!ultimoDocumento || !hayMasPaginas || productosLoading) return;
 
     setProductosLoading(true);
     try {
@@ -303,7 +321,8 @@ export const ProductProvider = ({ children }) => {
     setHistorialPaginacion([]);
     setModoFiltrado(false);
     setSearchQuery('');
-    // No need to manually fetch since onSnapshot handles updates
+    await cargarPrimerasPagina();
+    await cargarTodosLosProductos();
   };
 
   const buscarProductos = debounce(async (query) => {
@@ -313,8 +332,11 @@ export const ProductProvider = ({ children }) => {
     if (!query.trim()) {
       setModoFiltrado(false);
       setPaginaActual(1);
-      setProductos(paginarProductos(todosLosProductos, 1));
-      setHayMasPaginas(todosLosProductos.length > PRODUCTOS_POR_PAGINA);
+      setUltimoDocumento(null);
+      setPrimerDocumento(null);
+      setHayMasPaginas(true);
+      setHistorialPaginacion([]);
+      await cargarPrimerasPagina();
       setProductosLoading(false);
       return;
     }
@@ -322,7 +344,12 @@ export const ProductProvider = ({ children }) => {
     try {
       setModoFiltrado(true);
       
+      if (todosLosProductos.length === 0) {
+        await cargarTodosLosProductos();
+      }
+      
       const productosFiltrados = filtrarProductosLocal(query);
+      
       const productosParaMostrar = paginarProductos(productosFiltrados, 1);
       
       setProductos(productosParaMostrar);
@@ -344,10 +371,15 @@ export const ProductProvider = ({ children }) => {
   const limpiarBusqueda = async () => {
     setSearchQuery('');
     setModoFiltrado(false);
-    setPaginaActual(1);
-    setProductos(paginarProductos(todosLosProductos, 1));
-    setHayMasPaginas(todosLosProductos.length > PRODUCTOS_POR_PAGINA);
+    await recargarProductos();
   };
+
+  useEffect(() => {
+    if (currentUser) {
+      cargarPrimerasPagina();
+      cargarTodosLosProductos();
+    }
+  }, [currentUser]);
 
   const crearCategoria = async (categoriaData) => {
     try {
@@ -409,6 +441,7 @@ export const ProductProvider = ({ children }) => {
       };
       
       const docRef = await addDoc(productosCollection, nuevoProducto);
+      await recargarProductos();
       return docRef.id;
     } catch (error) {
       console.error('Error al crear producto:', error);
@@ -420,6 +453,7 @@ export const ProductProvider = ({ children }) => {
     try {
       let imagenUrl = productoData.imagen || '';
       if (imagenFile) {
+        // Note: ImageKit doesn't provide a direct delete API in the JS SDK; deletion should be handled server-side if needed
         imagenUrl = await uploadImageToImageKit(imagenFile, productoData.nombre);
       }
 
@@ -436,6 +470,7 @@ export const ProductProvider = ({ children }) => {
       };
 
       await updateDoc(productoRef, updatedProducto);
+      await recargarProductos();
     } catch (error) {
       console.error('Error al actualizar producto:', error);
       throw error;
@@ -444,8 +479,10 @@ export const ProductProvider = ({ children }) => {
 
   const eliminarProducto = async (id, imagenUrl) => {
     try {
+      // Note: ImageKit image deletion requires server-side API calls; not implemented here
       const productoRef = doc(db, 'productos', id);
       await updateDoc(productoRef, { estado: 'inactivo' });
+      await recargarProductos();
     } catch (error) {
       console.error('Error al eliminar producto:', error);
       throw error;
