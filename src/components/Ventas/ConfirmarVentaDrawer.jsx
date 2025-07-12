@@ -1,11 +1,20 @@
 import React, { useState } from 'react';
-import { X, User, DollarSign, AlertCircle, CheckCircle, Loader2, CheckSquare, Square } from 'lucide-react';
+// 1. IMPORTAMOS LIBRERÍAS PARA ANIMACIÓN Y EL ICONO DE ALERTA
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, User, DollarSign, AlertCircle, CheckCircle, CheckSquare, Square, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import ClientesDrawer from './ClientesDrawer';
 import EstadoPagado from '../../assets/Ventas/EstadoPagado.svg';
 import EstadoParcial from '../../assets/Ventas/EstadoParcial.svg';
 import EstadoPendiente from '../../assets/Ventas/EstadoPendiente.svg';
-import LogoIzipay from "../../assets/LogoIzipay.png"; // Asegúrate de tener esta imagen en la ruta correcta
+import LogoIzipay from "../../assets/LogoIzipay.png";
+import { useClientes } from '../../context/ClientesContext';
+import { useVentas } from '../../context/VentasContext';
+
+
 const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, total, currentUser, clientesLoading, clienteSeleccionado, setClienteSeleccionado }) => {
+  const { sumarDeudaCliente } = useClientes();
+  const { obtenerDeudaTotalPorCliente } = useVentas();
+
   const [estado, setEstado] = useState('pagado');
   const [montoPagado, setMontoPagado] = useState('');
   const [montoRecibido, setMontoRecibido] = useState('');
@@ -15,14 +24,13 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
   const [showNotas, setShowNotas] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [acordeonAbierto, setAcordeonAbierto] = useState(false);
 
   const handleSelectCliente = (cliente) => {
     if (!cliente || !cliente.id) {
       setError('Cliente inválido seleccionado');
-      console.error('Invalid client selected:', cliente);
       return;
     }
-    console.log('Selected client:', cliente);
     setClienteSeleccionado(cliente);
     setDrawerClientesOpen(false);
     setError('');
@@ -30,7 +38,6 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
 
   const handleRemoveCliente = (e) => {
     e.stopPropagation();
-    console.log('Removing client:', clienteSeleccionado);
     setClienteSeleccionado(null);
   };
 
@@ -42,8 +49,8 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
   const handleConfirm = async () => {
     // Validaciones
     if (estado === 'pendiente' || estado === 'parcial') {
-      if (!clienteSeleccionado || !clienteSeleccionado.id || !clienteSeleccionado.nombre) {
-        setError('Debe seleccionar un cliente para ventas en estado pendiente o parcial');
+      if (!clienteSeleccionado) {
+        setError('Debe seleccionar un cliente para ventas en estado pendiente o parcial.');
         return;
       }
     }
@@ -51,17 +58,17 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
     if (estado === 'parcial') {
       const monto = parseFloat(montoPagado);
       if (isNaN(monto) || monto <= 0) {
-        setError('El monto pagado debe ser un número positivo');
+        setError('El monto pagado debe ser un número positivo.');
         return;
       }
       if (monto >= total) {
-        setError('El monto pagado no puede ser igual o mayor al total en estado parcial');
+        setError('El monto pagado no puede ser igual o mayor al total en una venta parcial.');
         return;
       }
     }
 
     if (!total || isNaN(total)) {
-      setError('El total de la venta es inválido');
+      setError('El total de la venta es inválido.');
       return;
     }
 
@@ -69,7 +76,7 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
     setIsProcessing(true);
 
     try {
-      const ventaId = await onConfirm({
+      await onConfirm({
         estado,
         montoPagado: estado === 'parcial' ? parseFloat(montoPagado) || 0 : estado === 'pagado' ? total : 0,
         historialPagos: estado === 'parcial' ? [{
@@ -80,6 +87,17 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
         }] : [],
         notas
       });
+
+      if ((estado === 'parcial' || estado === 'pendiente') && clienteSeleccionado) {
+        const deudaDeEstaVenta = estado === 'parcial'
+          ? total - (parseFloat(montoPagado) || 0)
+          : total;
+
+        if (deudaDeEstaVenta > 0) {
+          await sumarDeudaCliente(clienteSeleccionado.id, deudaDeEstaVenta);
+        }
+      }
+
       setIsProcessing(false);
       setIsSuccess(true);
     } catch (error) {
@@ -95,15 +113,38 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
     setNotas('');
     setEstado('pagado');
     setShowNotas(false);
+    setAcordeonAbierto(false);
     onClose();
   };
+
+  // 2. CÁLCULOS PARA EL ACORDEÓN DE DEUDA
+  // Estas variables se calculan en cada render para que el acordeón siempre esté actualizado.
+  let deudaActual = 0;
+  let deudaDeEstaVenta = 0;
+  let deudaTotalProyectada = 0;
+  // La condición principal que decide si se muestra el acordeón.
+  const mostrarAcordeonDeuda = clienteSeleccionado && (estado === 'parcial' || estado === 'pendiente');
+
+  if (mostrarAcordeonDeuda) {
+      deudaActual = obtenerDeudaTotalPorCliente(clienteSeleccionado.id);
+
+      if (estado === 'parcial') {
+          const montoPagadoNum = parseFloat(montoPagado) || 0;
+          if (total > montoPagadoNum) {
+              deudaDeEstaVenta = total - montoPagadoNum;
+          }
+      } else { // estado === 'pendiente'
+          deudaDeEstaVenta = total;
+      }
+      deudaTotalProyectada = deudaActual + deudaDeEstaVenta;
+  }
 
   return (
     <>
       {/* Loading/Success Overlay */}
       {(isProcessing || isSuccess) && (
-        <div className="fixed inset-0 bg-white z-60 flex items-center justify-center">
-          <div className="relative bg-white w-full max-w-2xl mx-auto p-3 flex flex-col items-center justify-center transition-all duration-500">
+        <div className="fixed inset-0 bg-white z-60 flex items-center justify-center p-4">
+          <div className="relative bg-white w-full max-w-md mx-auto p-6 flex flex-col items-center justify-center transition-all duration-500 rounded-2xl shadow-2xl">
             {isProcessing ? (
               <>
                 <div className="mb-5 relative">
@@ -116,27 +157,25 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
                 <p className="text-gray-700 font-medium text-center">Procesando venta...</p>
               </>
             ) : (
-              <div className="flex flex-col items-center">
+              <div className="flex flex-col items-center text-center">
                 <div className="relative w-24 h-24 mb-6">
                   <div className="absolute inset-0 rounded-full bg-green-100 animate-pulse"></div>
                   <div className="absolute inset-1 bg-gradient-to-br from-[#45923a] to-green-500 rounded-full flex items-center justify-center shadow-lg">
                     <CheckCircle size={40} className="text-white animate-[bounceIn_0.6s_cubic-bezier(0.175,0.885,0.32,1.275)_forwards]" />
                   </div>
                 </div>
-                <div className="text-center">
-                  <h3 className="text-[#45923a] font-bold text-xl mb-2">¡Completado!</h3>
-                  <p className="text-gray-700 font-medium">Venta registrada con éxito</p>
-                </div>
-                <div className="mt-6 flex gap-4">
+                <h3 className="text-[#45923a] font-bold text-xl mb-2">¡Venta Completada!</h3>
+                <p className="text-gray-600">La transacción se ha registrado con éxito.</p>
+                <div className="mt-8 flex flex-col sm:flex-row gap-4 w-full">
                   <button
                     onClick={handleNewSale}
-                    className="bg-[#45923a] text-white font-medium py-2 px-6 rounded-full transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
+                    className="w-full bg-[#45923a] text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
                   >
                     Nueva Venta
                   </button>
                   <button
                     onClick={onViewNotaVenta}
-                    className="bg-[#ffa40c] text-white font-medium py-2 px-6 rounded-full transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
+                    className="w-full bg-[#ffa40c] text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
                   >
                     Ver Nota de Venta
                   </button>
@@ -147,213 +186,224 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
         </div>
       )}
 
-      {/* Backdrop para ConfirmarVentaDrawer */}
+      {/* Backdrop y Drawer principal */}
       {isOpen && <div className="fixed inset-0 bg-black/70 z-40" onClick={onClose} />}
-
-      {/* ConfirmarVentaDrawer */}
       <div
-        className={`fixed inset-0 bg-white z-50 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-y-0' : 'translate-y-full'
-          } rounded-t-2xl overflow-auto`}
-        style={{ maxHeight: '95vh', top: 'auto' }}
+        className={`fixed overflow-auto bottom-0 left-0 right-0 bg-white z-50 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-y-0' : 'translate-y-full'
+          } rounded-t-3xl shadow-2xl`}
+        style={{ maxHeight: '95vh' }}
       >
         <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between p-3">
-            <div className="w-8"></div>
-            <h2 className="text-lg font-bold text-gray-800">Confirmar Venta</h2>
-            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-all">
-              <X className="h-5 w-5 text-gray-600" />
-            </button>
+          <div className="p-4 border-b border-gray-200 sticky top-0 bg-white rounded-t-3xl z-10">
+            <div className="mx-auto w-12 h-1.5 rounded-full bg-gray-300 mb-2"></div>
+            <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-gray-800">Confirmar Venta</h2>
+                <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-all">
+                    <X className="h-5 w-5 text-gray-600" />
+                </button>
+            </div>
           </div>
-
-          {/* Indicador de arrastre */}
-          <div className="mx-auto w-12 h-1 rounded-full bg-gray-300 mb-3"></div>
-
-          {/* Contenido del Drawer */}
+          
           <div className="flex-1 overflow-y-auto px-4 pb-4">
-            {/* Selección de Cliente */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
-              <div className="relative">
-                <button
-                  className={`flex w-full items-center justify-start gap-2 p-2 rounded-lg ${clienteSeleccionado ? 'bg-[#ffa40c]/10 border border-[#ffa40c]/30 text-gray-800' : 'bg-[#ffa40c]/10 border border-[#ffa40c]/30 text-gray-800'
-                    } shadow-sm transition-all`}
+              <button
+                  className={`flex w-full items-center justify-start gap-3 p-2 rounded-xl ${clienteSeleccionado ? 'bg-amber-50 border-amber-300' : 'bg-gray-100 border-gray-200' } border shadow-sm transition-all`}
                   onClick={() => setDrawerClientesOpen(true)}
                   disabled={clientesLoading}
                 >
-                  <div className="w-8 h-8 flex items-center justify-center rounded-full bg-[#ffa40c]">
-                    <User size={14} className="text-white" />
+                  <div className={`w-9 h-9 flex items-center justify-center rounded-full ${clienteSeleccionado ? 'bg-amber-400' : 'bg-gray-300'}`}>
+                    <User size={16} className="text-white" />
                   </div>
-                  <span className="text-sm font-medium truncate flex-1">
-                    {clientesLoading
-                      ? 'Cargando clientes...'
-                      : clienteSeleccionado
-                        ? clienteSeleccionado.nombre
-                        : 'Cliente Genérico'}
+                  <span className="text-sm font-medium truncate flex-1 text-left">
+                    {clientesLoading ? 'Cargando...' : clienteSeleccionado ? clienteSeleccionado.nombre : 'Cliente Genérico'}
                   </span>
                   {clienteSeleccionado && (
-                    <button
-                      onClick={handleRemoveCliente}
-                      className="p-1 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
-                      aria-label="Quitar cliente"
-                    >
-                      <X size={12} className="text-gray-600" />
+                    <button onClick={handleRemoveCliente} className="p-1 rounded-full hover:bg-amber-100 transition-colors" aria-label="Quitar cliente">
+                      <X size={14} className="text-amber-600" />
                     </button>
                   )}
-                </button>
-              </div>
+              </button>
             </div>
-
-            {/* Estado de Pago */}
+            
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Estado de Pago</label>
-              <div className="flex gap-2 w-full">
+              <div className="grid grid-cols-3 gap-2">
                 <button
-                  className={`flex-1 p-2 rounded-lg flex flex-col items-center ${estado === 'pagado' ? 'bg-[#45923a]/20 border-2 border-[#45923a] shadow-md' : 'bg-gray-100 border border-gray-200'
-                    } transition-all`}
-                  onClick={() => setEstado('pagado')}
-                >
-                  <div className={`rounded-full flex items-center justify-center mb-1 ${estado === 'pagado' ? 'bg-[#45923a]' : ''}`}>
-                    <img src={EstadoPagado} className="rounded-lg w-24" alt="Pagado" />
-                  </div>
-                  <span className={`text-xs font-medium ${estado === 'pagado' ? 'text-[#45923a]' : 'text-gray-600'}`}>Pagado</span>
+                  className={`p-2 rounded-xl flex flex-col items-center justify-center ${estado === 'pagado' ? 'bg-green-50 ring-2 ring-green-500 shadow-md' : 'bg-gray-100 ring-1 ring-gray-200' } transition-all`}
+                  onClick={() => setEstado('pagado')} >
+                  <img src={EstadoPagado} className="h-16 mb-1" alt="Pagado" />
+                  <span className={`text-xs font-semibold ${estado === 'pagado' ? 'text-green-700' : 'text-gray-600'}`}>Pagado</span>
                 </button>
-
                 <button
-                  className={`flex-1 p-2 rounded-lg flex flex-col items-center ${estado === 'parcial' ? 'bg-[#ffa40c]/20 border-2 border-[#ffa40c] shadow-md' : 'bg-gray-100 border border-gray-200'
-                    } transition-all`}
-                  onClick={() => setEstado('parcial')}
-                >
-                  <div className={`rounded-full flex items-center justify-center mb-1 ${estado === 'parcial' ? 'bg-[#ffa40c]' : ''}`}>
-                    <img src={EstadoParcial} className="rounded-lg w-24" alt="Parcial" />
-                  </div>
-                  <span className={`text-xs font-medium ${estado === 'parcial' ? 'text-[#ffa40c]' : 'text-gray-600'}`}>Parcial</span>
+                  className={`p-2 rounded-xl flex flex-col items-center justify-center ${estado === 'parcial' ? 'bg-amber-50 ring-2 ring-amber-500 shadow-md' : 'bg-gray-100 ring-1 ring-gray-200' } transition-all`}
+                  onClick={() => setEstado('parcial')} >
+                  <img src={EstadoParcial} className="h-16 mb-1" alt="Parcial" />
+                  <span className={`text-xs font-semibold ${estado === 'parcial' ? 'text-amber-700' : 'text-gray-600'}`}>Parcial</span>
                 </button>
-
                 <button
-                  className={`flex-1 p-2 rounded-lg flex flex-col items-center ${estado === 'pendiente' ? 'bg-[#e74b4b]/20 border-2 border-[#e74b4b] shadow-md' : 'bg-gray-100 border border-gray-200'
-                    } transition-all`}
-                  onClick={() => setEstado('pendiente')}
-                >
-                  <div className={`rounded-full flex items-center justify-center mb-1 ${estado === 'pendiente' ? 'bg-[#e74b4b]' : ''}`}>
-                    <img src={EstadoPendiente} className="rounded-lg w-24" alt="Pendiente" />
-                  </div>
-                  <span className={`text-xs font-medium ${estado === 'pendiente' ? 'text-[#e74b4b]' : 'text-gray-600'}`}>
-                    Pendiente
-                  </span>
+                  className={`p-2 rounded-xl flex flex-col items-center justify-center ${estado === 'pendiente' ? 'bg-red-50 ring-2 ring-red-500 shadow-md' : 'bg-gray-100 ring-1 ring-gray-200' } transition-all`}
+                  onClick={() => setEstado('pendiente')} >
+                  <img src={EstadoPendiente} className="h-16 mb-1" alt="Pendiente" />
+                  <span className={`text-xs font-semibold ${estado === 'pendiente' ? 'text-red-700' : 'text-gray-600'}`}>Pendiente</span>
                 </button>
               </div>
             </div>
 
-            {/* Monto Pagado (para parcial) */}
+            {/* 3. ACORDEÓN MODERNO DE DEUDA */}
+            <AnimatePresence>
+                {mostrarAcordeonDeuda && deudaDeEstaVenta > 0 && (
+                    <motion.div
+                        layout
+                        initial={{ opacity: 0, y: -20, height: 0 }}
+                        animate={{ opacity: 1, y: 0, height: 'auto' }}
+                        exit={{ opacity: 0, y: -20, height: 0 }}
+                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                        className="mb-4 overflow-hidden"
+                    >
+                        <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-xl shadow-md overflow-hidden">
+                            {/* Header del acordeón */}
+                            <button
+                                onClick={() => setAcordeonAbierto(!acordeonAbierto)}
+                                className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-red-50/50 transition-all duration-200"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                                        <AlertTriangle size={12} className="text-white" />
+                                    </div>
+                                    <div className="text-left">
+                                        <h4 className="font-bold text-red-800 text-xs">NUEVO SALDO DEUDOR</h4>
+                                        <p className="text-red-600 text-xs opacity-80">Cliente: {clienteSeleccionado?.nombre}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-bold text-red-600">
+                                        S/ {deudaTotalProyectada.toFixed(2)}
+                                    </span>
+                                    <motion.div
+                                        animate={{ rotate: acordeonAbierto ? 180 : 0 }}
+                                        transition={{ duration: 0.2 }}
+                                    >
+                                        <ChevronDown size={16} className="text-red-500" />
+                                    </motion.div>
+                                </div>
+                            </button>
+
+                            {/* Contenido del acordeón */}
+                            <AnimatePresence>
+                                {acordeonAbierto && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                        className="overflow-hidden"
+                                    >
+                                        <div className="px-3 pb-3 bg-white/50 border-t border-red-200/50">
+                                            <div className="pt-2 space-y-1.5">
+                                                <div className="flex items-center justify-between py-1.5 border-b border-red-100">
+                                                    <span className="text-xs text-gray-700 flex items-center gap-1.5">
+                                                        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
+                                                        Deuda anterior del cliente
+                                                    </span>
+                                                    <span className="text-xs font-medium text-gray-800">
+                                                        S/ {deudaActual.toFixed(2)}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center justify-between py-1.5 border-b border-red-100">
+                                                    <span className="text-xs text-orange-700 flex items-center gap-1.5 font-medium">
+                                                        <div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>
+                                                        Deuda de esta venta
+                                                    </span>
+                                                    <span className="text-xs font-bold text-orange-700">
+                                                        + S/ {deudaDeEstaVenta.toFixed(2)}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center justify-between pt-1.5 bg-red-50 rounded-lg px-2 py-1.5 border border-red-200">
+                                                    <span className="text-xs font-bold text-red-800 flex items-center gap-1.5">
+                                                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                                        TOTAL DEUDA
+                                                    </span>
+                                                    <span className="text-sm font-bold text-red-600">
+                                                        S/ {deudaTotalProyectada.toFixed(2)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+            
             {estado === 'parcial' && (
-              <div className="mb-4 bg-[#ffa40c]/10 p-3 rounded-lg">
+              <div className="mb-4 bg-gray-50 p-3 rounded-lg border border-gray-200">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Monto Pagado</label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
-                    <DollarSign size={14} className="text-gray-500" />
-                  </div>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={montoPagado}
-                    onChange={(e) => setMontoPagado(e.target.value)}
-                    className="block w-full pl-8 pr-2 py-2 border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ffa40c] focus:border-transparent"
-                    placeholder="0.00"
-                  />
+                  <DollarSign size={14} className="text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input type="number" min="0" step="0.01" value={montoPagado} onChange={(e) => setMontoPagado(e.target.value)} className="block w-full pl-8 pr-2 py-2 border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent" placeholder="0.00" />
                 </div>
-                <p className="mt-2 text-sm font-medium flex justify-between">
-                  <span className="text-gray-600">Monto Pendiente:</span>
-                  <span className="text-[#45923a]">S/{(total - (parseFloat(montoPagado) || 0)).toFixed(2)}</span>
-                </p>
               </div>
             )}
-
-            {/* Monto Recibido y Vuelto (para pagado) */}
+            
             {estado === 'pagado' && (
-              <div className="mb-4 bg-[#45923a]/10 p-3 rounded-lg">
+              <div className="mb-4 bg-gray-50 p-3 rounded-lg border border-gray-200">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Monto Recibido <span className="text-xs text-gray-500">(opcional)</span></label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
-                    <span className="text-gray-500">S/</span>
-                  </div>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={montoRecibido}
-                    onChange={(e) => setMontoRecibido(e.target.value)}
-                    className="block w-full pl-8 pr-2 py-2 border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#45923a] focus:border-transparent"
-                    placeholder="0.00"
-                  />
+                  <span className="text-gray-500 absolute left-3 top-1/2 -translate-y-1/2 text-sm">S/</span>
+                  <input type="number" min="0" step="0.01" value={montoRecibido} onChange={(e) => setMontoRecibido(e.target.value)} className="block w-full pl-8 pr-2 py-2 border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="0.00" />
                 </div>
                 <p className="mt-2 text-sm font-medium flex justify-between">
                   <span className="text-gray-600">Vuelto:</span>
-                  <span className="text-[#45923a]">
-                    S/{calcularVuelto() >= 0 ? calcularVuelto() : '0.00'}
-                  </span>
+                  <span className="text-green-700 font-bold"> S/ {calcularVuelto() >= 0 ? calcularVuelto() : '0.00'} </span>
                 </p>
               </div>
             )}
 
-            {/* Checkbox para mostrar el campo de Notas */}
             <div className="mb-4 flex items-center">
               <button onClick={() => setShowNotas(!showNotas)} className="flex items-center gap-2">
-                {showNotas ? <CheckSquare size={16} className="text-[#45923a]" /> : <Square size={16} className="text-gray-400" />}
+                {showNotas ? <CheckSquare size={16} className="text-green-600" /> : <Square size={16} className="text-gray-400" />}
                 <span className="text-sm font-medium text-gray-700">Agregar Notas</span>
               </button>
             </div>
-
-            {/* Campo de Notas (Opcional) */}
+            
             {showNotas && (
               <div className="mb-4">
-                <textarea
-                  value={notas}
-                  onChange={(e) => setNotas(e.target.value)}
-                  className="block w-full p-2 border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#45923a] focus:border-transparent"
-                  placeholder="Agregar notas sobre la venta..."
-                  rows="3"
-                />
+                <textarea value={notas} onChange={(e) => setNotas(e.target.value)} className="block w-full p-2 border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="Agregar notas sobre la venta..." rows="3" />
               </div>
             )}
-
-            {/* Mensaje de error si existe */}
+            
             {error && (
-              <div className="mb-3 p-2 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-start gap-2">
-                <AlertCircle size={14} className="text-red-500 mt-0.5 flex-shrink-0" />
+              <div className="mb-3 p-3 bg-red-100 border border-red-300 text-red-800 rounded-lg text-sm flex items-start gap-2">
+                <AlertCircle size={16} className="text-red-600 mt-0.5 flex-shrink-0" />
                 <span>{error}</span>
               </div>
             )}
-
-            {/* Total a Pagar */}
-<div className="flex items-center mb-4">
-  <div className="bg-green-50 rounded-lg p-3 shadow-sm flex-grow">
-    <p className="text-lg font-bold text-[#45923a] text-center">
-      Total a Pagar: S/{(total || 0).toFixed(2)}
-    </p>
-  </div>
-  <a
-    href="https://play.google.com/store/apps/details?id=pe.izipay.apps.izipay"
-    target="_blank"
-    rel="noopener noreferrer"
-    className="ml-4"
-  >
-    <img
-      src={LogoIzipay}
-      alt="Pagar con Izipay"
-      className="w-12 h-12 object-cover rounded-lg hover:opacity-80 transition-opacity cursor-pointer"
-    />
-  </a>
-</div>
+            
+            <div className="flex items-center mb-4">
+              <div className="bg-green-50 rounded-xl p-3 shadow-sm flex-grow">
+                <p className="text-lg font-bold text-green-700 text-center">
+                  Total a Pagar: S/{(total || 0).toFixed(2)}
+                </p>
+              </div>
+              <a
+                href="https://play.google.com/store/apps/details?id=pe.izipay.apps.izipay"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-3"
+              >
+                <img src={LogoIzipay} alt="Pagar con Izipay" className="w-12 h-12 object-contain rounded-lg hover:opacity-80 transition-opacity cursor-pointer" />
+              </a>
+            </div>
 
           </div>
-
-          {/* Footer con botones */}
-          <div className="px-4 pb-8 pt-2">
+          
+          <div className="px-4 pb-4 pt-2 bg-white border-t border-gray-200">
             <button
               onClick={handleConfirm}
-              className="w-full py-3 px-4 rounded-xl text-base font-medium text-white mb-3 bg-[#45923a] hover:bg-[#3b7d31] transition-colors shadow-md flex justify-center items-center gap-2"
+              className="w-full py-4 px-4 rounded-2xl text-base font-bold text-white bg-green-600 hover:bg-green-700 transition-colors shadow-lg shadow-green-500/30 flex justify-center items-center gap-2 active:scale-[0.98]"
               disabled={isProcessing}
             >
               Confirmar Venta
@@ -362,7 +412,6 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
         </div>
       </div>
 
-      {/* ClientesDrawer */}
       <ClientesDrawer
         isOpen={drawerClientesOpen}
         onClose={() => setDrawerClientesOpen(false)}
