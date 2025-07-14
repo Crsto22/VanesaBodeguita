@@ -1,6 +1,7 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../firebase/firebase';
-import { collection, addDoc, query, where, getDocs, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, onSnapshot, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { useProducts } from './ProductContext';
 import { useProveedores } from './ProveedoresContext';
@@ -24,12 +25,10 @@ export const ComprasProvider = ({ children }) => {
 
   const comprasCollection = collection(db, 'compras');
 
-  // Format numbers to two decimals
   const formatToTwoDecimals = (num) => {
     return parseFloat(Number(num).toFixed(2));
   };
 
-  // Fetch active purchases in real-time
   useEffect(() => {
     if (!currentUser) {
       setCompras([]);
@@ -53,7 +52,6 @@ export const ComprasProvider = ({ children }) => {
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Create a new purchase
   const crearCompra = async (compraData) => {
     try {
       if (!currentUser) throw new Error('Usuario no autenticado');
@@ -63,7 +61,6 @@ export const ComprasProvider = ({ children }) => {
       const proveedor = obtenerProveedorPorId(compraData.proveedor_ref);
       if (!proveedor) throw new Error('Proveedor no encontrado');
 
-      // Validate and process products
       let total = 0;
       const productosProcesados = await Promise.all(compraData.productos.map(async (item) => {
         const producto = await obtenerProductoPorIdDirecto(item.producto_ref);
@@ -79,7 +76,6 @@ export const ComprasProvider = ({ children }) => {
 
         total += subtotalCalculado;
 
-        // Update only specific fields in the product
         const productoData = {
           stock: formatToTwoDecimals(producto.stock + item.cantidad),
           precio_compra: formatToTwoDecimals(item.precio_unitario),
@@ -89,11 +85,9 @@ export const ComprasProvider = ({ children }) => {
           has_precio_alternativo: !!item.has_precio_alternativo,
         };
 
-        // Update product in Firestore
         const productoRef = doc(db, 'productos', producto.id);
         await updateDoc(productoRef, productoData);
 
-        // Return only the fields needed for the compras collection
         return {
           producto_ref: item.producto_ref,
           nombre: producto.nombre,
@@ -105,7 +99,6 @@ export const ComprasProvider = ({ children }) => {
 
       total = formatToTwoDecimals(total);
 
-      // Create purchase object for compras collection
       const nuevaCompra = {
         cajero_ref: currentUser.uid,
         proveedor_ref: compraData.proveedor_ref,
@@ -117,7 +110,6 @@ export const ComprasProvider = ({ children }) => {
         notas: compraData.notas || '',
       };
 
-      // Save to Firestore
       const docRef = await addDoc(comprasCollection, nuevaCompra);
       return docRef.id;
     } catch (error) {
@@ -126,7 +118,6 @@ export const ComprasProvider = ({ children }) => {
     }
   };
 
-  // Fetch all purchases (for history)
   const obtenerTodasCompras = async () => {
     try {
       const snapshot = await getDocs(comprasCollection);
@@ -141,11 +132,42 @@ export const ComprasProvider = ({ children }) => {
     }
   };
 
+  const eliminarCompra = async (compraId) => {
+    try {
+      if (!currentUser) throw new Error('Usuario no autenticado');
+
+      const compraRef = doc(db, 'compras', compraId);
+      const compraDoc = await getDoc(compraRef);
+
+      if (!compraDoc.exists()) {
+        throw new Error('Compra no encontrada');
+      }
+
+      const compraData = compraDoc.data();
+      await Promise.all(compraData.productos.map(async (item) => {
+        const producto = await obtenerProductoPorIdDirecto(item.producto_ref);
+        if (producto) {
+          const productoRef = doc(db, 'productos', producto.id);
+          await updateDoc(productoRef, {
+            stock: formatToTwoDecimals(producto.stock - item.cantidad),
+          });
+        }
+      }));
+
+      await deleteDoc(compraRef);
+      return true;
+    } catch (error) {
+      console.error('Error al eliminar compra:', error);
+      throw error;
+    }
+  };
+
   const value = {
     compras,
     loading,
     crearCompra,
     obtenerTodasCompras,
+    eliminarCompra,
   };
 
   return (

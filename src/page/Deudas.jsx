@@ -22,55 +22,30 @@ const Deudas = () => {
   const [drawerPagarDeudaOpen, setDrawerPagarDeudaOpen] = useState(false);
   const [drawerDevolverBotellasOpen, setDrawerDevolverBotellasOpen] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState(null);
+  
+  // ✨ NUEVO ESTADO: Controla el proceso de cálculo de deudas.
+  const [isCalculating, setIsCalculating] = useState(true);
 
   const quickAccessOptions = [
-    {
-      id: 'ventas',
-      title: 'Ventas',
-      icon: <ShoppingCart className="h-6 w-6" />,
-      color: 'bg-emerald-500',
-      description: 'Registrar ventas y ver historial',
-      path: '/ventas',
-    },
-    {
-      id: 'deudas',
-      title: 'Pagar Deudas',
-      icon: <CreditCard className="h-6 w-6" />,
-      color: 'bg-amber-500',
-      description: 'Gestionar pagos pendientes',
-      path: '/deudas',
-    },
-    {
-      id: 'clientes',
-      title: 'Clientes',
-      icon: <Users className="h-6 w-6" />,
-      color: 'bg-blue-500',
-      description: 'Administrar base de clientes',
-      path: '/clientes',
-    },
-    {
-      id: 'escaner',
-      title: 'Escáner de Códigos',
-      icon: <Barcode className="h-6 w-6" />,
-      color: 'bg-violet-500',
-      description: 'Consultar precios por código de barras',
-      path: '/escaner',
-    },
-    {
-      id: 'productos',
-      title: 'Productos',
-      icon: <Package className="h-6 w-6" />,
-      color: 'bg-rose-500',
-      description: 'Inventario y catálogo',
-      path: '/productos',
-    },
+    { id: 'ventas', title: 'Ventas', icon: <ShoppingCart className="h-6 w-6" />, color: 'bg-emerald-500', description: 'Registrar ventas y ver historial', path: '/ventas' },
+    { id: 'deudas', title: 'Pagar Deudas', icon: <CreditCard className="h-6 w-6" />, color: 'bg-amber-500', description: 'Gestionar pagos pendientes', path: '/deudas' },
+    { id: 'clientes', title: 'Clientes', icon: <Users className="h-6 w-6" />, color: 'bg-blue-500', description: 'Administrar base de clientes', path: '/clientes' },
+    { id: 'escaner', title: 'Escáner de Códigos', icon: <Barcode className="h-6 w-6" />, color: 'bg-violet-500', description: 'Consultar precios por código de barras', path: '/escaner' },
+    { id: 'productos', title: 'Productos', icon: <Package className="h-6 w-6" />, color: 'bg-rose-500', description: 'Inventario y catálogo', path: '/productos' },
   ];
 
   useEffect(() => {
     setAppear(true);
 
     const calcularDeudasYRetornables = async () => {
-      if (clientesLoading || ventasLoading) return;
+      // Si los contextos están cargando, no hacemos nada aún.
+      if (clientesLoading || ventasLoading) {
+        setIsCalculating(true); // Mantenemos el estado de cálculo como verdadero
+        return;
+      }
+
+      // Iniciamos el cálculo
+      setIsCalculating(true);
 
       const clientesConDatos = await Promise.all(
         clientes.map(async (cliente) => {
@@ -94,10 +69,15 @@ const Deudas = () => {
       );
 
       setClientesConDeudas(clientesFiltrados);
+      // Finalizamos el cálculo
+      setIsCalculating(false);
     };
 
     calcularDeudasYRetornables();
   }, [clientes, clientesLoading, ventasLoading, obtenerDeudaTotalPorCliente, obtenerVentasPorCliente]);
+  
+  // ✨ ESTADO DE CARGA COMBINADO: Muestra el esqueleto si cualquiera de las cargas está activa.
+  const isLoading = clientesLoading || ventasLoading || isCalculating;
 
   const clientesFiltrados = clientesConDeudas.filter(cliente =>
     cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -121,10 +101,12 @@ const Deudas = () => {
     setSelectedCliente(cliente);
     setDrawerDevolverBotellasOpen(true);
   };
-
-  const handlePagarDeudaSuccess = async () => {
+  
+  // ✨ Lógica de actualización simplificada para evitar repetición de código
+  const actualizarListaClientes = async () => {
+    setIsCalculating(true); // Mostramos el loader mientras recalculamos
     const updatedClientes = await Promise.all(
-      clientesConDeudas.map(async (cliente) => {
+      clientes.map(async (cliente) => { // Usamos la lista original de clientes
         const deudaTotal = obtenerDeudaTotalPorCliente(cliente.id);
         const ventasCliente = await obtenerVentasPorCliente(cliente.id, true);
         const totalRetornables = ventasCliente.reduce(
@@ -135,21 +117,15 @@ const Deudas = () => {
       })
     );
     setClientesConDeudas(updatedClientes.filter((c) => c.deudaTotal > 0 || c.totalRetornables > 0));
+    setIsCalculating(false); // Ocultamos el loader
   };
 
-  const handleDevolverBotellasSuccess = async () => {
-    const updatedClientes = await Promise.all(
-      clientesConDeudas.map(async (cliente) => {
-        const deudaTotal = obtenerDeudaTotalPorCliente(cliente.id);
-        const ventasCliente = await obtenerVentasPorCliente(cliente.id, true);
-        const totalRetornables = ventasCliente.reduce(
-          (sum, venta) => sum + (venta.total_retornables || 0),
-          0
-        );
-        return { ...cliente, deudaTotal, totalRetornables };
-      })
-    );
-    setClientesConDeudas(updatedClientes.filter((c) => c.deudaTotal > 0 || c.totalRetornables > 0));
+  const handlePagarDeudaSuccess = () => {
+    actualizarListaClientes();
+  };
+
+  const handleDevolverBotellasSuccess = () => {
+    actualizarListaClientes();
   };
 
   const SkeletonCard = () => (
@@ -217,11 +193,12 @@ const Deudas = () => {
           <div>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-base font-semibold text-gray-800">
-                Clientes con Deudas o Retornables ({clientesFiltrados.length})
+                Clientes con Deudas o Retornables ({isLoading ? '...' : clientesFiltrados.length})
               </h2>
             </div>
-
-            {clientesLoading || ventasLoading ? (
+            
+            {/* ✨ CONDICIONAL DE RENDERIZADO ACTUALIZADO */}
+            {isLoading ? (
               <div className="space-y-3">
                 {[...Array(5)].map((_, index) => (
                   <SkeletonCard key={index} />

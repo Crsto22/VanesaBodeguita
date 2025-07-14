@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart,Trash2, Truck, History, Barcode, Package, User, PlusCircle, ScanBarcode, X, CheckCircle, Settings } from 'lucide-react';
+import { ShoppingCart, Trash2, Truck, History, Barcode, Package, User, PlusCircle, ScanBarcode, X, CheckCircle, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Logo from '../assets/Logo.svg';
 import Sidebar from '../components/Sidebar';
@@ -34,6 +35,7 @@ const Compras = () => {
   const [selectedProductos, setSelectedProductos] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [barcodeInput, setBarcodeInput] = useState('');
+  const [loading, setLoading] = useState(false); // Nuevo estado para el spinner
   const barcodeInputRef = useRef(null);
   const isProcessingRef = useRef(false);
 
@@ -237,6 +239,7 @@ const Compras = () => {
       showToast('Debes añadir al menos un producto', 'error');
       return;
     }
+    setLoading(true); // Activar el spinner
     try {
       const compraData = {
         proveedor_ref: proveedorSeleccionado.id,
@@ -257,9 +260,10 @@ const Compras = () => {
       setProveedorSeleccionado(null);
       localStorage.removeItem('compraEnProgreso');
       showToast(`Compra ${compraId} registrada con éxito`, 'success');
-      navigate('/compras/historial');
     } catch (error) {
       showToast(`Error al registrar compra: ${error.message}`, 'error');
+    } finally {
+      setLoading(false); // Desactivar el spinner
     }
   };
 
@@ -525,11 +529,37 @@ const Compras = () => {
               </div>
               <button
                 onClick={handleConfirmarCompra}
-                className="w-full py-4 bg-[#45923a] text-white font-bold rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl active:scale-[0.98]"
+                className="w-full py-4 bg-[#45923a] text-white font-bold rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading}
                 aria-label="Confirmar compra"
               >
-                <ShoppingCart size={22} strokeWidth={2.5} />
-                <span className="text-lg">Confirmar Compra</span>
+                {loading ? (
+                  <svg
+                    className="animate-spin h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                ) : (
+                  <>
+                    <ShoppingCart size={22} strokeWidth={2.5} />
+                    <span className="text-lg">Confirmar Compra</span>
+                  </>
+                )}
               </button>
             </div>
           )}

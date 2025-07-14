@@ -17,7 +17,11 @@ export const ClientesProvider = ({ children }) => {
 
   // Obtener clientes en tiempo real
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) {
+        setLoading(false);
+        setClientes([]);
+        return;
+    }
 
     const unsubscribe = onSnapshot(clientesCollection, (snapshot) => {
       const clientesData = snapshot.docs.map(doc => ({

@@ -270,15 +270,13 @@ const Ventas = () => {
 
   const handleQuickAddProducto = async (nombre, precio) => {
     try {
-      // Validar entrada
       if (!nombre || !precio || isNaN(precio) || parseFloat(precio) <= 0) {
         showToast('Nombre o precio inválido', 'error');
         return;
       }
 
-      // Crear producto temporal sin guardar en la base de datos
       const producto = {
-        id: `temp_${Date.now().toString()}`, // Use 'temp_' prefix to clearly mark quick-added products
+        id: `temp_${Date.now().toString()}`,
         nombre,
         cantidad: 1,
         precio_unitario: parseFloat(precio),
@@ -290,7 +288,6 @@ const Ventas = () => {
         imagen: null,
       };
 
-      // Añadir el producto a la lista de productos seleccionados
       setSelectedProductos((prev) => [...prev, producto]);
       showToast('Producto rápido añadido con éxito', 'success');
       barcodeInputRef.current?.focus({ preventScroll: true });
@@ -360,13 +357,22 @@ const Ventas = () => {
     barcodeInputRef.current?.focus({ preventScroll: true });
   };
 
-  const handleUpdateRetornables = (index, retornablesDevueltos) => {
+  const handleUpdateRetornables = (index, action) => {
     setSelectedProductos((prev) =>
-      prev.map((p, i) =>
-        i === index
-          ? { ...p, cantidad_retornable: retornablesDevueltos }
-          : p
-      )
+      prev.map((p, i) => {
+        if (i === index) {
+          let newRetornables = p.cantidad_retornable;
+          if (action === 'increment' && newRetornables < p.cantidad) {
+            newRetornables += 1;
+          } else if (action === 'decrement' && newRetornables > 0) {
+            newRetornables -= 1;
+          } else {
+            return p; // No change if invalid action or out of bounds
+          }
+          return { ...p, cantidad_retornable: newRetornables };
+        }
+        return p;
+      })
     );
     barcodeInputRef.current?.focus({ preventScroll: true });
   };
@@ -381,7 +387,7 @@ const Ventas = () => {
       showToast('Debe seleccionar al menos un producto', 'error');
       return;
     }
-    const hasOwedRetornables = selectedProductos.some((p) => p.retornable && p.cantidad_retornable > 0);
+    const hasOwedRetornables = selectedProductos.some((p) => p.retornable && p.cantidad_retornable < p.cantidad);
     if (hasOwedRetornables && !clienteSeleccionado) {
       showToast('Se requiere un cliente registrado para productos retornables con botellas pendientes', 'error');
       return;
@@ -396,7 +402,7 @@ const Ventas = () => {
         cliente_ref: clienteSeleccionado ? clienteSeleccionado.id : null,
         nombre_cliente: clienteSeleccionado ? clienteSeleccionado.nombre : 'Cliente Genérico',
         productos: selectedProductos.map((p) => ({
-          producto_ref: p.id && !p.id.startsWith('temp_') ? p.id : null, // Ensure quick-added products have producto_ref: null
+          producto_ref: p.id && !p.id.startsWith('temp_') ? p.id : null,
           nombre: p.nombre,
           cantidad: p.cantidad,
           precio_unitario: parseFloat(p.precio_unitario),
@@ -459,7 +465,6 @@ const Ventas = () => {
     visible: { y: 0, opacity: 1, transition: { duration: 0.3, ease: 'easeInOut' } },
   };
 
-  // Calcula la deuda del cliente seleccionado usando la función del contexto
   const deudaTotalClienteSeleccionado = clienteSeleccionado
     ? obtenerDeudaTotalPorCliente(clienteSeleccionado.id)
     : 0;
@@ -578,7 +583,6 @@ const Ventas = () => {
               </button>
             </div>
 
-            {/* --- ALERTA DE DEUDA --- */}
             <AnimatePresence>
               {clienteSeleccionado && deudaTotalClienteSeleccionado > 0 && (
                 <motion.div
@@ -590,7 +594,7 @@ const Ventas = () => {
                   transition={{ duration: 0.3, ease: 'easeOut' }}
                 >
                   <div
-                    className=" flex alert alert-error items-center gap-2 text-sm px-4 py-2 rounded-full text-white    shadow-sm"
+                    className="flex alert alert-error items-center gap-2 text-sm px-4 py-2 rounded-full text-white shadow-sm"
                     role="alert"
                   >
                     <AlertTriangle size={16} className="flex-shrink-0" />
@@ -670,10 +674,29 @@ const Ventas = () => {
                                 {producto.retornable && (
                                   <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-3 rounded-xl border border-blue-200">
                                     <div className="flex items-center gap-3">
-                                      <div className="flex items-center gap-2"><Milk size={16} className="text-blue-600" /><span className="text-sm font-medium text-blue-800">Botellas pendientes:</span></div>
-                                      <select value={producto.cantidad_retornable} onChange={(e) => handleUpdateRetornables(index, parseInt(e.target.value) || 0)} className="px-3 py-1 border border-blue-300 rounded-lg text-sm bg-white shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                        {[...Array(producto.cantidad + 1)].map((_, i) => (<option key={i} value={i}>{i} {i === 1 ? 'botella' : 'botellas'}</option>))}
-                                      </select>
+                                      <div className="flex items-center gap-2">
+                                        <Milk size={16} className="text-blue-600" />
+                                        <span className="text-sm font-medium text-blue-800">Pendientes:</span>
+                                      </div>
+                                      <div className="flex items-center bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl overflow-hidden shadow-inner">
+                                        <button
+                                          onClick={() => handleUpdateRetornables(index, 'decrement')}
+                                          className="p-1 text-gray-600 hover:bg-gray-200 disabled:opacity-50 transition-colors active:scale-95"
+                                          disabled={producto.cantidad_retornable <= 0}
+                                        >
+                                          <Minus size={16} />
+                                        </button>
+                                        <span className="px-4  text-sm font-bold text-gray-800 min-w-[40px] text-center">
+                                          {producto.cantidad_retornable} 
+                                        </span>
+                                        <button
+                                          onClick={() => handleUpdateRetornables(index, 'increment')}
+                                          className="p-1 text-gray-600 hover:bg-gray-200 disabled:opacity-50 transition-colors active:scale-95"
+                                          disabled={producto.cantidad_retornable >= producto.cantidad}
+                                        >
+                                          <Plus size={16} />
+                                        </button>
+                                      </div>
                                     </div>
                                   </div>
                                 )}
