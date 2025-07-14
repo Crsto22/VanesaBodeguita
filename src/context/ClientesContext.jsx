@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../firebase/firebase';
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, getDoc, doc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 
 const ClientesContext = createContext();
@@ -73,13 +73,31 @@ export const ClientesProvider = ({ children }) => {
     return clientes.find(cliente => cliente.id === id);
   };
 
+  // Actualizar deuda del cliente
+  const sumarDeudaCliente = async (clienteId, monto) => {
+    try {
+      const clienteRef = doc(db, 'clientes', clienteId);
+      const clienteSnapshot = await getDoc(clienteRef);
+      if (!clienteSnapshot.exists()) {
+        throw new Error('Cliente no encontrado');
+      }
+      const currentDeuda = clienteSnapshot.data().deuda_total || 0;
+      const newDeuda = currentDeuda + parseFloat(monto.toFixed(2));
+      await updateDoc(clienteRef, { deuda_total: newDeuda });
+    } catch (error) {
+      console.error('Error al actualizar deuda del cliente:', error);
+      throw error;
+    }
+  };
+
   const value = {
     clientes,
     loading,
     crearCliente,
     actualizarCliente,
     eliminarCliente,
-    obtenerClientePorId
+    obtenerClientePorId,
+    sumarDeudaCliente
   };
 
   return (
@@ -88,3 +106,5 @@ export const ClientesProvider = ({ children }) => {
     </ClientesContext.Provider>
   );
 };
+
+export default ClientesProvider;

@@ -1,15 +1,13 @@
-import React, { useState } from 'react';
-// 1. IMPORTAMOS LIBRERÍAS PARA ANIMACIÓN Y EL ICONO DE ALERTA
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, DollarSign, AlertCircle, CheckCircle, CheckSquare, Square, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, User, DollarSign, AlertCircle, CheckCircle, CheckSquare, Square, AlertTriangle, ChevronDown } from 'lucide-react';
 import ClientesDrawer from './ClientesDrawer';
 import EstadoPagado from '../../assets/Ventas/EstadoPagado.svg';
 import EstadoParcial from '../../assets/Ventas/EstadoParcial.svg';
 import EstadoPendiente from '../../assets/Ventas/EstadoPendiente.svg';
-import LogoIzipay from "../../assets/LogoIzipay.png";
+import LogoIzipay from '../../assets/LogoIzipay.png';
 import { useClientes } from '../../context/ClientesContext';
 import { useVentas } from '../../context/VentasContext';
-
 
 const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, total, currentUser, clientesLoading, clienteSeleccionado, setClienteSeleccionado }) => {
   const { sumarDeudaCliente } = useClientes();
@@ -25,6 +23,14 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [acordeonAbierto, setAcordeonAbierto] = useState(false);
+
+  // Efecto para resetear el estado si se quita el cliente
+  useEffect(() => {
+    if (!clienteSeleccionado) {
+      setEstado('pagado');
+    }
+  }, [clienteSeleccionado]);
+
 
   const handleSelectCliente = (cliente) => {
     if (!cliente || !cliente.id) {
@@ -76,7 +82,7 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
     setIsProcessing(true);
 
     try {
-      await onConfirm({
+      const ventaData = {
         estado,
         montoPagado: estado === 'parcial' ? parseFloat(montoPagado) || 0 : estado === 'pagado' ? total : 0,
         historialPagos: estado === 'parcial' ? [{
@@ -86,7 +92,9 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
           notas: notas || ''
         }] : [],
         notas
-      });
+      };
+
+      await onConfirm(ventaData);
 
       if ((estado === 'parcial' || estado === 'pendiente') && clienteSeleccionado) {
         const deudaDeEstaVenta = estado === 'parcial'
@@ -117,31 +125,27 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
     onClose();
   };
 
-  // 2. CÁLCULOS PARA EL ACORDEÓN DE DEUDA
-  // Estas variables se calculan en cada render para que el acordeón siempre esté actualizado.
+  // Cálculos para el acordeón de deuda
   let deudaActual = 0;
   let deudaDeEstaVenta = 0;
   let deudaTotalProyectada = 0;
-  // La condición principal que decide si se muestra el acordeón.
   const mostrarAcordeonDeuda = clienteSeleccionado && (estado === 'parcial' || estado === 'pendiente');
 
   if (mostrarAcordeonDeuda) {
-      deudaActual = obtenerDeudaTotalPorCliente(clienteSeleccionado.id);
-
-      if (estado === 'parcial') {
-          const montoPagadoNum = parseFloat(montoPagado) || 0;
-          if (total > montoPagadoNum) {
-              deudaDeEstaVenta = total - montoPagadoNum;
-          }
-      } else { // estado === 'pendiente'
-          deudaDeEstaVenta = total;
+    deudaActual = obtenerDeudaTotalPorCliente(clienteSeleccionado.id) || 0;
+    if (estado === 'parcial') {
+      const montoPagadoNum = parseFloat(montoPagado) || 0;
+      if (total > montoPagadoNum) {
+        deudaDeEstaVenta = total - montoPagadoNum;
       }
-      deudaTotalProyectada = deudaActual + deudaDeEstaVenta;
+    } else {
+      deudaDeEstaVenta = total;
+    }
+    deudaTotalProyectada = deudaActual + deudaDeEstaVenta;
   }
 
   return (
     <>
-      {/* Loading/Success Overlay */}
       {(isProcessing || isSuccess) && (
         <div className="fixed inset-0 bg-white z-60 flex items-center justify-center p-4">
           <div className="relative bg-white w-full max-w-md mx-auto p-6 flex flex-col items-center justify-center transition-all duration-500 rounded-2xl shadow-2xl">
@@ -186,174 +190,197 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
         </div>
       )}
 
-      {/* Backdrop y Drawer principal */}
       {isOpen && <div className="fixed inset-0 bg-black/70 z-40" onClick={onClose} />}
       <div
-        className={`fixed overflow-auto bottom-0 left-0 right-0 bg-white z-50 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-y-0' : 'translate-y-full'
-          } rounded-t-3xl shadow-2xl`}
+        className={`fixed overflow-auto bottom-0 left-0 right-0 bg-white z-50 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
         style={{ maxHeight: '95vh' }}
       >
         <div className="flex flex-col h-full">
           <div className="p-4 border-b border-gray-200 sticky top-0 bg-white rounded-t-3xl z-10">
             <div className="mx-auto w-12 h-1.5 rounded-full bg-gray-300 mb-2"></div>
             <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-gray-800">Confirmar Venta</h2>
-                <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-all">
-                    <X className="h-5 w-5 text-gray-600" />
-                </button>
+              <h2 className="text-lg font-bold text-gray-800">Confirmar Venta</h2>
+              <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-all">
+                <X className="h-5 w-5 text-gray-600" />
+              </button>
             </div>
           </div>
-          
+
           <div className="flex-1 overflow-y-auto px-4 pb-4">
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
               <button
-                  className={`flex w-full items-center justify-start gap-3 p-2 rounded-xl ${clienteSeleccionado ? 'bg-amber-50 border-amber-300' : 'bg-gray-100 border-gray-200' } border shadow-sm transition-all`}
-                  onClick={() => setDrawerClientesOpen(true)}
-                  disabled={clientesLoading}
-                >
-                  <div className={`w-9 h-9 flex items-center justify-center rounded-full ${clienteSeleccionado ? 'bg-amber-400' : 'bg-gray-300'}`}>
-                    <User size={16} className="text-white" />
-                  </div>
-                  <span className="text-sm font-medium truncate flex-1 text-left">
-                    {clientesLoading ? 'Cargando...' : clienteSeleccionado ? clienteSeleccionado.nombre : 'Cliente Genérico'}
-                  </span>
-                  {clienteSeleccionado && (
-                    <button onClick={handleRemoveCliente} className="p-1 rounded-full hover:bg-amber-100 transition-colors" aria-label="Quitar cliente">
-                      <X size={14} className="text-amber-600" />
-                    </button>
-                  )}
+                className={`flex w-full items-center justify-start gap-3 p-2 rounded-xl ${clienteSeleccionado ? 'bg-amber-50 border-amber-300' : 'bg-gray-100 border-gray-200'} border shadow-sm transition-all`}
+                onClick={() => setDrawerClientesOpen(true)}
+                disabled={clientesLoading}
+              >
+                <div className={`w-9 h-9 flex items-center justify-center rounded-full ${clienteSeleccionado ? 'bg-amber-400' : 'bg-gray-300'}`}>
+                  <User size={16} className="text-white" />
+                </div>
+                <span className="text-sm font-medium truncate flex-1 text-left">
+                  {clientesLoading ? 'Cargando...' : clienteSeleccionado ? clienteSeleccionado.nombre : 'Cliente Genérico'}
+                </span>
+                {clienteSeleccionado && (
+                  <button onClick={handleRemoveCliente} className="p-1 rounded-full hover:bg-amber-100 transition-colors" aria-label="Quitar cliente">
+                    <X size={14} className="text-amber-600" />
+                  </button>
+                )}
               </button>
             </div>
-            
+
+            {/* ----- SECCIÓN MODIFICADA ----- */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Estado de Pago</label>
-              <div className="grid grid-cols-3 gap-2">
+              {/* La clase 'transition-all' en este div suaviza el cambio de columnas */}
+              <div className={`grid ${clienteSeleccionado ? 'grid-cols-3' : 'grid-cols-1'} gap-2 transition-all duration-300`}>
                 <button
-                  className={`p-2 rounded-xl flex flex-col items-center justify-center ${estado === 'pagado' ? 'bg-green-50 ring-2 ring-green-500 shadow-md' : 'bg-gray-100 ring-1 ring-gray-200' } transition-all`}
-                  onClick={() => setEstado('pagado')} >
+                  className={`p-2 rounded-xl flex flex-col items-center justify-center ${estado === 'pagado' ? 'bg-green-50 ring-2 ring-green-500 shadow-md' : 'bg-gray-100 ring-1 ring-gray-200'} transition-all`}
+                  onClick={() => setEstado('pagado')}
+                >
                   <img src={EstadoPagado} className="h-16 mb-1" alt="Pagado" />
                   <span className={`text-xs font-semibold ${estado === 'pagado' ? 'text-green-700' : 'text-gray-600'}`}>Pagado</span>
                 </button>
-                <button
-                  className={`p-2 rounded-xl flex flex-col items-center justify-center ${estado === 'parcial' ? 'bg-amber-50 ring-2 ring-amber-500 shadow-md' : 'bg-gray-100 ring-1 ring-gray-200' } transition-all`}
-                  onClick={() => setEstado('parcial')} >
-                  <img src={EstadoParcial} className="h-16 mb-1" alt="Parcial" />
-                  <span className={`text-xs font-semibold ${estado === 'parcial' ? 'text-amber-700' : 'text-gray-600'}`}>Parcial</span>
-                </button>
-                <button
-                  className={`p-2 rounded-xl flex flex-col items-center justify-center ${estado === 'pendiente' ? 'bg-red-50 ring-2 ring-red-500 shadow-md' : 'bg-gray-100 ring-1 ring-gray-200' } transition-all`}
-                  onClick={() => setEstado('pendiente')} >
-                  <img src={EstadoPendiente} className="h-16 mb-1" alt="Pendiente" />
-                  <span className={`text-xs font-semibold ${estado === 'pendiente' ? 'text-red-700' : 'text-gray-600'}`}>Pendiente</span>
-                </button>
+
+                {/* Los botones ahora se renderizan condicionalmente sin wrappers de animación */}
+                {clienteSeleccionado && (
+                  <>
+                    <button
+                      className={`p-2 rounded-xl flex flex-col items-center justify-center ${estado === 'parcial' ? 'bg-amber-50 ring-2 ring-amber-500 shadow-md' : 'bg-gray-100 ring-1 ring-gray-200'} transition-all`}
+                      onClick={() => setEstado('parcial')}
+                    >
+                      <img src={EstadoParcial} className="h-16 mb-1" alt="Parcial" />
+                      <span className={`text-xs font-semibold ${estado === 'parcial' ? 'text-amber-700' : 'text-gray-600'}`}>Parcial</span>
+                    </button>
+                    <button
+                      className={`p-2 rounded-xl flex flex-col items-center justify-center ${estado === 'pendiente' ? 'bg-red-50 ring-2 ring-red-500 shadow-md' : 'bg-gray-100 ring-1 ring-gray-200'} transition-all`}
+                      onClick={() => setEstado('pendiente')}
+                    >
+                      <img src={EstadoPendiente} className="h-16 mb-1" alt="Pendiente" />
+                      <span className={`text-xs font-semibold ${estado === 'pendiente' ? 'text-red-700' : 'text-gray-600'}`}>Pendiente</span>
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
-            {/* 3. ACORDEÓN MODERNO DE DEUDA */}
             <AnimatePresence>
-                {mostrarAcordeonDeuda && deudaDeEstaVenta > 0 && (
-                    <motion.div
-                        layout
-                        initial={{ opacity: 0, y: -20, height: 0 }}
-                        animate={{ opacity: 1, y: 0, height: 'auto' }}
-                        exit={{ opacity: 0, y: -20, height: 0 }}
-                        transition={{ duration: 0.3, ease: 'easeInOut' }}
-                        className="mb-4 overflow-hidden"
+              {mostrarAcordeonDeuda && deudaDeEstaVenta > 0 && (
+                <motion.div
+                  layout
+                  initial={{ opacity: 0, y: -20, height: 0 }}
+                  animate={{ opacity: 1, y: 0, height: 'auto' }}
+                  exit={{ opacity: 0, y: -20, height: 0 }}
+                  transition={{ duration: 0.3, ease: 'easeInOut' }}
+                  className="mb-4 overflow-hidden"
+                >
+                  <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-xl shadow-md overflow-hidden">
+                    <button
+                      onClick={() => setAcordeonAbierto(!acordeonAbierto)}
+                      className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-red-50/50 transition-all duration-200"
                     >
-                        <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-xl shadow-md overflow-hidden">
-                            {/* Header del acordeón */}
-                            <button
-                                onClick={() => setAcordeonAbierto(!acordeonAbierto)}
-                                className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-red-50/50 transition-all duration-200"
-                            >
-                                <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-                                        <AlertTriangle size={12} className="text-white" />
-                                    </div>
-                                    <div className="text-left">
-                                        <h4 className="font-bold text-red-800 text-xs">NUEVO SALDO DEUDOR</h4>
-                                        <p className="text-red-600 text-xs opacity-80">Cliente: {clienteSeleccionado?.nombre}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm font-bold text-red-600">
-                                        S/ {deudaTotalProyectada.toFixed(2)}
-                                    </span>
-                                    <motion.div
-                                        animate={{ rotate: acordeonAbierto ? 180 : 0 }}
-                                        transition={{ duration: 0.2 }}
-                                    >
-                                        <ChevronDown size={16} className="text-red-500" />
-                                    </motion.div>
-                                </div>
-                            </button>
-
-                            {/* Contenido del acordeón */}
-                            <AnimatePresence>
-                                {acordeonAbierto && (
-                                    <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: 'auto', opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        transition={{ duration: 0.3, ease: 'easeInOut' }}
-                                        className="overflow-hidden"
-                                    >
-                                        <div className="px-3 pb-3 bg-white/50 border-t border-red-200/50">
-                                            <div className="pt-2 space-y-1.5">
-                                                <div className="flex items-center justify-between py-1.5 border-b border-red-100">
-                                                    <span className="text-xs text-gray-700 flex items-center gap-1.5">
-                                                        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
-                                                        Deuda anterior del cliente
-                                                    </span>
-                                                    <span className="text-xs font-medium text-gray-800">
-                                                        S/ {deudaActual.toFixed(2)}
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center justify-between py-1.5 border-b border-red-100">
-                                                    <span className="text-xs text-orange-700 flex items-center gap-1.5 font-medium">
-                                                        <div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>
-                                                        Deuda de esta venta
-                                                    </span>
-                                                    <span className="text-xs font-bold text-orange-700">
-                                                        + S/ {deudaDeEstaVenta.toFixed(2)}
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center justify-between pt-1.5 bg-red-50 rounded-lg px-2 py-1.5 border border-red-200">
-                                                    <span className="text-xs font-bold text-red-800 flex items-center gap-1.5">
-                                                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                                                        TOTAL DEUDA
-                                                    </span>
-                                                    <span className="text-sm font-bold text-red-600">
-                                                        S/ {deudaTotalProyectada.toFixed(2)}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                          <AlertTriangle size={12} className="text-white" />
                         </div>
-                    </motion.div>
-                )}
+                        <div className="text-left">
+                          <h4 className="font-bold text-red-800 text-xs">NUEVO SALDO DEUDOR</h4>
+                          <p className="text-red-600 text-xs opacity-80">Cliente: {clienteSeleccionado?.nombre}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-red-600">
+                          S/ {deudaTotalProyectada.toFixed(2)}
+                        </span>
+                        <motion.div
+                          animate={{ rotate: acordeonAbierto ? 180 : 0 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <ChevronDown size={16} className="text-red-500" />
+                        </motion.div>
+                      </div>
+                    </button>
+                    <AnimatePresence>
+                      {acordeonAbierto && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.3, ease: 'easeInOut' }}
+                          className="overflow-hidden"
+                        >
+                          <div className="px-3 pb-3 bg-white/50 border-t border-red-200/50">
+                            <div className="pt-2 space-y-1.5">
+                              <div className="flex items-center justify-between py-1.5 border-b border-red-100">
+                                <span className="text-xs text-gray-700 flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
+                                  Deuda anterior del cliente
+                                </span>
+                                <span className="text-xs font-medium text-gray-800">
+                                  S/ {deudaActual.toFixed(2)}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between py-1.5 border-b border-red-100">
+                                <span className="text-xs text-orange-700 flex items-center gap-1.5 font-medium">
+                                  <div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>
+                                  Deuda de esta venta
+                                </span>
+                                <span className="text-xs font-bold text-orange-700">
+                                  + S/ {deudaDeEstaVenta.toFixed(2)}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between pt-1.5 bg-red-50 rounded-lg px-2 py-1.5 border border-red-200">
+                                <span className="text-xs font-bold text-red-800 flex items-center gap-1.5">
+                                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                  TOTAL DEUDA
+                                </span>
+                                <span className="text-sm font-bold text-red-600">
+                                  S/ {deudaTotalProyectada.toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </motion.div>
+              )}
             </AnimatePresence>
-            
+
             {estado === 'parcial' && (
               <div className="mb-4 bg-gray-50 p-3 rounded-lg border border-gray-200">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Monto Pagado</label>
                 <div className="relative">
                   <DollarSign size={14} className="text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input type="number" min="0" step="0.01" value={montoPagado} onChange={(e) => setMontoPagado(e.target.value)} className="block w-full pl-8 pr-2 py-2 border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent" placeholder="0.00" />
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={montoPagado}
+                    onChange={(e) => setMontoPagado(e.target.value)}
+                    className="block w-full pl-8 pr-2 py-2 border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    placeholder="0.00"
+                  />
                 </div>
               </div>
             )}
-            
+
             {estado === 'pagado' && (
               <div className="mb-4 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Monto Recibido <span className="text-xs text-gray-500">(opcional)</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Monto Recibido <span className="text-xs text-gray-500">(opcional)</span>
+                </label>
                 <div className="relative">
                   <span className="text-gray-500 absolute left-3 top-1/2 -translate-y-1/2 text-sm">S/</span>
-                  <input type="number" min="0" step="0.01" value={montoRecibido} onChange={(e) => setMontoRecibido(e.target.value)} className="block w-full pl-8 pr-2 py-2 border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="0.00" />
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={montoRecibido}
+                    onChange={(e) => setMontoRecibido(e.target.value)}
+                    className="block w-full pl-8 pr-2 py-2 border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="0.00"
+                  />
                 </div>
                 <p className="mt-2 text-sm font-medium flex justify-between">
                   <span className="text-gray-600">Vuelto:</span>
@@ -368,20 +395,26 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
                 <span className="text-sm font-medium text-gray-700">Agregar Notas</span>
               </button>
             </div>
-            
+
             {showNotas && (
               <div className="mb-4">
-                <textarea value={notas} onChange={(e) => setNotas(e.target.value)} className="block w-full p-2 border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="Agregar notas sobre la venta..." rows="3" />
+                <textarea
+                  value={notas}
+                  onChange={(e) => setNotas(e.target.value)}
+                  className="block w-full p-2 border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  placeholder="Agregar notas sobre la venta..."
+                  rows="3"
+                />
               </div>
             )}
-            
+
             {error && (
               <div className="mb-3 p-3 bg-red-100 border border-red-300 text-red-800 rounded-lg text-sm flex items-start gap-2">
                 <AlertCircle size={16} className="text-red-600 mt-0.5 flex-shrink-0" />
                 <span>{error}</span>
               </div>
             )}
-            
+
             <div className="flex items-center mb-4">
               <div className="bg-green-50 rounded-xl p-3 shadow-sm flex-grow">
                 <p className="text-lg font-bold text-green-700 text-center">
@@ -397,9 +430,8 @@ const ConfirmarVentaDrawer = ({ isOpen, onClose, onConfirm, onViewNotaVenta, tot
                 <img src={LogoIzipay} alt="Pagar con Izipay" className="w-12 h-12 object-contain rounded-lg hover:opacity-80 transition-opacity cursor-pointer" />
               </a>
             </div>
-
           </div>
-          
+
           <div className="px-4 pb-4 pt-2 bg-white border-t border-gray-200">
             <button
               onClick={handleConfirm}

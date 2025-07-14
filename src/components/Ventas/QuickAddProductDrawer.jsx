@@ -31,6 +31,10 @@ const QuickAddProductDrawer = ({ isOpen, onClose, onQuickAdd }) => {
     onClose();
   };
 
+  const handleNombreChange = (e) => {
+    setNombre(e.target.value.toUpperCase());
+  };
+
   return (
     <>
       {isOpen && (
@@ -70,8 +74,8 @@ const QuickAddProductDrawer = ({ isOpen, onClose, onQuickAdd }) => {
                   id="product-name"
                   type="text"
                   value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
-                  placeholder="Ej: Gaseosa de 3L"
+                  onChange={handleNombreChange}
+                  placeholder="EJ: GASEOSA DE 3L"
                   className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                   required
                 />

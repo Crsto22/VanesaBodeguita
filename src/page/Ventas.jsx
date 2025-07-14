@@ -47,7 +47,6 @@ const Ventas = () => {
   const barcodeValueRef = useRef(barcodeInput);
   barcodeValueRef.current = barcodeInput;
 
-
   const quickAccessOptions = [
     { id: 'ventas', title: 'Ventas', icon: <ShoppingCart className="h-6 w-6" />, color: 'bg-emerald-500', description: 'Registrar ventas y ver historial', path: '/ventas' },
     { id: 'deudas', title: 'Pagar Deudas', icon: <CreditCard className="h-6 w-6" />, color: 'bg-amber-500', description: 'Gestionar pagos pendientes', path: '/deudas' },
@@ -193,7 +192,6 @@ const Ventas = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [obtenerProductoPorCodigoBarrasDirecto, drawerEscanearOpen, drawerClientesOpen, drawerProductosOpen, drawerConfirmarOpen, drawerEditarPrecioOpen, priceModalOpen]);
 
-
   // Refocus input when price modal closes
   useEffect(() => {
     if (!priceModalOpen) {
@@ -244,34 +242,62 @@ const Ventas = () => {
       );
 
       if (existingProductIndex !== -1) {
-        // Si el producto ya existe, crea un nuevo arreglo usando .map() para actualizarlo de forma inmutable
         return prev.map((p, index) => {
           if (index === existingProductIndex) {
-            // Este es el producto a actualizar. Incrementa su cantidad en 1.
             const newQuantity = p.cantidad + 1;
             return {
               ...p,
               cantidad: newQuantity,
               subtotal: (newQuantity * p.precio_unitario).toFixed(2),
               cantidad_retornable:
-                p.retornable && p.tipo_unidad !== "kilogramo"
+                p.retornable && p.tipo_unidad !== 'kilogramo'
                   ? p.cantidad_retornable + 1
                   : p.cantidad_retornable,
             };
           }
-          // Para los demás productos, devuélvelos sin cambios.
           return p;
         });
       } else {
-        // Si es un producto nuevo, simplemente agrégalo al arreglo.
         return [...prev, producto];
       }
     });
 
     setPriceModalOpen(false);
     setSelectedProduct(null);
-    showToast("Producto añadido con éxito", "success");
+    showToast('Producto añadido con éxito', 'success');
     barcodeInputRef.current?.focus({ preventScroll: true });
+  };
+
+  const handleQuickAddProducto = async (nombre, precio) => {
+    try {
+      // Validar entrada
+      if (!nombre || !precio || isNaN(precio) || parseFloat(precio) <= 0) {
+        showToast('Nombre o precio inválido', 'error');
+        return;
+      }
+
+      // Crear producto temporal sin guardar en la base de datos
+      const producto = {
+        id: `temp_${Date.now().toString()}`, // Use 'temp_' prefix to clearly mark quick-added products
+        nombre,
+        cantidad: 1,
+        precio_unitario: parseFloat(precio),
+        subtotal: parseFloat(precio).toFixed(2),
+        retornable: false,
+        cantidad_retornable: 0,
+        tipo_unidad: 'unidad',
+        precio_referencia: null,
+        imagen: null,
+      };
+
+      // Añadir el producto a la lista de productos seleccionados
+      setSelectedProductos((prev) => [...prev, producto]);
+      showToast('Producto rápido añadido con éxito', 'success');
+      barcodeInputRef.current?.focus({ preventScroll: true });
+    } catch (error) {
+      console.error('Error al añadir producto rápido:', error);
+      showToast('Error al añadir producto rápido', 'error');
+    }
   };
 
   const handleRemoveProducto = (index) => {
@@ -286,11 +312,11 @@ const Ventas = () => {
       prev.map((p, i) =>
         i === index
           ? {
-            ...p,
-            cantidad: nuevaCantidad,
-            subtotal: (nuevaCantidad * p.precio_unitario).toFixed(2),
-            cantidad_retornable: p.retornable && p.tipo_unidad !== 'kilogramo' ? nuevaCantidad : 0,
-          }
+              ...p,
+              cantidad: nuevaCantidad,
+              subtotal: (nuevaCantidad * p.precio_unitario).toFixed(2),
+              cantidad_retornable: p.retornable && p.tipo_unidad !== 'kilogramo' ? nuevaCantidad : 0,
+            }
           : p
       )
     );
@@ -307,10 +333,10 @@ const Ventas = () => {
       prev.map((p, i) =>
         i === index
           ? {
-            ...p,
-            precio_unitario: precio,
-            subtotal: (p.cantidad * precio).toFixed(2),
-          }
+              ...p,
+              precio_unitario: precio,
+              subtotal: (p.cantidad * precio).toFixed(2),
+            }
           : p
       )
     );
@@ -324,10 +350,10 @@ const Ventas = () => {
       prev.map((p, i) =>
         i === index && p.tipo_unidad === 'kilogramo'
           ? {
-            ...p,
-            precio_unitario: parseFloat((p.precio_referencia * fraction).toFixed(2)),
-            subtotal: parseFloat((p.cantidad * p.precio_referencia * fraction).toFixed(2)),
-          }
+              ...p,
+              precio_unitario: parseFloat((p.precio_referencia * fraction).toFixed(2)),
+              subtotal: parseFloat((p.cantidad * p.precio_referencia * fraction).toFixed(2)),
+            }
           : p
       )
     );
@@ -370,7 +396,7 @@ const Ventas = () => {
         cliente_ref: clienteSeleccionado ? clienteSeleccionado.id : null,
         nombre_cliente: clienteSeleccionado ? clienteSeleccionado.nombre : 'Cliente Genérico',
         productos: selectedProductos.map((p) => ({
-          producto_ref: p.id,
+          producto_ref: p.id && !p.id.startsWith('temp_') ? p.id : null, // Ensure quick-added products have producto_ref: null
           nombre: p.nombre,
           cantidad: p.cantidad,
           precio_unitario: parseFloat(p.precio_unitario),
@@ -610,7 +636,7 @@ const Ventas = () => {
                                 <h4 className="text-sm font-bold text-gray-900 leading-tight pr-2">{producto.nombre}</h4>
                                 <button onClick={() => handleRemoveProducto(index)} className="p-2 rounded-full bg-red-50 hover:bg-red-100 transition-colors flex-shrink-0 group" aria-label="Quitar producto"><Trash2 size={16} strokeWidth={2.75} className="text-red-500 group-hover:text-red-700 transition-colors" /></button>
                               </div>
-                              {producto.tipo_unidad === 'kilogramo' && (<p className="text-xs text-gray-500 mb-3 bg-gray-50 px-2 py-1 rounded-lg inline-block">S/{producto.precio_referencia.toFixed(2)} por kg</p>)}
+                              {producto.tipo_unidad === 'kilogramo' && (<p className="text-xs text-gray-500 mb-3 bg-gray-50 px-2 py-1 rounded-lg inline-block">S/{producto.precio_referencia?.toFixed(2) || 'N/A'} por kg</p>)}
                               <div className="space-y-3">
                                 {producto.tipo_unidad === 'kilogramo' ? (
                                   <>
@@ -680,12 +706,40 @@ const Ventas = () => {
       </main>
 
       <ClientesDrawer isOpen={drawerClientesOpen} onClose={() => setDrawerClientesOpen(false)} onSelectCliente={handleSelectCliente} />
-      <ProductosDrawer isOpen={drawerProductosOpen} onClose={() => setDrawerProductosOpen(false)} onSelectProducto={handleSelectProducto} />
-      <ConfirmarVentaDrawer isOpen={drawerConfirmarOpen} onClose={() => setDrawerConfirmarOpen(false)} onConfirm={handleConfirmarVenta} onViewNotaVenta={handleViewNotaVenta} clienteSeleccionado={clienteSeleccionado} setClienteSeleccionado={setClienteSeleccionado} total={calcularTotal()} currentUser={currentUser} clientesLoading={clientesLoading} />
+      <ProductosDrawer
+        isOpen={drawerProductosOpen}
+        onClose={() => setDrawerProductosOpen(false)}
+        onSelectProducto={handleSelectProducto}
+        onQuickAddProducto={handleQuickAddProducto}
+      />
+      <ConfirmarVentaDrawer
+        isOpen={drawerConfirmarOpen}
+        onClose={() => setDrawerConfirmarOpen(false)}
+        onConfirm={handleConfirmarVenta}
+        onViewNotaVenta={handleViewNotaVenta}
+        clienteSeleccionado={clienteSeleccionado}
+        setClienteSeleccionado={setClienteSeleccionado}
+        total={calcularTotal()}
+        currentUser={currentUser}
+        clientesLoading={clientesLoading}
+      />
       {productoEditIndex !== null && (
-        <EditarPrecioDrawer isOpen={drawerEditarPrecioOpen} onClose={() => { setDrawerEditarPrecioOpen(false); setProductoEditIndex(null); }} producto={selectedProductos[productoEditIndex]} onConfirm={(nuevoPrecio) => handleUpdatePrecio(productoEditIndex, nuevoPrecio)} />
+        <EditarPrecioDrawer
+          isOpen={drawerEditarPrecioOpen}
+          onClose={() => {
+            setDrawerEditarPrecioOpen(false);
+            setProductoEditIndex(null);
+          }}
+          producto={selectedProductos[productoEditIndex]}
+          onConfirm={(nuevoPrecio) => handleUpdatePrecio(productoEditIndex, nuevoPrecio)}
+        />
       )}
-      <EscanearProductoDrawer isOpen={drawerEscanearOpen} onClose={() => setDrawerEscanearOpen(false)} onSelectProducto={handleSelectProducto} setError={setToast} />
+      <EscanearProductoDrawer
+        isOpen={drawerEscanearOpen}
+        onClose={() => setDrawerEscanearOpen(false)}
+        onSelectProducto={handleSelectProducto}
+        setError={setToast}
+      />
 
       <style jsx global>{`
         .animate-in { animation: animateIn 0.3s ease-in-out; }

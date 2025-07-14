@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, Package, Plus, ShoppingCart, Barcode, Search, ChevronLeft, ChevronRight, Loader2, Tag } from 'lucide-react';
+import { X, Package, Plus, ShoppingCart, Barcode, Search, ChevronLeft, ChevronRight, Loader2, Tag, PlusCircle } from 'lucide-react';
 import { useProducts } from '../../context/ProductContext';
 import DrawerEditarAñadirProducto from '../Productos/DrawerEditarAñadir';
+import QuickAddProductDrawer from './QuickAddProductDrawer';
 
-const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
+const ProductosDrawer = ({ isOpen, onClose, onSelectProducto, onQuickAddProducto }) => {
   const {
     productos,
     categorias,
@@ -25,6 +26,7 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [localSearchQuery, setLocalSearchQuery] = useState('');
   const [showProductDrawer, setShowProductDrawer] = useState(false);
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
 
   // Colores personalizados
   const COLORS = {
@@ -58,7 +60,7 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
     setImageModalOpen(true);
   };
 
-  // Handle add product click - LIMPIAR BÚSQUEDA Y CERRAR DRAWER
+  // Handle add product click
   const handleAddClick = (producto) => {
     if (producto.has_precio_alternativo && producto.precio_alternativo) {
       setSelectedProduct(producto);
@@ -77,11 +79,11 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
         imagen: producto.imagen || null,
       });
       clearSearch();
-      onClose(); // CERRAR EL DRAWER DESPUÉS DE SELECCIONAR EL PRODUCTO
+      onClose();
     }
   };
 
-  // Handle price selection - LIMPIAR BÚSQUEDA Y CERRAR DRAWER
+  // Handle price selection
   const handleSelectPrecio = (precio) => {
     if (!selectedProduct) return;
     onSelectProducto({
@@ -99,12 +101,18 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
     setPriceModalOpen(false);
     setSelectedProduct(null);
     clearSearch();
-    onClose(); // CERRAR EL DRAWER DESPUÉS DE SELECCIONAR EL PRECIO
+    onClose();
   };
 
   // Handle add new product
   const handleAddProduct = () => {
     setShowProductDrawer(true);
+  };
+
+  // Handle quick add product
+  const handleQuickAdd = (nombre, precio) => {
+    onQuickAddProducto(nombre, precio);
+    onClose();
   };
 
   // Handle save product
@@ -113,7 +121,7 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
       await crearProducto(productoData, imagenFile);
       setShowProductDrawer(false);
       await recargarProductos();
-      onClose(); // CERRAR EL DRAWER DESPUÉS DE CREAR EL PRODUCTO
+      onClose();
     } catch (error) {
       console.error('Error al crear producto:', error);
       throw error;
@@ -202,7 +210,7 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
                   onClick={() => {
                     handleAddClick(selectedProduct);
                     setImageModalOpen(false);
-                    onClose(); // CERRAR EL DRAWER DESPUÉS DE AGREGAR DESDE EL MODAL
+                    onClose();
                   }}
                   className="w-full py-3 bg-gradient-to-r from-[#ffa40c] to-[#ff8c00] hover:from-[#ff8c00] hover:to-[#ff7400] text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95"
                 >
@@ -218,23 +226,19 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
       {/* Price Selection Modal */}
       {priceModalOpen && selectedProduct && (
         <>
+          {/* ----- CORRECCIÓN AQUÍ: Se eliminó la llamada a onClose ----- */}
           <div
             className="fixed inset-0 bg-black/70 backdrop-blur-md z-[90] transition-opacity duration-300"
-            onClick={() => {
-              setPriceModalOpen(false);
-              onClose(); // CERRAR EL DRAWER AL CERRAR EL MODAL DE PRECIOS
-            }}
+            onClick={() => setPriceModalOpen(false)}
           />
           <div className="fixed inset-0 flex items-center justify-center z-[95] p-3">
             <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full mx-auto overflow-hidden">
               <div className="p-4">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-bold text-gray-900">Selecciona el precio</h3>
+                  {/* ----- CORRECCIÓN AQUÍ: Se eliminó la llamada a onClose ----- */}
                   <button
-                    onClick={() => {
-                      setPriceModalOpen(false);
-                      onClose(); // CERRAR EL DRAWER AL CERRAR EL MODAL DE PRECIOS
-                    }}
+                    onClick={() => setPriceModalOpen(false)}
                     className="p-2 rounded-full hover:bg-gray-100 transition-colors"
                   >
                     <X className="h-4 w-4 text-gray-500" />
@@ -332,7 +336,7 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
           </button>
         </div>
 
-        {/* Search Bar and Add Product Button */}
+        {/* Search Bar and Add Product Buttons */}
         <div className="p-4 bg-white border-b border-gray-200">
           <div className="relative mb-3">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -346,9 +350,10 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
               className="block w-full pl-10 pr-10 py-3 border-2 rounded-xl focus:ring-4 text-sm bg-gray-50 focus:bg-white transition-all duration-200 uppercase placeholder:normal-case placeholder:text-gray-400"
               style={{
                 borderColor: COLORS.primary,
-                focusBorderColor: COLORS.primary,
-                focusRingColor: `${COLORS.primary}20`,
+                '--focus-ring-color': `${COLORS.primary}20`,
               }}
+              onFocus={(e) => e.target.style.borderColor = COLORS.primary}
+              onBlur={(e) => e.target.style.borderColor = COLORS.primary}
             />
             {localSearchQuery && (
               <button
@@ -360,13 +365,22 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
             )}
           </div>
           
-          <button
-            onClick={handleAddProduct}
-            className="py-2.5 px-4 bg-gradient-to-r from-[#ffa40c] to-[#ff8c00] hover:from-[#ff8c00] hover:to-[#ff7400] text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95 text-sm"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Crear Producto</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleAddProduct}
+              className="flex-1 py-2.5 px-4 bg-gradient-to-r from-[#ffa40c] to-[#ff8c00] hover:from-[#ff8c00] hover:to-[#ff7400] text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95 text-sm"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Crear Producto</span>
+            </button>
+            <button
+              onClick={() => setIsQuickAddOpen(true)}
+              className="flex-1 py-2.5 px-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95 text-sm"
+            >
+              <PlusCircle className="h-4 w-4" />
+              <span>Producto Rápido</span>
+            </button>
+          </div>
         </div>
 
         {/* Main Content */}
@@ -427,7 +441,7 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
                 <button
                   onClick={clearSearch}
                   className="px-5 py-2.5 text-white rounded-xl font-medium transition-colors text-sm"
-                  style={{ backgroundColor: COLORS.primary, hoverBackgroundColor: '#3a7a30' }}
+                  style={{ backgroundColor: COLORS.primary }}
                 >
                   Limpiar búsqueda
                 </button>
@@ -435,7 +449,7 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
                 <button
                   onClick={handleAddProduct}
                   className="px-5 py-2.5 text-white rounded-xl font-medium transition-all flex items-center gap-2 text-sm"
-                  style={{ backgroundColor: COLORS.secondary, hoverBackgroundColor: '#ff8c00' }}
+                  style={{ backgroundColor: COLORS.secondary }}
                 >
                   <Plus className="h-4 w-4" />
                   Agregar primer producto
@@ -448,11 +462,15 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
                 {productos.map((producto) => (
                   <div
                     key={producto.id}
-                    className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden border border-gray-100"
+                    onClick={() => handleAddClick(producto)}
+                    className="bg-white rounded-xl shadow-sm hover:shadow-lg hover:border-gray-200 active:scale-[0.98] transition-all duration-200 overflow-hidden border border-gray-100 cursor-pointer"
                   >
                     <div className="flex items-center p-3">
                       <button
-                        onClick={() => handleImageClick(producto)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleImageClick(producto);
+                        }}
                         className="flex-shrink-0 h-12 w-12 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center overflow-hidden border border-gray-200 hover:scale-105 transition-transform"
                       >
                         {producto.imagen ? (
@@ -513,15 +531,7 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
                             </p>
                           )}
                         </div>
-                        
-                        <button
-                          onClick={() => handleAddClick(producto)}
-                          className="p-2.5 rounded-xl text-white transition-all duration-200 shadow-md hover:shadow-lg active:scale-95"
-                          style={{ backgroundColor: COLORS.primary, hoverBackgroundColor: '#3a7a30' }}
-                          aria-label="Agregar producto"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                        </button>
+                        {/* El botón de Plus ha sido removido */}
                       </div>
                     </div>
                   </div>
@@ -622,6 +632,13 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
           onSubmit={handleSaveProduct}
           colors={COLORS}
           categorias={categorias}
+        />
+
+        {/* Quick Add Product Drawer */}
+        <QuickAddProductDrawer
+          isOpen={isQuickAddOpen}
+          onClose={() => setIsQuickAddOpen(false)}
+          onQuickAdd={handleQuickAdd}
         />
       </div>
     </>

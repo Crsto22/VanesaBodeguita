@@ -81,28 +81,31 @@ export const VentasProvider = ({ children }) => {
       let total = 0;
       let totalRetornables = 0;
       const productosProcesados = await Promise.all(ventaData.productos.map(async (item) => {
-        const producto = await obtenerProductoPorIdDirecto(item.producto_ref);
-        if (!producto) throw new Error(`Producto ${item.producto_ref} no encontrado`);
-        if (item.cantidad <= 0) throw new Error(`Cantidad inválida para ${producto.nombre}`);
-        if (item.cantidad_retornable > item.cantidad) throw new Error(`Cantidad retornable inválida para ${producto.nombre}`);
-        if (item.precio_unitario <= 0) throw new Error(`Precio unitario inválido para ${producto.nombre}`);
+        let producto = null;
+        if (item.producto_ref) {
+          producto = await obtenerProductoPorIdDirecto(item.producto_ref);
+          if (!producto) throw new Error(`Producto ${item.producto_ref} no encontrado`);
+        }
+        if (item.cantidad <= 0) throw new Error(`Cantidad inválida para ${item.nombre}`);
+        if (item.cantidad_retornable > item.cantidad) throw new Error(`Cantidad retornable inválida para ${item.nombre}`);
+        if (item.precio_unitario <= 0) throw new Error(`Precio unitario inválido para ${item.nombre}`);
         
         const subtotalCalculado = formatToTwoDecimals(item.cantidad * item.precio_unitario);
         if (Math.abs(item.subtotal - subtotalCalculado) > 0.01) {
-          throw new Error(`Subtotal inválido para ${producto.nombre}`);
+          throw new Error(`Subtotal inválido para ${item.nombre}`);
         }
 
-        const cantidadRetornable = producto.retornable ? item.cantidad_retornable || 0 : 0;
+        const cantidadRetornable = item.retornable ? item.cantidad_retornable || 0 : 0;
         total += subtotalCalculado;
         totalRetornables += cantidadRetornable;
 
         return {
-          producto_ref: item.producto_ref,
-          nombre: producto.nombre,
+          producto_ref: item.producto_ref || null,
+          nombre: item.nombre,
           cantidad: item.cantidad,
           precio_unitario: formatToTwoDecimals(item.precio_unitario),
           subtotal: formatToTwoDecimals(subtotalCalculado),
-          retornable: producto.retornable,
+          retornable: item.retornable || false,
           cantidad_retornable: cantidadRetornable,
         };
       }));
@@ -280,13 +283,6 @@ export const VentasProvider = ({ children }) => {
       if (cantidadDevuelta > venta.total_retornables) {
         throw new Error(`No se pueden devolver ${cantidadDevuelta} retornables, solo adeuda ${venta.total_retornables}`);
       }
-
-      const devolucion = {
-        cantidad_devuelta: cantidadDevuelta,
-        fecha: new Date().toISOString(),
-        cajero_ref: currentUser.uid,
-        notas: notas || '',
-      };
 
       await runTransaction(db, async (transaction) => {
         transaction.update(ventaRef, {
