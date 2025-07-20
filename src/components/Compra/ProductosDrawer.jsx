@@ -47,7 +47,7 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
 
     const timerId = setTimeout(() => {
       buscarProductos(localSearchTerm);
-    }, 300);
+    }, 900);
 
     return () => clearTimeout(timerId);
   }, [localSearchTerm, buscarProductos]);

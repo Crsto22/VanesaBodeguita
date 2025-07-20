@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShoppingCart, Trash2, Truck, History, Barcode, Package, User, PlusCircle, ScanBarcode, X, CheckCircle, Settings } from 'lucide-react';
@@ -34,8 +33,10 @@ const Compras = () => {
   const [drawerEscanearOpen, setDrawerEscanearOpen] = useState(false);
   const [selectedProductos, setSelectedProductos] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [productoAEditar, setProductoAEditar] = useState(null);
+  const [editIndex, setEditIndex] = useState(null);
   const [barcodeInput, setBarcodeInput] = useState('');
-  const [loading, setLoading] = useState(false); // Nuevo estado para el spinner
+  const [loading, setLoading] = useState(false);
   const barcodeInputRef = useRef(null);
   const isProcessingRef = useRef(false);
 
@@ -62,7 +63,6 @@ const Compras = () => {
   useEffect(() => {
     const handleGlobalClick = () => {
       if (!drawerProveedoresOpen && !drawerProductosOpen && !drawerDetallesOpen && !drawerEscanearOpen && barcodeInputRef.current) {
-        console.log('Reenfocando input después de clic global');
         barcodeInputRef.current.focus();
       }
     };
@@ -118,7 +118,6 @@ const Compras = () => {
   useEffect(() => {
     const handleKeyDown = async (e) => {
       if (e.key === 'Enter' && barcodeInput && !isProcessingRef.current && !drawerProveedoresOpen && !drawerProductosOpen && !drawerDetallesOpen && !drawerEscanearOpen) {
-        console.log('Código escaneado:', barcodeInput);
         isProcessingRef.current = true;
         try {
           if (!/^\d+$/.test(barcodeInput)) {
@@ -131,6 +130,8 @@ const Compras = () => {
           const producto = await obtenerProductoPorCodigoBarrasDirecto(barcodeInput);
           if (producto) {
             setSelectedProduct(producto);
+            setProductoAEditar(null);
+            setEditIndex(null);
             setDrawerDetallesOpen(true);
           } else {
             showToast('Producto no encontrado', 'error');
@@ -150,7 +151,6 @@ const Compras = () => {
 
   useEffect(() => {
     if (!drawerProveedoresOpen && !drawerProductosOpen && !drawerDetallesOpen && !drawerEscanearOpen) {
-      console.log('Reenfocando input después de cerrar drawers');
       barcodeInputRef.current?.focus();
     }
   }, [drawerProveedoresOpen, drawerProductosOpen, drawerDetallesOpen, drawerEscanearOpen]);
@@ -215,7 +215,35 @@ const Compras = () => {
     setDrawerDetallesOpen(false);
     setDrawerEscanearOpen(false);
     setSelectedProduct(null);
+    setProductoAEditar(null);
+    setEditIndex(null);
     showToast(`Producto ${producto.nombre} añadido con éxito`, 'success');
+    barcodeInputRef.current?.focus();
+  };
+
+  const handleUpdateProducto = (producto, index) => {
+    if (!producto?.id || !producto.nombre) {
+      showToast('Producto inválido seleccionado', 'error');
+      return;
+    }
+    setSelectedProductos((prev) => {
+      const updatedProductos = [...prev];
+      updatedProductos[index] = {
+        ...updatedProductos[index],
+        cantidad: producto.cantidad,
+        precioCompra: producto.precioCompra,
+        precio_venta: producto.precio_venta,
+        precio_alternativo: producto.has_precio_alternativo ? producto.precio_alternativo : null,
+        motivo_precio_alternativo: producto.has_precio_alternativo ? producto.motivo_precio_alternativo : null,
+        has_precio_alternativo: !!producto.has_precio_alternativo,
+        subtotal: (producto.cantidad * producto.precioCompra).toFixed(2),
+      };
+      return updatedProductos;
+    });
+    setDrawerDetallesOpen(false);
+    setProductoAEditar(null);
+    setEditIndex(null);
+    showToast(`Producto ${producto.nombre} actualizado con éxito`, 'success');
     barcodeInputRef.current?.focus();
   };
 
@@ -226,8 +254,10 @@ const Compras = () => {
   };
 
   const handleOpenEditarCantidad = (index) => {
-    showToast('Función de edición de cantidad en desarrollo', 'info');
-    barcodeInputRef.current?.focus();
+    const producto = selectedProductos[index];
+    setProductoAEditar(producto);
+    setEditIndex(index);
+    setDrawerDetallesOpen(true);
   };
 
   const handleConfirmarCompra = async () => {
@@ -239,7 +269,7 @@ const Compras = () => {
       showToast('Debes añadir al menos un producto', 'error');
       return;
     }
-    setLoading(true); // Activar el spinner
+    setLoading(true);
     try {
       const compraData = {
         proveedor_ref: proveedorSeleccionado.id,
@@ -263,7 +293,7 @@ const Compras = () => {
     } catch (error) {
       showToast(`Error al registrar compra: ${error.message}`, 'error');
     } finally {
-      setLoading(false); // Desactivar el spinner
+      setLoading(false);
     }
   };
 
@@ -436,7 +466,7 @@ const Compras = () => {
                         className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100/50"
                       >
                         <div className="flex items-center gap-4">
-                          <div className="flex-shrink-0 h-16 w-16 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden shadow-inner">
+                          <div className="flex-shrink-0 h-16 w-16 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shadow-inner">
                             {producto.imagen ? (
                               <img src={producto.imagen} alt={producto.nombre} className="object-cover w-full h-full rounded-2xl" />
                             ) : (
@@ -456,6 +486,13 @@ const Compras = () => {
                                 <Trash2 size={16} strokeWidth={2.75} className="text-red-500 group-hover:text-red-700 transition-colors" />
                               </button>
                             </div>
+                            <p className="text-xs text-gray-500 mb-2">
+                              {producto.tipo_unidad === 'kilogramo' ? (
+                                `Kilogramos: ${parseFloat(producto.cantidad).toFixed(2)} kg`
+                              ) : (
+                                `Cantidad: ${producto.cantidad}`
+                              )}
+                            </p>
                             {producto.tipo_unidad === 'kilogramo' && (
                               <p className="text-xs text-gray-500 mb-3 bg-gray-50 px-2 py-1 rounded-lg inline-block">
                                 S/{parseFloat(producto.precio_venta).toFixed(2)} por kg
@@ -581,10 +618,12 @@ const Compras = () => {
         onClose={() => {
           setDrawerDetallesOpen(false);
           setSelectedProduct(null);
+          setProductoAEditar(null);
+          setEditIndex(null);
           barcodeInputRef.current?.focus();
         }}
-        producto={selectedProduct}
-        onAgregarProducto={handleSelectProducto}
+        producto={productoAEditar || selectedProduct}
+        onAgregarProducto={productoAEditar ? (producto) => handleUpdateProducto(producto, editIndex) : handleSelectProducto}
       />
       <EscanearProductoDrawer
         isOpen={drawerEscanearOpen}
@@ -594,6 +633,8 @@ const Compras = () => {
         }}
         onSelectProducto={(producto) => {
           setSelectedProduct(producto);
+          setProductoAEditar(null);
+          setEditIndex(null);
           setDrawerDetallesOpen(true);
         }}
         setError={setToast}

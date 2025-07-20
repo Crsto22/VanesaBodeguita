@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { X, Package, CheckCircle, Plus, Minus, ShoppingCart, DollarSign, TrendingUp, Calculator, Scale, Hash, Pencil } from 'lucide-react';
+import { X, Package, CheckCircle, Plus, Minus, DollarSign, TrendingUp, Calculator, Scale, Hash, Pencil } from 'lucide-react';
 import PrecioVentaDrawer from './PrecioVentaDrawer';
 import PrecioAlternativoDrawer from './PrecioAlternativoDrawer';
 
 const ProductoDetallesDrawer = ({ isOpen, onClose, producto, onAgregarProducto }) => {
-  const [cantidad, setCantidad] = useState('1.00');
+  const [cantidad, setCantidad] = useState('');
   const [costoTotal, setCostoTotal] = useState('');
-  const [precioCompra, setPrecioCompra] = useState('0.00');
-  const [precioVenta, setPrecioVenta] = useState('0.00');
+  const [precioCompra, setPrecioCompra] = useState('');
+  const [precioVenta, setPrecioVenta] = useState('');
   const [precioAlternativo, setPrecioAlternativo] = useState('');
   const [motivoPrecioAlternativo, setMotivoPrecioAlternativo] = useState('');
   const [toast, setToast] = useState({ message: '', type: '', visible: false });
@@ -15,20 +15,49 @@ const ProductoDetallesDrawer = ({ isOpen, onClose, producto, onAgregarProducto }
   const [precioAlternativoDrawerOpen, setPrecioAlternativoDrawerOpen] = useState(false);
 
   const isKilogramo = producto?.tipo_unidad === 'kilogramo';
+  // Determinar si estamos en modo edición (producto tiene cantidad definida)
+  const isEditing = !!producto?.cantidad;
 
-  // Initialize values when product changes
+  // Inicializar estados cuando cambia el producto
   useEffect(() => {
     if (producto) {
-      setCantidad(isKilogramo ? '1.00' : '1');
-      setCostoTotal('');
-      setPrecioCompra('0.00');
-      setPrecioVenta(producto.precio?.toFixed(2) || '0.00');
-      setPrecioAlternativo(producto.has_precio_alternativo && producto.precio_alternativo ? Number(producto.precio_alternativo).toFixed(2) : '');
-      setMotivoPrecioAlternativo(producto.has_precio_alternativo && producto.motivo_precio_alternativo ? producto.motivo_precio_alternativo : '');
+      // Si estamos editando, usar los valores del producto
+      if (isEditing) {
+        setCantidad(isKilogramo ? producto.cantidad.toFixed(2) : producto.cantidad.toString());
+        setCostoTotal((producto.cantidad * producto.precioCompra).toFixed(2));
+        setPrecioCompra(producto.precioCompra.toFixed(2));
+        setPrecioVenta(producto.precio_venta.toFixed(2));
+        setPrecioAlternativo(
+          producto.has_precio_alternativo && producto.precio_alternativo
+            ? Number(producto.precio_alternativo).toFixed(2)
+            : ''
+        );
+        setMotivoPrecioAlternativo(
+          producto.has_precio_alternativo && producto.motivo_precio_alternativo
+            ? producto.motivo_precio_alternativo
+            : ''
+        );
+      } else {
+        // Modo adición: valores iniciales
+        setCantidad(isKilogramo ? '1.00' : '1');
+        setCostoTotal('');
+        setPrecioCompra('0.00');
+        setPrecioVenta(producto.precio?.toFixed(2) || '0.00');
+        setPrecioAlternativo(
+          producto.has_precio_alternativo && producto.precio_alternativo
+            ? Number(producto.precio_alternativo).toFixed(2)
+            : ''
+        );
+        setMotivoPrecioAlternativo(
+          producto.has_precio_alternativo && producto.motivo_precio_alternativo
+            ? producto.motivo_precio_alternativo
+            : ''
+        );
+      }
     }
-  }, [producto, isKilogramo]);
+  }, [producto, isKilogramo, isEditing]);
 
-  // Calculate purchase price automatically when quantity or total cost changes
+  // Calcular precio de compra automáticamente cuando cambian cantidad o costo total
   useEffect(() => {
     if (Number(cantidad) > 0 && costoTotal && Number(costoTotal) > 0) {
       const precio = (Number(costoTotal) / Number(cantidad)).toFixed(2);
@@ -117,12 +146,13 @@ const ProductoDetallesDrawer = ({ isOpen, onClose, producto, onAgregarProducto }
       precio_alternativo: precioAlternativo ? Number(precioAlternativo) : null,
       motivo_precio_alternativo: motivoPrecioAlternativo || null,
       has_precio_alternativo: !!precioAlternativo,
+      subtotal: (Number(cantidad) * Number(precioCompra)).toFixed(2), // Añadir subtotal
     });
-    showToast(`Producto ${producto.nombre} añadido`, 'success');
+    showToast(`Producto ${producto.nombre} ${isEditing ? 'actualizado' : 'añadido'}`, 'success');
     onClose();
   };
 
-  // Calculate profits
+  // Calcular ganancias
   const gananciaPorProducto = (Number(precioVenta) - Number(precioCompra)).toFixed(2);
   const gananciaTotal = (Number(gananciaPorProducto) * Number(cantidad)).toFixed(2);
   const isGananciaPositiva = Number(gananciaPorProducto) >= 0;
@@ -174,7 +204,7 @@ const ProductoDetallesDrawer = ({ isOpen, onClose, producto, onAgregarProducto }
           <div className="flex items-center justify-between p-3 border-b border-gray-200/50 bg-white/90 backdrop-blur-md">
             <div>
               <h2 className="text-base font-bold text-gray-900">Detalles del Producto</h2>
-              <p className="text-xs text-gray-500 mt-0.5">Configura la compra</p>
+              <p className="text-xs text-gray-500 mt-0.5">{isEditing ? 'Editar producto' : 'Configura la compra'}</p>
             </div>
             <button
               onClick={onClose}
@@ -475,10 +505,10 @@ const ProductoDetallesDrawer = ({ isOpen, onClose, producto, onAgregarProducto }
             <button
               onClick={handleAgregar}
               className="w-full py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-[#45923a] to-[#3a7d30] hover:from-[#3a7d30] hover:to-[#2d6025] shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
-              aria-label="Agregar producto a la compra"
+              aria-label={isEditing ? 'Actualizar producto' : 'Agregar producto a la compra'}
             >
               <CheckCircle className="inline w-4 h-4 mr-2" />
-              Agregar Producto
+              {isEditing ? 'Actualizar Producto' : 'Agregar Producto'}
             </button>
           </div>
         </div>

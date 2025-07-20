@@ -284,6 +284,13 @@ export const VentasProvider = ({ children }) => {
         throw new Error(`No se pueden devolver ${cantidadDevuelta} retornables, solo adeuda ${venta.total_retornables}`);
       }
 
+      const devolucion = {
+        cantidad: cantidadDevuelta,
+        fecha: new Date().toISOString(),
+        cajero_ref: currentUser.uid,
+        notas: notas || '',
+      };
+
       await runTransaction(db, async (transaction) => {
         transaction.update(ventaRef, {
           total_retornables: formatToTwoDecimals(venta.total_retornables - cantidadDevuelta),
