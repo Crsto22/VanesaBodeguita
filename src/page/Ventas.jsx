@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
-// --- CAMBIO: Se importa el ícono de balanza ---
 import { ShoppingCart, Zap, Trash2, Pencil, CreditCard, Users, History, Barcode, Package, User, PlusCircle, ScanBarcode, X, Milk, Minus, Plus, Check, AlertTriangle, Scale } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Logo from '../assets/Logo.svg';
@@ -54,9 +53,8 @@ const ProductoEnVentaCard = React.memo(({
   onOpenEditarPrecio,
   onFractionPrice,
   onUpdateRetornables,
-  onManualWeight // --- CAMBIO: Se añade el nuevo prop ---
+  onManualWeight
 }) => {
-  // --- CAMBIO: Estados para manejar la entrada manual de peso ---
   const [isManualWeight, setIsManualWeight] = useState(false);
   const [manualWeightValue, setManualWeightValue] = useState('');
 
@@ -90,7 +88,6 @@ const ProductoEnVentaCard = React.memo(({
                   <button onClick={() => onOpenEditarPrecio(index)} className="bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 p-3 rounded-xl transition-all active:scale-95" aria-label="Editar precio"><Pencil size={16} className="text-blue-600" /></button>
                 </div>
 
-                {/* --- CAMBIO: Lógica para mostrar botones de fracción o entrada manual --- */}
                 {isManualWeight ? (
                   <div className="flex items-center gap-2">
                     <input
@@ -110,7 +107,6 @@ const ProductoEnVentaCard = React.memo(({
                     {[{ fraction: 0.25, label: '1/4 kg', title: '250g' }, { fraction: 0.5, label: '1/2 kg', title: '500g' }, { fraction: 0.75, label: '3/4 kg', title: '750g' }].map(({ fraction, label, title }) => (
                       <button key={fraction} onClick={() => onFractionPrice(index, fraction)} className="px-3 py-2 text-xs font-bold text-white bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 rounded-xl shadow-md transition-all active:scale-95" title={title}>{label}</button>
                     ))}
-                    {/* --- CAMBIO: Botón para activar la entrada manual --- */}
                     <button onClick={() => setIsManualWeight(true)} className="px-3 py-2 text-xs font-bold text-white bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700 rounded-xl shadow-md transition-all active:scale-95" title="Ingresar peso manual">
                       <Scale size={16} />
                     </button>
@@ -313,7 +309,6 @@ const Ventas = () => {
     );
   }, []);
 
-  // --- CAMBIO: Nueva función para manejar el peso manual ---
   const handleManualWeight = useCallback((index, weightString) => {
     const weight = parseFloat(weightString);
     if (isNaN(weight) || weight <= 0) {
@@ -527,7 +522,6 @@ const Ventas = () => {
   const handleSelectCarouselProduct = (product) => { if (product.has_precio_alternativo && product.precio_alternativo) { setSelectedProduct(product); setPriceModalOpen(true); } else { handleSelectProducto({ id: product.id, nombre: product.nombre, cantidad: 1, precio_unitario: parseFloat(product.precio), subtotal: parseFloat(product.precio).toFixed(2), retornable: product.retornable || false, cantidad_retornable: product.retornable && product.tipo_unidad !== 'kilogramo' ? 1 : 0, tipo_unidad: product.tipo_unidad || 'unidad', precio_referencia: product.tipo_unidad === 'kilogramo' ? parseFloat(product.precio) : null, imagen: product.imagen || null, }); } };
   
   const toastVariants = { hidden: { y: -100, opacity: 0 }, visible: { y: 0, opacity: 1 }, };
-  // --- MEJORA: Variantes de animación para el carrusel ---
   const carouselVariants = {
     hidden: { opacity: 0, height: 0, y: -10, transition: { duration: 0.3, ease: 'easeInOut' } },
     visible: { opacity: 1, height: 'auto', y: 0, transition: { duration: 0.3, ease: 'easeInOut' } },
@@ -629,7 +623,6 @@ const Ventas = () => {
               </button>
             </div>
             
-            {/* --- MEJORA: Animación de Framer Motion re-agregada solo para el carrusel --- */}
             <AnimatePresence>
               {showCarousel && productosSugeridos.length > 0 && (
                 <motion.div
@@ -653,7 +646,11 @@ const Ventas = () => {
                                   {product.imagen ? (<img src={product.imagen} alt={product.nombre} className="h-full w-full object-cover rounded-md" />) : (<Package className="h-4 w-4 text-gray-400" />)}
                                 </div>
                                 <div className="flex-1 flex justify-end">
-                                  <span className="text-xs font-bold text-white bg-[#45923a] px-2 py-1 rounded-full">S/{(product.precio || 0).toFixed(2)}</span>
+                                  {/* --- CAMBIO: Se añade la indicación "/kg" si el producto es por kilogramo --- */}
+                                  <span className="text-xs font-bold text-white bg-[#45923a] px-2 py-1 rounded-full">
+                                    S/{(product.precio || 0).toFixed(2)}
+                                    {product.tipo_unidad === 'kilogramo' && <span className="font-normal text-white/90"> /kg</span>}
+                                  </span>
                                 </div>
                               </div>
                             </div>
@@ -698,7 +695,7 @@ const Ventas = () => {
                         onOpenEditarPrecio={handleOpenEditarPrecio}
                         onFractionPrice={handleFractionPrice}
                         onUpdateRetornables={handleUpdateRetornables}
-                        onManualWeight={handleManualWeight} // --- CAMBIO: Se pasa la nueva función al componente
+                        onManualWeight={handleManualWeight}
                       />
                     ))}
                   </div>
