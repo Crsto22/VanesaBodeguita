@@ -125,99 +125,105 @@ const NotaVenta = () => {
     });
 
     return (
-      <div className="p-2 bg-white w-[302px] font-arial text-black text-lg font-bold leading-[1]">
-        <div className="text-center mb-1">
+      <div className="p-3 bg-white w-[302px] font-mono text-black leading-relaxed">
+        {/* Header */}
+        <div className="text-center mb-3">
           <img
             src={Logo}
             alt="Logo"
-            className="mx-auto mb-1 max-w-[70px] h-auto"
+            className="mx-auto mb-2 max-w-[80px] h-auto"
           />
-          <div className="text-2xl">NOTA DE VENTA</div>
+        </div>
+        {/* Ticket Info */}
+        <div className="text-center mb-2">
+          <div className="text-2xl font-black uppercase">NOTA DE VENTA</div>
         </div>
 
-        <div className="border-t-2 border-dashed border-black my-1"></div>
+        <div className="border-t border-dashed border-black my-2"></div>
 
-        <div className="mb-1">
-          <div className="flex justify-between text-sm">
-            <span>CLIENTE: {venta.nombre_cliente}</span>
+        {/* Customer Info */}
+        <div className="mb-3 space-y-1">
+          <div className="flex justify-between text-base font-extrabold">
+            <span>CLIENTE: {venta.nombre_cliente.toUpperCase()}</span>
           </div>
-          <div className="flex justify-between text-sm">
-            <span>CAJERO: {venta.nombre_cajero || 'SISTEMA'}</span>
+          <div className="flex justify-between text-base font-extrabold">
+            <span>CAJERO: {(venta.nombre_cajero || 'SISTEMA').toUpperCase()}</span>
           </div>
-          <div className="flex justify-between text-sm">
+          <div className="flex justify-between text-base font-extrabold">
             <span>FECHA: {fechaFormateada}</span>
+          </div>
+          <div className="flex justify-between text-base font-extrabold">
             <span>HORA: {horaFormateada}</span>
           </div>
+          <div className="flex justify-between text-base font-extrabold">
+            <span>ESTADO: {venta.estado.toUpperCase()}</span>
+          </div>
         </div>
 
-        <div className="border-t-2 border-dashed border-black my-1"></div>
+        <div className="border-t border-dashed border-black my-2"></div>
 
-        <div className="mb-1">
+        {/* Products */}
+        <div className="mb-3">
+          <div className="text-base font-black mb-2 text-center">DETALLE DE PRODUCTOS</div>
           {venta.productos.map((producto, index) => (
-            <div key={index} className="mb-1">
-              <div className="flex justify-between">
-                <div>
-                  <div className="text-sm font-semibold">{producto.nombre}</div>
-                  <div className="text-sm font-semibold">{producto.cantidad} x S/{producto.precio_unitario.toFixed(2)}</div>
-                </div>
-                <div className="text-sm font-semibold">S/{producto.subtotal.toFixed(2)}</div>
+            <div key={index} className="mb-2 border-b border-dotted border-gray-400 pb-1">
+              <div className="text-base font-extrabold uppercase mb-1">
+                {producto.nombre}
+              </div>
+              <div className="flex justify-between text-base font-black">
+                <span>{producto.cantidad} x S/{producto.precio_unitario.toFixed(2)}</span>
+                <span className="bg-yellow-200 px-2 py-1 rounded font-black">S/{producto.subtotal.toFixed(2)}</span>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="border-t-2 border-dashed border-black my-1"></div>
+        <div className="border-t-2 border-black my-2"></div>
         
-        <div className="mb-1">
-          <div className="flex justify-between text-2xl border-t-2 border-b-2 border-black py-0.5">
-            <span>TOTAL:</span>
-            <span>S/{venta.total.toFixed(2)}</span>
+        {/* Totals */}
+        <div className="mb-2">
+          <div className="bg-black text-white p-1 text-center mb-1">
+            <div className="flex justify-between text-lg font-black">
+              <span>TOTAL:</span>
+              <span>S/{venta.total.toFixed(2)}</span>
+            </div>
           </div>
 
           {venta.estado === 'parcial' && (
-            <>
-              <div className="flex justify-between text-base">
-                <span>Pagado:</span>
-                <span>S/{venta.monto_pagado.toFixed(2)}</span>
+            <div className="space-y-0.5 text-base font-extrabold">
+              <div className="flex justify-between">
+                <span>PAGADO:</span>
+                <span className="text-green-700 bg-green-100 px-2 py-1 rounded font-black">S/{venta.monto_pagado.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-base text-red-700">
-                <span>Pendiente:</span>
-                <span>S/{venta.monto_pendiente.toFixed(2)}</span>
+              <div className="flex justify-between">
+                <span>PENDIENTE:</span>
+                <span className="text-red-700 bg-red-100 px-2 py-1 rounded font-black">S/{venta.monto_pendiente.toFixed(2)}</span>
               </div>
-            </>
-          )}
-
-          {venta.estado === 'pendiente' && (
-            <div className="flex justify-between text-base text-red-700">
-              <span>Pendiente:</span>
-              <span>S/{venta.monto_pendiente.toFixed(2)}</span>
             </div>
           )}
 
-          <div className="text-center my-1">
-            <span className={`inline-block text-base px-2 py-0.5 border-2 border-black
-              ${venta.estado === 'pagado' ? 'bg-green-200 text-green-800' :
-                venta.estado === 'parcial' ? 'bg-yellow-200 text-yellow-800' :
-                  'bg-red-200 text-red-800'}`}>
-              {venta.estado.toUpperCase()}
-            </span>
-          </div>
+          {venta.estado === 'pendiente' && (
+            <div className="flex justify-between text-base font-extrabold">
+              <span>PENDIENTE:</span>
+              <span className="text-red-700 bg-red-100 px-2 py-1 rounded font-black">S/{venta.monto_pendiente.toFixed(2)}</span>
+            </div>
+          )}
 
           {venta.total_retornables > 0 && (
-            <div className="text-center text-base">
-              Botellas pendientes: {venta.total_retornables}
+            <div className="text-center text-base font-black mt-2 bg-yellow-100 p-1 rounded">
+              🍾 BOTELLAS PENDIENTES: {venta.total_retornables}
             </div>
           )}
         </div>
 
         {venta.historial_retornables && venta.historial_retornables.length > 0 && (
           <>
-            <div className="border-t border-dashed border-black my-1"></div>
-            <div className="mb-1">
-              <div className="text-base">HISTORIAL</div>
+            <div className="border-t border-dashed border-black my-2"></div>
+            <div className="mb-2">
+              <div className="text-base font-black text-center mb-1">📋 HISTORIAL DE DEVOLUCIONES</div>
               {venta.historial_retornables.map((devolucion, index) => (
-                <div key={index} className="mb-0.5">
-                  <div className="flex justify-between text-sm">
+                <div key={index} className="mb-1 bg-gray-50 p-1 rounded text-base">
+                  <div className="flex justify-between font-extrabold">
                     <span>
                       {new Date(devolucion.fecha).toLocaleString('es-PE', {
                         day: '2-digit',
@@ -226,11 +232,11 @@ const NotaVenta = () => {
                         minute: '2-digit',
                       })}
                     </span>
-                    <span>{devolucion.cantidad_devuelta} devuelto</span>
+                    <span className="text-green-700">✓ {devolucion.cantidad_devuelta} DEVUELTO</span>
                   </div>
                   {devolucion.notas && (
-                    <div className="text-xs text-gray-700">
-                      Notas: {devolucion.notas}
+                    <div className="text-base text-gray-600 mt-0.5 font-bold">
+                      💬 {devolucion.notas}
                     </div>
                   )}
                 </div>
@@ -241,26 +247,35 @@ const NotaVenta = () => {
 
         {venta.notas && (
           <>
-            <div className="border-t border-dashed border-black my-1"></div>
-            <div className="mb-1">
-              <div className="text-base">NOTAS</div>
-              <div className="text-sm text-gray-700">{venta.notas}</div>
+            <div className="border-t border-dashed border-black my-2"></div>
+            <div className="mb-2">
+              <div className="text-base font-black text-center mb-1">📝 OBSERVACIONES</div>
+              <div className="text-base font-bold bg-yellow-50 p-1 rounded text-gray-700">{venta.notas}</div>
             </div>
           </>
         )}
 
-        <div className="border-t-2 border-dashed border-white my-1"></div>
-        <div className="border-t-2 border-dashed border-white my-1"></div>
-        <div className="border-t-2 border-dashed border-white my-1"></div>
-        <div className="text-center my-2">
-          <div style={{ background: 'white', padding: '8px', display: 'inline-block' }}>
-            <QRCode value={id} size={100} level="H" />
+        <div className="border-t-2 border-black my-2"></div>
+        
+        {/* QR Code */}
+        <div className="text-center my-3">
+          <div className="text-base font-black mb-1">CÓDIGO DE VERIFICACIÓN</div>
+          <div className="bg-white p-2 inline-block border border-gray-300">
+            <QRCode value={id} size={80} level="H" />
           </div>
+          <div className="text-base font-bold mt-1">ID: {id.slice(-8).toUpperCase()}</div>
         </div>
 
-        <div className="text-center text-base mb-6">
-          <div>¡Gracias por su compra!</div>
+        <div className="border-t border-dashed border-black my-2"></div>
+
+        {/* Footer */}
+        <div className="text-center space-y-1">
+          <div className="text-lg font-black">¡GRACIAS POR SU COMPRA!</div>
+          <div className="text-base font-bold">Conserve este ticket</div>
         </div>
+
+        {/* Bottom spacing */}
+        <div className="mt-4"></div>
       </div>
     );
   };
@@ -323,8 +338,8 @@ const NotaVenta = () => {
       </div>
 
       <style jsx global>{`
-        .font-arial {
-          font-family: Arial, sans-serif !important;
+        .font-mono {
+          font-family: 'Courier New', 'Lucida Console', monospace !important;
         }
 
         @media print {
@@ -336,11 +351,12 @@ const NotaVenta = () => {
           }
 
           body {
-            font-family: Arial, sans-serif !important;
+            font-family: 'Courier New', 'Lucida Console', monospace !important;
             background: white !important;
             color: black !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+            font-weight: bold !important;
           }
 
           body * {
@@ -375,9 +391,11 @@ const NotaVenta = () => {
             display: none !important;
           }
 
-          .p-2 {
+          .p-3 {
             width: 80mm !important;
             padding: 4mm !important;
+            font-size: 18px !important;
+            line-height: 1.5 !important;
           }
 
           img {
@@ -386,8 +404,79 @@ const NotaVenta = () => {
             margin-right: auto !important;
           }
 
+          .font-extrabold {
+            font-weight: 900 !important;
+            font-size: 18px !important;
+          }
+
+          .font-black {
+            font-weight: 900 !important;
+            font-size: 20px !important;
+          }
+
+          .text-base {
+            font-size: 18px !important;
+            line-height: 1.4 !important;
+          }
+
+          .text-lg {
+            font-size: 22px !important;
+            line-height: 1.5 !important;
+          }
+
+          .text-2xl {
+            font-size: 26px !important;
+            line-height: 1.4 !important;
+          }
+
+          .space-y-0\.5 > * + * {
+            margin-top: 0.3rem !important;
+          }
+
+          .mb-2 {
+            margin-bottom: 0.6rem !important;
+          }
+
+          .mb-1 {
+            margin-bottom: 0.4rem !important;
+          }
+
+          .bg-black {
+            background: black !important;
+            color: white !important;
+          }
+
+          .bg-yellow-200 {
+            background: #fef08a !important;
+            color: black !important;
+          }
+
+          .bg-green-100 {
+            background: #dcfce7 !important;
+            color: #166534 !important;
+          }
+
+          .bg-red-100 {
+            background: #fee2e2 !important;
+            color: #991b1b !important;
+          }
+
+          .rounded {
+            border-radius: 0.25rem !important;
+          }
+
+          .px-2 {
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+          }
+
+          .py-1 {
+            padding-top: 0.25rem !important;
+            padding-bottom: 0.25rem !important;
+          }
+
           @page {
-            size: 100mm auto !important;
+            size: 80mm auto !important;
             margin: 0 !important;
             padding: 0 !important;
           }

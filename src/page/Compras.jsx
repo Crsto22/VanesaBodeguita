@@ -13,13 +13,14 @@ import ProveedoresDrawer from '../components/Compra/ProveedoresDrawer';
 import ProductosDrawer from '../components/Compra/ProductosDrawer';
 import ProductoDetallesDrawer from '../components/Compra/ProductoDetallesDrawer';
 import EscanearProductoDrawer from '../components/Compra/EscanearProductoDrawer';
+import DrawerNuevoProducto from '../components/Compra/DrawerNuevoProducto';
 import ProductoNinguno from '../assets/Compras/ProductoNinguno.svg';
 
 const Compras = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { proveedores, obtenerProveedorPorId, loading: proveedoresLoading } = useProveedores();
-  const { productos, productosLoading, obtenerProductoPorId, obtenerProductoPorCodigoBarrasDirecto } = useProducts();
+  const { productos, categorias, productosLoading, obtenerProductoPorId, obtenerProductoPorCodigoBarrasDirecto, crearProducto } = useProducts();
   const { crearCompra } = useCompras();
 
   const [appear, setAppear] = useState(false);
@@ -31,11 +32,14 @@ const Compras = () => {
   const [drawerProductosOpen, setDrawerProductosOpen] = useState(false);
   const [drawerDetallesOpen, setDrawerDetallesOpen] = useState(false);
   const [drawerEscanearOpen, setDrawerEscanearOpen] = useState(false);
+  const [drawerNuevoProductoOpen, setDrawerNuevoProductoOpen] = useState(false);
   const [selectedProductos, setSelectedProductos] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productoAEditar, setProductoAEditar] = useState(null);
   const [editIndex, setEditIndex] = useState(null);
   const [barcodeInput, setBarcodeInput] = useState('');
+  const [codigoBarrasNoEncontrado, setCodigoBarrasNoEncontrado] = useState('');
+  const [productosNuevos, setProductosNuevos] = useState([]);
   const [loading, setLoading] = useState(false);
   const barcodeInputRef = useRef(null);
   const isProcessingRef = useRef(false);
@@ -62,13 +66,13 @@ const Compras = () => {
 
   useEffect(() => {
     const handleGlobalClick = () => {
-      if (!drawerProveedoresOpen && !drawerProductosOpen && !drawerDetallesOpen && !drawerEscanearOpen && barcodeInputRef.current) {
+      if (!drawerProveedoresOpen && !drawerProductosOpen && !drawerDetallesOpen && !drawerEscanearOpen && !drawerNuevoProductoOpen && barcodeInputRef.current) {
         barcodeInputRef.current.focus();
       }
     };
     document.addEventListener('click', handleGlobalClick);
     return () => document.removeEventListener('click', handleGlobalClick);
-  }, [drawerProveedoresOpen, drawerProductosOpen, drawerDetallesOpen, drawerEscanearOpen]);
+  }, [drawerProveedoresOpen, drawerProductosOpen, drawerDetallesOpen, drawerEscanearOpen, drawerNuevoProductoOpen]);
 
   useEffect(() => {
     try {
@@ -117,7 +121,7 @@ const Compras = () => {
 
   useEffect(() => {
     const handleKeyDown = async (e) => {
-      if (e.key === 'Enter' && barcodeInput && !isProcessingRef.current && !drawerProveedoresOpen && !drawerProductosOpen && !drawerDetallesOpen && !drawerEscanearOpen) {
+      if (e.key === 'Enter' && barcodeInput && !isProcessingRef.current && !drawerProveedoresOpen && !drawerProductosOpen && !drawerDetallesOpen && !drawerEscanearOpen && !drawerNuevoProductoOpen) {
         isProcessingRef.current = true;
         try {
           if (!/^\d+$/.test(barcodeInput)) {
@@ -127,14 +131,40 @@ const Compras = () => {
             isProcessingRef.current = false;
             return;
           }
-          const producto = await obtenerProductoPorCodigoBarrasDirecto(barcodeInput);
-          if (producto) {
-            setSelectedProduct(producto);
-            setProductoAEditar(null);
-            setEditIndex(null);
-            setDrawerDetallesOpen(true);
+
+          // Buscar primero en productos nuevos temporales
+          const productoNuevoEncontrado = productosNuevos.find(p => p.codigoBarras === barcodeInput);
+          
+          if (productoNuevoEncontrado) {
+            const yaExiste = selectedProductos.some(p => p.id === productoNuevoEncontrado.id);
+            
+            if (!yaExiste) {
+              setSelectedProduct(productoNuevoEncontrado);
+              setProductoAEditar(null);
+              setEditIndex(null);
+              setDrawerDetallesOpen(true);
+            } else {
+              showToast('Este producto ya está en la lista', 'warning');
+            }
           } else {
-            showToast('Producto no encontrado', 'error');
+            // Buscar en productos existentes
+            const producto = await obtenerProductoPorCodigoBarrasDirecto(barcodeInput);
+            if (producto) {
+              const yaExiste = selectedProductos.some(p => p.id === producto.id);
+              
+              if (!yaExiste) {
+                setSelectedProduct(producto);
+                setProductoAEditar(null);
+                setEditIndex(null);
+                setDrawerDetallesOpen(true);
+              } else {
+                showToast('Este producto ya está en la lista', 'warning');
+              }
+            } else {
+              // Producto no encontrado - abrir drawer de nuevo producto
+              setCodigoBarrasNoEncontrado(barcodeInput);
+              setDrawerNuevoProductoOpen(true);
+            }
           }
         } catch (error) {
           showToast(`Error al buscar producto: ${error.message}`, 'error');
@@ -147,13 +177,13 @@ const Compras = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [barcodeInput, obtenerProductoPorCodigoBarrasDirecto, drawerProveedoresOpen, drawerProductosOpen, drawerDetallesOpen, drawerEscanearOpen]);
+  }, [barcodeInput, obtenerProductoPorCodigoBarrasDirecto, drawerProveedoresOpen, drawerProductosOpen, drawerDetallesOpen, drawerEscanearOpen, drawerNuevoProductoOpen, selectedProductos, productosNuevos]);
 
   useEffect(() => {
-    if (!drawerProveedoresOpen && !drawerProductosOpen && !drawerDetallesOpen && !drawerEscanearOpen) {
+    if (!drawerProveedoresOpen && !drawerProductosOpen && !drawerDetallesOpen && !drawerEscanearOpen && !drawerNuevoProductoOpen) {
       barcodeInputRef.current?.focus();
     }
-  }, [drawerProveedoresOpen, drawerProductosOpen, drawerDetallesOpen, drawerEscanearOpen]);
+  }, [drawerProveedoresOpen, drawerProductosOpen, drawerDetallesOpen, drawerEscanearOpen, drawerNuevoProductoOpen]);
 
   const showToast = (message, type) => {
     setToast({ message, type, visible: true });
@@ -260,6 +290,22 @@ const Compras = () => {
     setDrawerDetallesOpen(true);
   };
 
+  const handleNuevoProductoCreado = (nuevoProducto) => {
+    // Agregar el producto temporal a la lista de productos nuevos
+    setProductosNuevos(prev => [...prev, nuevoProducto]);
+    
+    // Cerrar el drawer de nuevo producto
+    setDrawerNuevoProductoOpen(false);
+    
+    // Configurar el producto para abrir el drawer de detalles
+    setSelectedProduct(nuevoProducto);
+    setProductoAEditar(null);
+    setEditIndex(null);
+    setDrawerDetallesOpen(true);
+    
+    showToast(`Producto temporal ${nuevoProducto.nombre} creado. Configura los precios.`, 'success');
+  };
+
   const handleConfirmarCompra = async () => {
     if (!proveedorSeleccionado) {
       showToast('Debes seleccionar un proveedor', 'error');
@@ -271,9 +317,62 @@ const Compras = () => {
     }
     setLoading(true);
     try {
+      // Primero crear los productos nuevos si los hay
+      const productosConIds = await Promise.all(
+        selectedProductos.map(async (producto) => {
+          if (producto.esNuevo) {
+            // Este es un producto temporal, necesitamos crearlo en la base de datos
+            console.log('Producto temporal a crear:', producto);
+            
+            const productoData = {
+              nombre: producto.nombre,
+              codigoBarras: producto.codigoBarras,
+              categoria_ref: producto.categoria_ref,
+              precio_venta: parseFloat(producto.precio_venta),
+              precio_alternativo: producto.has_precio_alternativo ? parseFloat(producto.precio_alternativo) : null,
+              motivo_precio_alternativo: producto.has_precio_alternativo ? producto.motivo_precio_alternativo : null,
+              has_precio_alternativo: !!producto.has_precio_alternativo,
+              precioCompra: parseFloat(producto.precioCompra),
+              stock: 0, // El stock se actualizará con la compra
+              marca: producto.marca || '',
+              tipo_unidad: producto.tipo_unidad || 'unidad',
+              retornable: producto.retornable || false,
+              fecha_vencimiento: producto.fecha_vencimiento || null
+            };
+            
+            console.log('Datos del producto a enviar:', productoData);
+            
+            // Validar que los campos requeridos no sean undefined
+            if (!productoData.codigoBarras) {
+              throw new Error(`El código de barras del producto ${producto.nombre} es requerido`);
+            }
+            if (!productoData.nombre) {
+              throw new Error(`El nombre del producto es requerido`);
+            }
+            if (!productoData.categoria_ref) {
+              throw new Error(`La categoría del producto ${producto.nombre} es requerida`);
+            }
+            
+            try {
+              const nuevoProductoId = await crearProducto(productoData);
+              return {
+                ...producto,
+                id: nuevoProductoId,
+                esNuevo: false
+              };
+            } catch (error) {
+              console.error('Error al crear producto:', error);
+              throw new Error(`Error al crear el producto ${producto.nombre}: ${error.message}`);
+            }
+          }
+          return producto;
+        })
+      );
+
+      // Ahora crear la compra con los productos que tienen IDs válidos
       const compraData = {
         proveedor_ref: proveedorSeleccionado.id,
-        productos: selectedProductos.map((p) => ({
+        productos: productosConIds.map((p) => ({
           producto_ref: p.id,
           cantidad: p.cantidad,
           precio_unitario: parseFloat(p.precioCompra),
@@ -286,8 +385,11 @@ const Compras = () => {
         notas: '',
       };
       const compraId = await crearCompra(compraData);
+      
+      // Limpiar estados
       setSelectedProductos([]);
       setProveedorSeleccionado(null);
+      setProductosNuevos([]);
       localStorage.removeItem('compraEnProgreso');
       showToast(`Compra ${compraId} registrada con éxito`, 'success');
     } catch (error) {
@@ -612,6 +714,11 @@ const Compras = () => {
         isOpen={drawerProductosOpen}
         onClose={() => setDrawerProductosOpen(false)}
         onSelectProducto={handleSelectProducto}
+        onNuevoProducto={() => {
+          // Abrir DrawerNuevoProducto para agregar producto manualmente
+          setCodigoBarrasNoEncontrado(''); // Sin código de barras predefinido
+          setDrawerNuevoProductoOpen(true);
+        }}
       />
       <ProductoDetallesDrawer
         isOpen={drawerDetallesOpen}
@@ -638,6 +745,24 @@ const Compras = () => {
           setDrawerDetallesOpen(true);
         }}
         setError={setToast}
+        productosNuevos={productosNuevos}
+        selectedProductos={selectedProductos}
+        onProductoNoEncontrado={(codigoBarras) => {
+          // Producto no encontrado por cámara - abrir drawer de nuevo producto
+          setCodigoBarrasNoEncontrado(codigoBarras);
+          setDrawerNuevoProductoOpen(true);
+        }}
+      />
+      <DrawerNuevoProducto
+        isOpen={drawerNuevoProductoOpen}
+        onClose={() => {
+          setDrawerNuevoProductoOpen(false);
+          setCodigoBarrasNoEncontrado('');
+          barcodeInputRef.current?.focus();
+        }}
+        codigoBarras={codigoBarrasNoEncontrado}
+        categorias={categorias}
+        onContinuar={handleNuevoProductoCreado}
       />
       <style jsx global>{`
         .animate-in {

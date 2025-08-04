@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../firebase/firebase';
-import { collection, addDoc, doc, updateDoc, onSnapshot, query, where, runTransaction, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, onSnapshot, query, where, runTransaction, getDocs, getDoc, deleteDoc, orderBy, limit, startAfter, endBefore, limitToLast } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { useClientes } from './ClientesContext';
 import { useProducts } from './ProductContext';
@@ -12,9 +12,22 @@ export const useVentas = () => useContext(VentasContext);
 export const VentasProvider = ({ children }) => {
   const [ventas, setVentas] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Estados para paginación del historial
+  const [ventasHistorial, setVentasHistorial] = useState([]);
+  const [loadingHistorial, setLoadingHistorial] = useState(false);
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [ultimoDocumento, setUltimoDocumento] = useState(null);
+  const [primerDocumento, setPrimerDocumento] = useState(null);
+  const [hayMasPaginas, setHayMasPaginas] = useState(true);
+  const [historialPaginacion, setHistorialPaginacion] = useState([]);
+  
   const { currentUser } = useAuth();
   const { clientes, obtenerClientePorId } = useClientes();
   const { obtenerProductoPorIdDirecto } = useProducts();
+
+  // Configuración de paginación
+  const VENTAS_POR_PAGINA = 5;
 
   // Referencia a la colección de ventas
   const ventasCollection = collection(db, 'ventas');
@@ -420,9 +433,198 @@ export const VentasProvider = ({ children }) => {
     }
   };
 
+  // ============= FUNCIONES DE PAGINACIÓN PARA HISTORIAL =============
+
+  // Cargar primera página del historial
+  const cargarPrimerasPaginaHistorial = async (filtros = {}) => {
+    try {
+      setLoadingHistorial(true);
+      
+      let ventasQuery = query(
+        ventasCollection,
+        orderBy('fecha_creacion', 'desc'),
+        limit(VENTAS_POR_PAGINA)
+      );
+
+      // Aplicar filtros si existen
+      if (filtros.fechaInicio && filtros.fechaFin) {
+        ventasQuery = query(
+          ventasCollection,
+          where('fecha_creacion', '>=', filtros.fechaInicio),
+          where('fecha_creacion', '<=', filtros.fechaFin),
+          orderBy('fecha_creacion', 'desc'),
+          limit(VENTAS_POR_PAGINA)
+        );
+      }
+
+      const snapshot = await getDocs(ventasQuery);
+      const ventasData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        monto_pagado: formatToTwoDecimals(doc.data().monto_pagado || 0),
+        monto_pendiente: formatToTwoDecimals(doc.data().monto_pendiente || 0),
+        total: formatToTwoDecimals(doc.data().total || 0),
+      }));
+
+      setVentasHistorial(ventasData);
+      setPaginaActual(1);
+      setHistorialPaginacion([]);
+      
+      if (snapshot.docs.length > 0) {
+        setUltimoDocumento(snapshot.docs[snapshot.docs.length - 1]);
+        setPrimerDocumento(snapshot.docs[0]);
+        setHayMasPaginas(snapshot.docs.length === VENTAS_POR_PAGINA);
+      } else {
+        setUltimoDocumento(null);
+        setPrimerDocumento(null);
+        setHayMasPaginas(false);
+      }
+
+      return ventasData;
+    } catch (error) {
+      console.error('Error al cargar primera página del historial:', error);
+      throw error;
+    } finally {
+      setLoadingHistorial(false);
+    }
+  };
+
+  // Cargar siguiente página
+  const cargarSiguientePaginaHistorial = async (filtros = {}) => {
+    try {
+      if (!ultimoDocumento || !hayMasPaginas) return;
+
+      setLoadingHistorial(true);
+
+      let ventasQuery = query(
+        ventasCollection,
+        orderBy('fecha_creacion', 'desc'),
+        startAfter(ultimoDocumento),
+        limit(VENTAS_POR_PAGINA)
+      );
+
+      // Aplicar filtros si existen
+      if (filtros.fechaInicio && filtros.fechaFin) {
+        ventasQuery = query(
+          ventasCollection,
+          where('fecha_creacion', '>=', filtros.fechaInicio),
+          where('fecha_creacion', '<=', filtros.fechaFin),
+          orderBy('fecha_creacion', 'desc'),
+          startAfter(ultimoDocumento),
+          limit(VENTAS_POR_PAGINA)
+        );
+      }
+
+      const snapshot = await getDocs(ventasQuery);
+      const ventasData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        monto_pagado: formatToTwoDecimals(doc.data().monto_pagado || 0),
+        monto_pendiente: formatToTwoDecimals(doc.data().monto_pendiente || 0),
+        total: formatToTwoDecimals(doc.data().total || 0),
+      }));
+
+      if (snapshot.docs.length > 0) {
+        // Guardar referencia de la página anterior
+        setHistorialPaginacion(prev => [...prev, { primerDoc: primerDocumento, ultimoDoc: ultimoDocumento }]);
+        
+        setVentasHistorial(ventasData);
+        setPaginaActual(prev => prev + 1);
+        setUltimoDocumento(snapshot.docs[snapshot.docs.length - 1]);
+        setPrimerDocumento(snapshot.docs[0]);
+        setHayMasPaginas(snapshot.docs.length === VENTAS_POR_PAGINA);
+      }
+
+      return ventasData;
+    } catch (error) {
+      console.error('Error al cargar siguiente página:', error);
+      throw error;
+    } finally {
+      setLoadingHistorial(false);
+    }
+  };
+
+  // Cargar página anterior
+  const cargarPaginaAnteriorHistorial = async (filtros = {}) => {
+    try {
+      if (paginaActual <= 1 || historialPaginacion.length === 0) return;
+
+      setLoadingHistorial(true);
+
+      const paginaAnterior = historialPaginacion[historialPaginacion.length - 1];
+
+      let ventasQuery = query(
+        ventasCollection,
+        orderBy('fecha_creacion', 'desc'),
+        endBefore(paginaAnterior.ultimoDoc),
+        limitToLast(VENTAS_POR_PAGINA)
+      );
+
+      // Aplicar filtros si existen
+      if (filtros.fechaInicio && filtros.fechaFin) {
+        ventasQuery = query(
+          ventasCollection,
+          where('fecha_creacion', '>=', filtros.fechaInicio),
+          where('fecha_creacion', '<=', filtros.fechaFin),
+          orderBy('fecha_creacion', 'desc'),
+          endBefore(paginaAnterior.ultimoDoc),
+          limitToLast(VENTAS_POR_PAGINA)
+        );
+      }
+
+      const snapshot = await getDocs(ventasQuery);
+      const ventasData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        monto_pagado: formatToTwoDecimals(doc.data().monto_pagado || 0),
+        monto_pendiente: formatToTwoDecimals(doc.data().monto_pendiente || 0),
+        total: formatToTwoDecimals(doc.data().total || 0),
+      }));
+
+      setVentasHistorial(ventasData);
+      setPaginaActual(prev => prev - 1);
+      setHistorialPaginacion(prev => prev.slice(0, -1));
+      
+      if (snapshot.docs.length > 0) {
+        setUltimoDocumento(snapshot.docs[snapshot.docs.length - 1]);
+        setPrimerDocumento(snapshot.docs[0]);
+        setHayMasPaginas(true);
+      }
+
+      return ventasData;
+    } catch (error) {
+      console.error('Error al cargar página anterior:', error);
+      throw error;
+    } finally {
+      setLoadingHistorial(false);
+    }
+  };
+
+  // Reiniciar paginación
+  const reiniciarPaginacionHistorial = async (filtros = {}) => {
+    setPaginaActual(1);
+    setUltimoDocumento(null);
+    setPrimerDocumento(null);
+    setHayMasPaginas(true);
+    setHistorialPaginacion([]);
+    await cargarPrimerasPaginaHistorial(filtros);
+  };
+
   const value = {
     ventas,
     loading,
+    // Estados del historial con paginación
+    ventasHistorial,
+    loadingHistorial,
+    paginaActual,
+    hayMasPaginas,
+    VENTAS_POR_PAGINA,
+    // Funciones del historial con paginación
+    cargarPrimerasPaginaHistorial,
+    cargarSiguientePaginaHistorial,
+    cargarPaginaAnteriorHistorial,
+    reiniciarPaginacionHistorial,
+    // Funciones existentes
     crearVenta,
     pagarVenta,
     registrarAbono,

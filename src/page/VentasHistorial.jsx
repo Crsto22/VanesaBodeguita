@@ -17,6 +17,8 @@ import {
   AlertCircle,
   XCircle,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Logo from '../assets/Logo.svg';
@@ -63,10 +65,19 @@ const SkeletonCard = () => (
 const VentasHistorial = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { obtenerTodasVentas, eliminarVenta } = useVentas();
-  const [ventas, setVentas] = useState([]);
-  const [ventasFiltradas, setVentasFiltradas] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { 
+    ventasHistorial,
+    loadingHistorial,
+    paginaActual,
+    hayMasPaginas,
+    VENTAS_POR_PAGINA,
+    cargarPrimerasPaginaHistorial,
+    cargarSiguientePaginaHistorial,
+    cargarPaginaAnteriorHistorial,
+    reiniciarPaginacionHistorial,
+    eliminarVenta 
+  } = useVentas();
+  
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [appear, setAppear] = useState(false);
@@ -78,6 +89,7 @@ const VentasHistorial = () => {
   const [isDeleteDrawerOpen, setIsDeleteDrawerOpen] = useState(false);
   const [selectedVenta, setSelectedVenta] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [filtrosActivos, setFiltrosActivos] = useState({});
 
   // Opciones del menú principal - Accesos rápidos
   const quickAccessOptions = [
@@ -133,107 +145,110 @@ const VentasHistorial = () => {
     setAppear(true);
   }, []);
 
+  // Función para obtener filtros de fecha
+  const obtenerFiltrosFecha = (tipoFiltro, fechaPersonalizada = '') => {
+    const hoy = new Date();
+    hoy.setHours(23, 59, 59, 999);
+
+    const inicioHoy = new Date();
+    inicioHoy.setHours(0, 0, 0, 0);
+
+    switch (tipoFiltro) {
+      case 'hoy':
+        return {
+          fechaInicio: inicioHoy.toISOString(),
+          fechaFin: hoy.toISOString()
+        };
+      case 'ayer':
+        const ayer = new Date(inicioHoy);
+        ayer.setDate(inicioHoy.getDate() - 1);
+        const finAyer = new Date(ayer);
+        finAyer.setHours(23, 59, 59, 999);
+        return {
+          fechaInicio: ayer.toISOString(),
+          fechaFin: finAyer.toISOString()
+        };
+      case 'semana':
+        const inicioSemana = new Date(inicioHoy);
+        inicioSemana.setDate(inicioHoy.getDate() - 7);
+        return {
+          fechaInicio: inicioSemana.toISOString(),
+          fechaFin: hoy.toISOString()
+        };
+      case 'mes':
+        const inicioMes = new Date(inicioHoy);
+        inicioMes.setDate(inicioHoy.getDate() - 30);
+        return {
+          fechaInicio: inicioMes.toISOString(),
+          fechaFin: hoy.toISOString()
+        };
+      case 'personalizada':
+        if (fechaPersonalizada) {
+          const fechaSeleccionada = new Date(fechaPersonalizada);
+          fechaSeleccionada.setHours(0, 0, 0, 0);
+          const finFecha = new Date(fechaSeleccionada);
+          finFecha.setHours(23, 59, 59, 999);
+          return {
+            fechaInicio: fechaSeleccionada.toISOString(),
+            fechaFin: finFecha.toISOString()
+          };
+        }
+        return {};
+      default:
+        return {};
+    }
+  };
+
+  // Cargar ventas iniciales
   useEffect(() => {
-    const fetchVentas = async () => {
+    const cargarVentasIniciales = async () => {
+      if (!currentUser) return;
+
       try {
-        setLoading(true);
-        const ventasData = await obtenerTodasVentas();
-        setVentas(ventasData);
+        const filtros = obtenerFiltrosFecha(filtroFecha, fechaPersonalizada);
+        setFiltrosActivos(filtros);
+        await cargarPrimerasPaginaHistorial(filtros);
         setError('');
       } catch (err) {
         console.error('Error fetching ventas:', err);
         setError('No se pudieron cargar las ventas. Inténtalo de nuevo.');
-      } finally {
-        setLoading(false);
       }
     };
 
-    if (currentUser) {
-      fetchVentas();
-    } else {
-      setVentas([]);
-      setLoading(false);
+    cargarVentasIniciales();
+  }, [currentUser, filtroFecha, fechaPersonalizada]);
+
+  // Manejar cambio de filtros
+  const handleFiltroChange = async (nuevoFiltro) => {
+    setFiltroFecha(nuevoFiltro);
+    try {
+      const filtros = obtenerFiltrosFecha(nuevoFiltro, fechaPersonalizada);
+      setFiltrosActivos(filtros);
+      await reiniciarPaginacionHistorial(filtros);
+    } catch (err) {
+      console.error('Error al aplicar filtros:', err);
+      setError('Error al aplicar filtros');
     }
-  }, [currentUser, obtenerTodasVentas]);
+  };
 
-  // Filtrar ventas por fecha
-  useEffect(() => {
-    const filtrarVentas = () => {
-      if (!ventas.length) {
-        setVentasFiltradas([]);
-        return;
-      }
+  // Manejar paginación
+  const handleSiguientePagina = async () => {
+    try {
+      await cargarSiguientePaginaHistorial(filtrosActivos);
+    } catch (err) {
+      console.error('Error al cargar siguiente página:', err);
+      setError('Error al cargar siguiente página');
+    }
+  };
 
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
-
-      const ayer = new Date(hoy);
-      ayer.setDate(hoy.getDate() - 1);
-
-      let ventasFiltradas = ventas;
-
-      switch (filtroFecha) {
-        case 'hoy':
-          ventasFiltradas = ventas.filter(venta => {
-            const fechaVenta = new Date(venta.fecha_creacion);
-            fechaVenta.setHours(0, 0, 0, 0);
-            return fechaVenta.getTime() === hoy.getTime();
-          });
-          break;
-        case 'ayer':
-          ventasFiltradas = ventas.filter(venta => {
-            const fechaVenta = new Date(venta.fecha_creacion);
-            fechaVenta.setHours(0, 0, 0, 0);
-            return fechaVenta.getTime() === ayer.getTime();
-          });
-          break;
-        case 'semana':
-          const inicioSemana = new Date(hoy);
-          inicioSemana.setDate(hoy.getDate() - 7);
-          ventasFiltradas = ventas.filter(venta => {
-            const fechaVenta = new Date(venta.fecha_creacion);
-            return fechaVenta >= inicioSemana;
-          });
-          break;
-        case 'mes':
-          const inicioMes = new Date(hoy);
-          inicioMes.setDate(hoy.getDate() - 30);
-          ventasFiltradas = ventas.filter(venta => {
-            const fechaVenta = new Date(venta.fecha_creacion);
-            return fechaVenta >= inicioMes;
-          });
-          break;
-        case 'personalizada':
-          if (fechaPersonalizada) {
-            const fechaSeleccionada = new Date(fechaPersonalizada);
-            fechaSeleccionada.setHours(0, 0, 0, 0);
-            ventasFiltradas = ventas.filter(venta => {
-              const fechaVenta = new Date(venta.fecha_creacion);
-              fechaVenta.setHours(0, 0, 0, 0);
-              return fechaVenta.getTime() === fechaSeleccionada.getTime();
-            });
-          }
-          break;
-        default:
-          ventasFiltradas = ventas;
-      }
-
-      // Ordenar por fecha y hora (más recientes primero, pero dentro del mismo día, de mañana a tarde)
-      ventasFiltradas.sort((a, b) => {
-        const fechaA = new Date(a.fecha_creacion);
-        const fechaB = new Date(b.fecha_creacion);
-        const diferenciaFecha = fechaB.toDateString().localeCompare(fechaA.toDateString());
-        if (diferenciaFecha !== 0) {
-          return diferenciaFecha;
-        }
-        return fechaA.getTime() - fechaB.getTime();
-      });
-
-      setVentasFiltradas(ventasFiltradas);
-    };
-
-    filtrarVentas();
-  }, [ventas, filtroFecha, fechaPersonalizada]);
+  const handlePaginaAnterior = async () => {
+    try {
+      await cargarPaginaAnteriorHistorial(filtrosActivos);
+    } catch (err) {
+      console.error('Error al cargar página anterior:', err);
+      setError('Error al cargar página anterior');
+    }
+  };
 
   // Efecto para manejar el tiempo de duración de las alertas
   useEffect(() => {
@@ -275,7 +290,8 @@ const VentasHistorial = () => {
     setDeleteLoading(true);
     try {
       await eliminarVenta(selectedVenta.id);
-      setVentas(prevVentas => prevVentas.filter(venta => venta.id !== selectedVenta.id));
+      // Recargar la página actual después de eliminar
+      await reiniciarPaginacionHistorial(filtrosActivos);
       setSuccess('Venta eliminada exitosamente.');
       setIsDeleteDrawerOpen(false);
       setSelectedVenta(null);
@@ -335,14 +351,14 @@ const VentasHistorial = () => {
     }
   };
 
-  // Calcular totales
-  const totalProductos = ventasFiltradas.reduce((acc, venta) =>
+  // Calcular totales solo de la página actual
+  const totalProductos = ventasHistorial.reduce((acc, venta) =>
     acc + venta.productos.reduce((sum, prod) => sum + prod.cantidad, 0), 0
   );
-  const totalRetornables = ventasFiltradas.reduce((acc, venta) =>
+  const totalRetornables = ventasHistorial.reduce((acc, venta) =>
     acc + (venta.total_retornables || 0), 0
   );
-  const totalMonto = ventasFiltradas.reduce((acc, venta) => acc + venta.total, 0);
+  const totalMonto = ventasHistorial.reduce((acc, venta) => acc + venta.total, 0);
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
@@ -482,15 +498,15 @@ const VentasHistorial = () => {
               <h2 className="text-lg font-semibold text-gray-800">Filtros</h2>
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg shadow-sm border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-sm border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 min-h-[44px]"
               >
                 <Filter className="w-4 h-4" />
-                Filtrar
+                <span className="hidden xs:inline">Filtrar</span>
               </button>
             </div>
             <div className={`transition-all duration-300 ${showFilters ? 'max-h-80 opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
               <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-                <div className="grid grid-cols-3 gap-2 mb-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
                   {[
                     { value: 'hoy', label: 'Hoy' },
                     { value: 'ayer', label: 'Ayer' },
@@ -501,10 +517,11 @@ const VentasHistorial = () => {
                   ].map((opcion) => (
                     <button
                       key={opcion.value}
-                      onClick={() => setFiltroFecha(opcion.value)}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                      onClick={() => handleFiltroChange(opcion.value)}
+                      disabled={loadingHistorial}
+                      className={`px-3 py-3 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 min-h-[44px] active:scale-95 ${
                         filtroFecha === opcion.value
-                          ? 'bg-[#45923a] text-white'
+                          ? 'bg-[#45923a] text-white shadow-md'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
@@ -518,12 +535,12 @@ const VentasHistorial = () => {
                       Seleccionar fecha:
                     </label>
                     <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-gray-500" />
+                      <Calendar className="w-4 h-4 text-gray-500 flex-shrink-0" />
                       <input
                         type="date"
                         value={fechaPersonalizada}
                         onChange={(e) => setFechaPersonalizada(e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#45923a] focus:border-transparent"
+                        className="flex-1 px-3 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#45923a] focus:border-transparent min-h-[44px]"
                       />
                     </div>
                   </div>
@@ -532,13 +549,13 @@ const VentasHistorial = () => {
             </div>
           </div>
 
-          {loading ? (
+          {loadingHistorial ? (
             <div className="space-y-3">
-              {[...Array(5)].map((_, index) => (
+              {[...Array(VENTAS_POR_PAGINA)].map((_, index) => (
                 <SkeletonCard key={index} />
               ))}
             </div>
-          ) : ventasFiltradas.length === 0 ? (
+          ) : ventasHistorial.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
                 <ShoppingCart className="w-8 h-8 text-gray-400" />
@@ -554,12 +571,13 @@ const VentasHistorial = () => {
               </p>
             </div>
           ) : (
-            <div className="block space-y-3">
-              {ventasFiltradas.map((venta) => (
+            <>
+              <div className="block space-y-4">
+                {ventasHistorial.map((venta) => (
                 <div
                   key={venta.id}
                   onClick={() => handleViewVenta(venta.id)}
-                  className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer"
+                  className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all duration-200 cursor-pointer active:scale-[0.98] sm:active:scale-100"
                 >
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-2">
@@ -574,23 +592,23 @@ const VentasHistorial = () => {
                     <div className="flex items-center gap-2">
                       <div className={`flex items-center gap-1 px-2 py-1 rounded-full border text-xs font-medium ${getEstadoColor(venta.estado)}`}>
                         {getEstadoIcon(venta.estado)}
-                        {venta.estado.charAt(0).toUpperCase() + venta.estado.slice(1)}
+                        <span>{venta.estado.charAt(0).toUpperCase() + venta.estado.slice(1)}</span>
                       </div>
                       <button
                         onClick={(e) => handleDeleteVenta(venta, e)}
-                        className="p-1 bg-red-100 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                        className="p-2 bg-red-100 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center active:scale-95"
                         title="Eliminar venta"
                       >
-                        <Trash2 size={20} strokeWidth={2.25} />
+                        <Trash2 size={18} strokeWidth={2.25} />
                       </button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <User size={16} strokeWidth={2.25} className="text-[#ffa40c]" />
-                    <span className="font-medium text-gray-900">{venta.nombre_cliente}</span>
+                  <div className="flex items-center gap-2 mb-3">
+                    <User size={16} strokeWidth={2.25} className="text-[#ffa40c] flex-shrink-0" />
+                    <span className="font-medium text-gray-900 truncate">{venta.nombre_cliente}</span>
                   </div>
                   <div className="mb-3">
-                    <div className="text-xs text-gray-500 mb-1">Productos:</div>
+                    <div className="text-xs text-gray-500 mb-2">Productos:</div>
                     <div className="text-sm text-gray-700 leading-relaxed">
                       {venta.productos.slice(0, 2).map((p, index) => (
                         <span key={index} className="inline-block bg-gray-100 rounded-md px-2 py-1 mr-1 mb-1 text-xs">
@@ -598,33 +616,124 @@ const VentasHistorial = () => {
                         </span>
                       ))}
                       {venta.productos.length > 2 && (
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-500 font-medium">
                           +{venta.productos.length - 2} más
                         </span>
                       )}
                     </div>
                   </div>
                   <div className="flex justify-between items-center pt-3 border-t border-gray-100">
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                       <div className="flex items-center gap-1">
-                        <span className="text-green-600 font-bold">Total:</span>
-                        <span className="font-bold text-green-600">S/{venta.total.toFixed(2)}</span>
+                        <span className="text-green-600 font-bold text-sm">Total:</span>
+                        <span className="font-bold text-green-600 text-lg">S/{venta.total.toFixed(2)}</span>
                       </div>
                       {venta.total_retornables > 0 && (
                         <div className="flex items-center gap-1">
-                          <Milk className="w-4 h-4 text-blue-600" />
+                          <Milk className="w-4 h-4 text-blue-600 flex-shrink-0" />
                           <span className="text-xs text-blue-600 font-medium">Debe botellas: {venta.total_retornables}</span>
                         </div>
                       )}
                     </div>
-                    <button className="flex items-center gap-1 text-[#45923a] hover:text-[#3a7d30] text-sm font-medium">
+                    <button className="flex items-center gap-1 text-[#45923a] hover:text-[#3a7d30] text-sm font-medium px-3 py-2 rounded-lg hover:bg-green-50 transition-colors">
                       <FileText className="w-4 h-4" />
-                      Ver
+                      <span className="hidden xs:inline">Ver</span>
                     </button>
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+
+              {/* Controles de paginación - Diseño móvil optimizado */}
+              <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200">
+                {/* Info de página - Centrada para móvil */}
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <div className="text-center">
+                    <div className="text-sm font-medium text-gray-800">
+                      Página {loadingHistorial ? '...' : paginaActual}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {ventasHistorial.length} ventas mostradas • {VENTAS_POR_PAGINA} por página
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Controles de navegación - Táctil para móvil */}
+                <div className="p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <button
+                      onClick={handlePaginaAnterior}
+                      disabled={paginaActual <= 1 || loadingHistorial}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-4 bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl text-sm font-medium transition-all duration-200 min-h-[52px] active:scale-95 disabled:active:scale-100"
+                    >
+                      <ChevronLeft className="w-5 h-5 flex-shrink-0" />
+                      <span className="hidden xs:inline">Anterior</span>
+                      <span className="xs:hidden">Ant.</span>
+                    </button>
+                    
+                    {/* Indicador visual de página actual - Más grande para móvil */}
+                    <div className="flex items-center justify-center min-w-[64px] h-[52px] bg-gradient-to-r from-[#45923a] to-[#3d8033] text-white rounded-xl text-base font-bold shadow-lg">
+                      {loadingHistorial ? (
+                        <div className="flex space-x-1">
+                          <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
+                          <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                          <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                        </div>
+                      ) : (
+                        paginaActual
+                      )}
+                    </div>
+                    
+                    <button
+                      onClick={handleSiguientePagina}
+                      disabled={!hayMasPaginas || loadingHistorial}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-4 bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl text-sm font-medium transition-all duration-200 min-h-[52px] active:scale-95 disabled:active:scale-100"
+                    >
+                      <span className="hidden xs:inline">Siguiente</span>
+                      <span className="xs:hidden">Sig.</span>
+                      <ChevronRight className="w-5 h-5 flex-shrink-0" />
+                    </button>
+                  </div>
+
+                  {/* Indicadores adicionales */}
+                  <div className="mt-3 flex items-center justify-center gap-4 text-xs text-gray-500">
+                    {paginaActual > 1 && (
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                        <span>Páginas anteriores</span>
+                      </div>
+                    )}
+                    {hayMasPaginas && (
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                        <span>Más ventas disponibles</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Resumen de la página actual - Optimizado para móvil */}
+              <div className="mt-4 bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-800 mb-3 text-center sm:text-left">
+                  Resumen de esta página:
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                  <div className="bg-blue-50 rounded-lg p-4 text-center">
+                    <div className="text-xl sm:text-lg font-bold text-blue-600">{totalProductos}</div>
+                    <div className="text-xs text-blue-600 mt-1">Productos vendidos</div>
+                  </div>
+                  <div className="bg-amber-50 rounded-lg p-4 text-center">
+                    <div className="text-xl sm:text-lg font-bold text-amber-600">{totalRetornables}</div>
+                    <div className="text-xs text-amber-600 mt-1">Botellas pendientes</div>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-4 text-center">
+                    <div className="text-xl sm:text-lg font-bold text-green-600">S/{totalMonto.toFixed(2)}</div>
+                    <div className="text-xs text-green-600 mt-1">Total vendido</div>
+                  </div>
+                </div>
+              </div>
+            </>
           )}
         </div>
       </main>

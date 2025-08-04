@@ -10,6 +10,7 @@ const ProductoDetallesDrawer = ({ isOpen, onClose, producto, onAgregarProducto }
   const [precioVenta, setPrecioVenta] = useState('');
   const [precioAlternativo, setPrecioAlternativo] = useState('');
   const [motivoPrecioAlternativo, setMotivoPrecioAlternativo] = useState('');
+  const [hasPrecioAlternativo, setHasPrecioAlternativo] = useState(false);
   const [toast, setToast] = useState({ message: '', type: '', visible: false });
   const [precioVentaDrawerOpen, setPrecioVentaDrawerOpen] = useState(false);
   const [precioAlternativoDrawerOpen, setPrecioAlternativoDrawerOpen] = useState(false);
@@ -37,6 +38,7 @@ const ProductoDetallesDrawer = ({ isOpen, onClose, producto, onAgregarProducto }
             ? producto.motivo_precio_alternativo
             : ''
         );
+        setHasPrecioAlternativo(!!producto.has_precio_alternativo);
       } else {
         // Modo adición: valores iniciales
         setCantidad(isKilogramo ? '1.00' : '1');
@@ -53,6 +55,7 @@ const ProductoDetallesDrawer = ({ isOpen, onClose, producto, onAgregarProducto }
             ? producto.motivo_precio_alternativo
             : ''
         );
+        setHasPrecioAlternativo(!!producto.has_precio_alternativo);
       }
     }
   }, [producto, isKilogramo, isEditing]);
@@ -60,8 +63,9 @@ const ProductoDetallesDrawer = ({ isOpen, onClose, producto, onAgregarProducto }
   // Calcular precio de compra automáticamente cuando cambian cantidad o costo total
   useEffect(() => {
     if (Number(cantidad) > 0 && costoTotal && Number(costoTotal) > 0) {
-      const precio = (Number(costoTotal) / Number(cantidad)).toFixed(2);
-      setPrecioCompra(precio);
+      // Usar más decimales para evitar pérdida de precisión, redondear solo al final
+      const precio = Number(costoTotal) / Number(cantidad);
+      setPrecioCompra(precio.toFixed(4)); // Mantener 4 decimales para mayor precisión
     } else {
       setPrecioCompra('0.00');
     }
@@ -138,15 +142,29 @@ const ProductoDetallesDrawer = ({ isOpen, onClose, producto, onAgregarProducto }
       showToast(`El precio de ${isKilogramo ? 'kilo de venta' : 'venta'} debe ser mayor a 0`, 'error');
       return;
     }
+
+    // IMPORTANTE: Usar el costo total EXACTO que ingresó el usuario, sin recálculos
+    const costoTotalExacto = Number(costoTotal).toFixed(2);
+    const precioCompraCalculado = Number(precioCompra);
+
+    // Debug log para verificar valores
+    console.log('Debug ProductoDetallesDrawer - COSTO TOTAL EXACTO:', {
+      cantidad: Number(cantidad),
+      costoTotalIngresado: Number(costoTotal),
+      costoTotalExacto: costoTotalExacto,
+      precioCompraCalculado: precioCompraCalculado,
+      nota: 'El subtotal será exactamente el costo total ingresado'
+    });
+
     onAgregarProducto({
       ...producto,
       cantidad: Number(cantidad),
-      precioCompra: Number(precioCompra),
+      precioCompra: precioCompraCalculado, // Mantener precisión completa
       precio_venta: Number(precioVenta),
-      precio_alternativo: precioAlternativo ? Number(precioAlternativo) : null,
-      motivo_precio_alternativo: motivoPrecioAlternativo || null,
-      has_precio_alternativo: !!precioAlternativo,
-      subtotal: (Number(cantidad) * Number(precioCompra)).toFixed(2), // Añadir subtotal
+      precio_alternativo: hasPrecioAlternativo && precioAlternativo ? Number(precioAlternativo) : null,
+      motivo_precio_alternativo: hasPrecioAlternativo && motivoPrecioAlternativo ? motivoPrecioAlternativo : null,
+      has_precio_alternativo: hasPrecioAlternativo && !!precioAlternativo,
+      subtotal: costoTotalExacto, // USAR DIRECTAMENTE EL COSTO TOTAL INGRESADO
     });
     showToast(`Producto ${producto.nombre} ${isEditing ? 'actualizado' : 'añadido'}`, 'success');
     onClose();
@@ -353,7 +371,10 @@ const ProductoDetallesDrawer = ({ isOpen, onClose, producto, onAgregarProducto }
                 <div className="grid grid-cols-2 gap-3">
                   {/* Costo Total */}
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Costo Total</label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Costo Total 
+                      <span className="text-green-600 font-bold ml-1">(Este será el subtotal exacto)</span>
+                    </label>
                     <div className="relative">
                       <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                         <span className="text-gray-500 text-sm">S/</span>
@@ -363,10 +384,13 @@ const ProductoDetallesDrawer = ({ isOpen, onClose, producto, onAgregarProducto }
                         step="0.01"
                         value={costoTotal}
                         onChange={handleCostoTotalChange}
-                        className="block w-full text-sm rounded-lg pl-7 pr-3 py-2.5 border-2 border-gray-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-[#45923a] focus:border-transparent transition-all shadow-lg hover:shadow-xl"
+                        className="block w-full text-sm rounded-lg pl-7 pr-3 py-2.5 border-2 border-green-300 bg-green-50/50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all shadow-lg hover:shadow-xl"
                         placeholder="0.00"
-                        aria-label="Costo total de la compra"
+                        aria-label="Costo total de la compra - Este será el subtotal exacto"
                       />
+                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                        <span className="text-xs text-green-600 font-medium">💰</span>
+                      </div>
                     </div>
                   </div>
 
@@ -384,7 +408,7 @@ const ProductoDetallesDrawer = ({ isOpen, onClose, producto, onAgregarProducto }
                       </div>
                       <div className="block w-full text-sm rounded-lg pl-7 pr-3 py-2.5 border-2 border-green-200 bg-gradient-to-r from-green-50 to-green-100 shadow-lg hover:shadow-xl hover:from-green-100 hover:to-green-200 transition-all duration-300 transform hover:-translate-y-0.5">
                         <span className="text-green-800 font-extrabold text-lg tracking-wide">
-                          {precioCompra}
+                          S/ {Number(precioCompra).toFixed(2)}
                         </span>
                       </div>
                     </div>
@@ -421,8 +445,28 @@ const ProductoDetallesDrawer = ({ isOpen, onClose, producto, onAgregarProducto }
                   </div>
                 </div>
 
+                {/* Checkbox para habilitar Precio Alternativo */}
+                <div className="flex items-center space-x-3 p-3 bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl border border-orange-100">
+                  <input
+                    type="checkbox"
+                    id="has_precio_alternativo"
+                    checked={hasPrecioAlternativo}
+                    onChange={(e) => {
+                      setHasPrecioAlternativo(e.target.checked);
+                      if (!e.target.checked) {
+                        setPrecioAlternativo('');
+                        setMotivoPrecioAlternativo('');
+                      }
+                    }}
+                    className="w-4 h-4 text-orange-600 border-2 border-gray-300 rounded focus:ring-2 focus:ring-orange-200"
+                  />
+                  <label htmlFor="has_precio_alternativo" className="text-sm font-semibold text-gray-800">
+                    ¿Incluir Precio Alternativo?
+                  </label>
+                </div>
+
                 {/* Precio Alternativo y Motivo en fila */}
-                {producto.has_precio_alternativo && (
+                {hasPrecioAlternativo && (
                   <div className="grid grid-cols-2 gap-3">
                     {/* Precio Alternativo */}
                     <div>

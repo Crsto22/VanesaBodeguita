@@ -5,7 +5,7 @@ import { useProducts } from '../../context/ProductContext';
 import Escaner from '../../assets/Productos/Escaner.svg';
 import EscanerNoEscaneo from '../../assets/Productos/EscanerNoEscaneo.svg';
 
-const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError }) => {
+const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError, onProductoNoEncontrado, productosNuevos = [], selectedProductos = [] }) => {
   const { loading, obtenerProductoPorId, obtenerProductoPorCodigoBarrasDirecto } = useProducts();
   const [isScanning, setIsScanning] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -90,14 +90,43 @@ const EscanearProductoDrawer = ({ isOpen, onClose, onSelectProducto, setError })
           setIsSearching(true);
 
           try {
-            const foundProduct = await obtenerProductoPorCodigoBarrasDirecto(decodedText);
+            // Buscar primero en productos nuevos temporales
+            const productoNuevoEncontrado = productosNuevos.find(p => p.codigoBarras === decodedText);
+            
             setIsSearching(false);
-            if (foundProduct) {
-              onSelectProducto(foundProduct);
-              onClose();
+            
+            if (productoNuevoEncontrado) {
+              const yaExiste = selectedProductos.some(p => p.id === productoNuevoEncontrado.id);
+              
+              if (!yaExiste) {
+                onSelectProducto(productoNuevoEncontrado);
+                onClose();
+              } else {
+                setError({ message: 'Este producto ya está en la lista', type: 'warning', visible: true });
+                onClose();
+              }
             } else {
-              setError({ message: 'Producto no encontrado', type: 'error', visible: true });
-              onClose();
+              // Buscar en productos existentes
+              const foundProduct = await obtenerProductoPorCodigoBarrasDirecto(decodedText);
+              if (foundProduct) {
+                const yaExiste = selectedProductos.some(p => p.id === foundProduct.id);
+                
+                if (!yaExiste) {
+                  onSelectProducto(foundProduct);
+                  onClose();
+                } else {
+                  setError({ message: 'Este producto ya está en la lista', type: 'warning', visible: true });
+                  onClose();
+                }
+              } else {
+                // Producto no encontrado - abrir drawer de nuevo producto
+                if (onProductoNoEncontrado) {
+                  onProductoNoEncontrado(decodedText);
+                } else {
+                  setError({ message: 'Producto no encontrado', type: 'error', visible: true });
+                }
+                onClose();
+              }
             }
           } catch (err) {
             console.error('Error during product search:', err);

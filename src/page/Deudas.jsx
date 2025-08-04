@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, CreditCard, Users, Barcode, Package, Search, DollarSign, RotateCcw, Mail, Phone, AlertCircle, Milk } from 'lucide-react';
+import { ShoppingCart, CreditCard, Users, Barcode, Package, Search, DollarSign, RotateCcw, Mail, Phone, AlertCircle, Milk, ChevronLeft, ChevronRight } from 'lucide-react';
 import Logo from '../assets/Logo.svg';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
@@ -25,6 +25,11 @@ const Deudas = () => {
   
   // ✨ NUEVO ESTADO: Controla el proceso de cálculo de deudas.
   const [isCalculating, setIsCalculating] = useState(true);
+
+  // ✨ ESTADOS PARA PAGINACIÓN
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(5); // Número de clientes por página - Reducido para optimizar Firebase
+  const [totalClientes, setTotalClientes] = useState(0);
 
   const quickAccessOptions = [
     { id: 'ventas', title: 'Ventas', icon: <ShoppingCart className="h-6 w-6" />, color: 'bg-emerald-500', description: 'Registrar ventas y ver historial', path: '/ventas' },
@@ -69,6 +74,9 @@ const Deudas = () => {
       );
 
       setClientesConDeudas(clientesFiltrados);
+      setTotalClientes(clientesFiltrados.length);
+      // Resetear a la primera página cuando cambian los datos
+      setCurrentPage(1);
       // Finalizamos el cálculo
       setIsCalculating(false);
     };
@@ -84,6 +92,18 @@ const Deudas = () => {
     cliente.correo.toLowerCase().includes(searchTerm.toLowerCase()) ||
     cliente.telefono.includes(searchTerm)
   );
+
+  // ✨ LÓGICA DE PAGINACIÓN
+  const totalFilteredClientes = clientesFiltrados.length;
+  const totalPages = Math.ceil(totalFilteredClientes / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const clientesPaginados = clientesFiltrados.slice(startIndex, endIndex);
+
+  // ✨ Efecto para resetear página cuando cambia la búsqueda
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const handleOptionClick = (path) => {
     navigate(path);
@@ -117,6 +137,7 @@ const Deudas = () => {
       })
     );
     setClientesConDeudas(updatedClientes.filter((c) => c.deudaTotal > 0 || c.totalRetornables > 0));
+    setTotalClientes(updatedClientes.filter((c) => c.deudaTotal > 0 || c.totalRetornables > 0).length);
     setIsCalculating(false); // Ocultamos el loader
   };
 
@@ -193,8 +214,15 @@ const Deudas = () => {
           <div>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-base font-semibold text-gray-800">
-                Clientes con Deudas o Retornables ({isLoading ? '...' : clientesFiltrados.length})
+                Clientes con Deudas o Retornables ({isLoading ? '...' : totalFilteredClientes})
               </h2>
+              {totalPages > 1 && !isLoading && (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <span>
+                    Página {currentPage} de {totalPages}
+                  </span>
+                </div>
+              )}
             </div>
             
             {/* ✨ CONDICIONAL DE RENDERIZADO ACTUALIZADO */}
@@ -204,7 +232,7 @@ const Deudas = () => {
                   <SkeletonCard key={index} />
                 ))}
               </div>
-            ) : clientesFiltrados.length === 0 ? (
+            ) : clientesPaginados.length === 0 ? (
               <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <CreditCard className="h-8 w-8 text-gray-400" />
@@ -217,8 +245,9 @@ const Deudas = () => {
                 </p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {clientesFiltrados.map((cliente) => (
+              <>
+                <div className="space-y-4">
+                  {clientesPaginados.map((cliente) => (
                   <div
                     key={cliente.id}
                     className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg hover:border-gray-200 transition-all duration-300"
@@ -287,7 +316,85 @@ const Deudas = () => {
                     </div>
                   </div>
                 ))}
-              </div>
+                </div>
+
+                {/* ✨ CONTROLES DE PAGINACIÓN */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-6 px-4 py-3 bg-white rounded-2xl shadow-sm border border-gray-100">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-600">
+                        Mostrando {startIndex + 1}-{Math.min(endIndex, totalFilteredClientes)} de {totalFilteredClientes} clientes
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentPage(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                          currentPage === 1
+                            ? 'text-gray-400 cursor-not-allowed'
+                            : 'text-gray-600 hover:text-[#45923a] hover:bg-green-50'
+                        }`}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        Anterior
+                      </button>
+                      
+                      <div className="flex items-center gap-1">
+                        {[...Array(totalPages)].map((_, index) => {
+                          const pageNumber = index + 1;
+                          const isCurrentPage = pageNumber === currentPage;
+                          
+                          // Mostrar solo algunas páginas para no saturar la UI
+                          if (
+                            pageNumber === 1 ||
+                            pageNumber === totalPages ||
+                            (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
+                          ) {
+                            return (
+                              <button
+                                key={pageNumber}
+                                onClick={() => setCurrentPage(pageNumber)}
+                                className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-all duration-200 ${
+                                  isCurrentPage
+                                    ? 'bg-[#45923a] text-white shadow-sm'
+                                    : 'text-gray-600 hover:text-[#45923a] hover:bg-green-50'
+                                }`}
+                              >
+                                {pageNumber}
+                              </button>
+                            );
+                          } else if (
+                            pageNumber === currentPage - 2 ||
+                            pageNumber === currentPage + 2
+                          ) {
+                            return (
+                              <span key={pageNumber} className="text-gray-400 px-1">
+                                ...
+                              </span>
+                            );
+                          }
+                          return null;
+                        })}
+                      </div>
+                      
+                      <button
+                        onClick={() => setCurrentPage(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                          currentPage === totalPages
+                            ? 'text-gray-400 cursor-not-allowed'
+                            : 'text-gray-600 hover:text-[#45923a] hover:bg-green-50'
+                        }`}
+                      >
+                        Siguiente
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../firebase/firebase';
-import { collection, addDoc, query, where, getDocs, onSnapshot, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, onSnapshot, doc, updateDoc, deleteDoc, getDoc, orderBy, limit, startAfter, endBefore, limitToLast } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { useProducts } from './ProductContext';
 import { useProveedores } from './ProveedoresContext';
@@ -19,9 +19,22 @@ export const useCompras = () => {
 export const ComprasProvider = ({ children }) => {
   const [compras, setCompras] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Estados para paginación del historial
+  const [comprasHistorial, setComprasHistorial] = useState([]);
+  const [loadingHistorial, setLoadingHistorial] = useState(false);
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [ultimoDocumento, setUltimoDocumento] = useState(null);
+  const [primerDocumento, setPrimerDocumento] = useState(null);
+  const [hayMasPaginas, setHayMasPaginas] = useState(true);
+  const [historialPaginacion, setHistorialPaginacion] = useState([]);
+  
   const { currentUser } = useAuth();
   const { obtenerProductoPorIdDirecto, actualizarProducto } = useProducts();
   const { obtenerProveedorPorId } = useProveedores();
+
+  // Configuración de paginación
+  const COMPRAS_POR_PAGINA = 5;
 
   const comprasCollection = collection(db, 'compras');
 
@@ -36,6 +49,7 @@ export const ComprasProvider = ({ children }) => {
       return;
     }
 
+    // Solo escuchar cambios en tiempo real para compras pendientes o nuevas
     const comprasQuery = query(comprasCollection, where('estado', 'in', ['pendiente', 'pagado']));
     const unsubscribe = onSnapshot(comprasQuery, (snapshot) => {
       const comprasData = snapshot.docs.map(doc => ({
@@ -162,9 +176,190 @@ export const ComprasProvider = ({ children }) => {
     }
   };
 
+  // ============= FUNCIONES DE PAGINACIÓN PARA HISTORIAL =============
+
+  // Cargar primera página del historial
+  const cargarPrimerasPaginaHistorial = async (filtros = {}) => {
+    try {
+      setLoadingHistorial(true);
+      
+      let comprasQuery = query(
+        comprasCollection,
+        orderBy('fecha_creacion', 'desc'),
+        limit(COMPRAS_POR_PAGINA)
+      );
+
+      // Aplicar filtros si existen
+      if (filtros.fechaInicio && filtros.fechaFin) {
+        comprasQuery = query(
+          comprasCollection,
+          where('fecha_creacion', '>=', filtros.fechaInicio),
+          where('fecha_creacion', '<=', filtros.fechaFin),
+          orderBy('fecha_creacion', 'desc'),
+          limit(COMPRAS_POR_PAGINA)
+        );
+      }
+
+      const snapshot = await getDocs(comprasQuery);
+      const comprasData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        total: formatToTwoDecimals(doc.data().total || 0),
+      }));
+
+      setComprasHistorial(comprasData);
+      setPaginaActual(1);
+      setHistorialPaginacion([]);
+      
+      if (snapshot.docs.length > 0) {
+        setUltimoDocumento(snapshot.docs[snapshot.docs.length - 1]);
+        setPrimerDocumento(snapshot.docs[0]);
+        setHayMasPaginas(snapshot.docs.length === COMPRAS_POR_PAGINA);
+      } else {
+        setUltimoDocumento(null);
+        setPrimerDocumento(null);
+        setHayMasPaginas(false);
+      }
+
+      return comprasData;
+    } catch (error) {
+      console.error('Error al cargar primera página del historial:', error);
+      throw error;
+    } finally {
+      setLoadingHistorial(false);
+    }
+  };
+
+  // Cargar siguiente página
+  const cargarSiguientePaginaHistorial = async (filtros = {}) => {
+    try {
+      if (!ultimoDocumento || !hayMasPaginas) return;
+
+      setLoadingHistorial(true);
+
+      let comprasQuery = query(
+        comprasCollection,
+        orderBy('fecha_creacion', 'desc'),
+        startAfter(ultimoDocumento),
+        limit(COMPRAS_POR_PAGINA)
+      );
+
+      // Aplicar filtros si existen
+      if (filtros.fechaInicio && filtros.fechaFin) {
+        comprasQuery = query(
+          comprasCollection,
+          where('fecha_creacion', '>=', filtros.fechaInicio),
+          where('fecha_creacion', '<=', filtros.fechaFin),
+          orderBy('fecha_creacion', 'desc'),
+          startAfter(ultimoDocumento),
+          limit(COMPRAS_POR_PAGINA)
+        );
+      }
+
+      const snapshot = await getDocs(comprasQuery);
+      const comprasData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        total: formatToTwoDecimals(doc.data().total || 0),
+      }));
+
+      if (snapshot.docs.length > 0) {
+        // Guardar referencia de la página anterior
+        setHistorialPaginacion(prev => [...prev, { primerDoc: primerDocumento, ultimoDoc: ultimoDocumento }]);
+        
+        setComprasHistorial(comprasData);
+        setPaginaActual(prev => prev + 1);
+        setUltimoDocumento(snapshot.docs[snapshot.docs.length - 1]);
+        setPrimerDocumento(snapshot.docs[0]);
+        setHayMasPaginas(snapshot.docs.length === COMPRAS_POR_PAGINA);
+      }
+
+      return comprasData;
+    } catch (error) {
+      console.error('Error al cargar siguiente página:', error);
+      throw error;
+    } finally {
+      setLoadingHistorial(false);
+    }
+  };
+
+  // Cargar página anterior
+  const cargarPaginaAnteriorHistorial = async (filtros = {}) => {
+    try {
+      if (paginaActual <= 1 || historialPaginacion.length === 0) return;
+
+      setLoadingHistorial(true);
+
+      const paginaAnterior = historialPaginacion[historialPaginacion.length - 1];
+
+      let comprasQuery = query(
+        comprasCollection,
+        orderBy('fecha_creacion', 'desc'),
+        endBefore(paginaAnterior.ultimoDoc),
+        limitToLast(COMPRAS_POR_PAGINA)
+      );
+
+      // Aplicar filtros si existen
+      if (filtros.fechaInicio && filtros.fechaFin) {
+        comprasQuery = query(
+          comprasCollection,
+          where('fecha_creacion', '>=', filtros.fechaInicio),
+          where('fecha_creacion', '<=', filtros.fechaFin),
+          orderBy('fecha_creacion', 'desc'),
+          endBefore(paginaAnterior.ultimoDoc),
+          limitToLast(COMPRAS_POR_PAGINA)
+        );
+      }
+
+      const snapshot = await getDocs(comprasQuery);
+      const comprasData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        total: formatToTwoDecimals(doc.data().total || 0),
+      }));
+
+      setComprasHistorial(comprasData);
+      setPaginaActual(prev => prev - 1);
+      setHistorialPaginacion(prev => prev.slice(0, -1));
+      
+      if (snapshot.docs.length > 0) {
+        setUltimoDocumento(snapshot.docs[snapshot.docs.length - 1]);
+        setPrimerDocumento(snapshot.docs[0]);
+        setHayMasPaginas(true);
+      }
+
+      return comprasData;
+    } catch (error) {
+      console.error('Error al cargar página anterior:', error);
+      throw error;
+    } finally {
+      setLoadingHistorial(false);
+    }
+  };
+
+  // Reiniciar paginación
+  const reiniciarPaginacionHistorial = async (filtros = {}) => {
+    setPaginaActual(1);
+    setUltimoDocumento(null);
+    setPrimerDocumento(null);
+    setHayMasPaginas(true);
+    setHistorialPaginacion([]);
+    await cargarPrimerasPaginaHistorial(filtros);
+  };
+
   const value = {
     compras,
     loading,
+    // Estados del historial con paginación
+    comprasHistorial,
+    loadingHistorial,
+    paginaActual,
+    hayMasPaginas,
+    COMPRAS_POR_PAGINA,
+    cargarPrimerasPaginaHistorial,
+    cargarSiguientePaginaHistorial,
+    cargarPaginaAnteriorHistorial,
+    reiniciarPaginacionHistorial,
     crearCompra,
     obtenerTodasCompras,
     eliminarCompra,

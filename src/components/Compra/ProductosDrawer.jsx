@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Search, Package, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { X, Search, Package, Image as ImageIcon, Loader2, Plus } from 'lucide-react';
 import { useProducts } from '../../context/ProductContext';
 import ProductoDetallesDrawer from './ProductoDetallesDrawer';
 
-const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
+const ProductosDrawer = ({ isOpen, onClose, onSelectProducto, onNuevoProducto }) => {
   const {
     productos,
     productosLoading,
@@ -139,13 +139,23 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto }) => {
               <h2 className="text-lg font-bold text-gray-900">Productos</h2>
               <p className="text-xs text-gray-500 mt-1">Selecciona un producto</p>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-              aria-label="Cerrar drawer"
-            >
-              <X className="h-6 w-6 text-gray-600" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onNuevoProducto && onNuevoProducto()}
+                className="p-2 rounded-full bg-[#45923a] hover:bg-[#3a7d30] text-white transition-colors shadow-lg"
+                aria-label="Agregar nuevo producto"
+                title="Agregar nuevo producto"
+              >
+                <Plus className="h-5 w-5" />
+              </button>
+              <button
+                onClick={onClose}
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                aria-label="Cerrar drawer"
+              >
+                <X className="h-6 w-6 text-gray-600" />
+              </button>
+            </div>
           </div>
 
           {/* Search Bar */}

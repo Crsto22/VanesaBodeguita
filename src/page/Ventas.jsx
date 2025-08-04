@@ -135,12 +135,12 @@ const ProductoEnVentaCard = React.memo(({
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <Milk size={16} className="text-blue-600" />
-                    <span className="text-sm font-medium text-blue-800">Botellas Devueltas:</span>
+                    <span className="text-sm font-medium text-blue-800">Debe botellas:</span>
                   </div>
                   <div className="flex items-center bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl overflow-hidden shadow-inner">
-                    <button onClick={() => onUpdateRetornables(index, 'decrement')} className="p-1 text-gray-600 hover:bg-gray-200 disabled:opacity-50 transition-colors active:scale-95" disabled={(producto.cantidad_retornable || 0) <= 0}><Minus size={16} /></button>
-                    <span className="px-4 text-sm font-bold text-gray-800 min-w-[40px] text-center">{producto.cantidad_retornable || 0}</span>
-                    <button onClick={() => onUpdateRetornables(index, 'increment')} className="p-1 text-gray-600 hover:bg-gray-200 disabled:opacity-50 transition-colors active:scale-95" disabled={(producto.cantidad_retornable || 0) >= producto.cantidad}><Plus size={16} /></button>
+                    <button onClick={() => onUpdateRetornables(index, 'increment')} className="p-1 text-gray-600 hover:bg-gray-200 disabled:opacity-50 transition-colors active:scale-95" disabled={(producto.cantidad_retornable || 0) >= producto.cantidad}><Minus size={16} /></button>
+                    <span className="px-4 text-sm font-bold text-gray-800 min-w-[40px] text-center">{producto.cantidad - (producto.cantidad_retornable || 0)}</span>
+                    <button onClick={() => onUpdateRetornables(index, 'decrement')} className="p-1 text-gray-600 hover:bg-gray-200 disabled:opacity-50 transition-colors active:scale-95" disabled={(producto.cantidad_retornable || 0) <= 0}><Plus size={16} /></button>
                   </div>
                 </div>
               </div>
@@ -512,7 +512,22 @@ const Ventas = () => {
   const handleSelectCliente = (cliente) => { if (!cliente || !cliente.id) { showToast('Cliente inválido seleccionado', 'error'); return; } setClienteSeleccionado(cliente); setDrawerClientesOpen(false); showToast('Cliente seleccionado con éxito', 'success'); };
   const handleRemoveCliente = (e) => { e.stopPropagation(); setClienteSeleccionado(null); showToast('Cliente removido con éxito', 'success'); };
   const handleQuickAddProducto = async (nombre, precio) => { if (!nombre || !precio || isNaN(precio) || parseFloat(precio) <= 0) { showToast('Nombre o precio inválido', 'error'); return; } const producto = { id: `temp_${Date.now().toString()}`, nombre, cantidad: 1, precio_unitario: parseFloat(precio), subtotal: parseFloat(precio).toFixed(2), retornable: false, cantidad_retornable: 0, tipo_unidad: 'unidad', precio_referencia: null, imagen: null, }; setSelectedProductos((prev) => [...prev, producto]); showToast('Producto rápido añadido con éxito', 'success'); };
-  const handleRegistrarVenta = () => { if (selectedProductos.length === 0) { showToast('Debe seleccionar al menos un producto', 'error'); return; } const hasOwedRetornables = selectedProductos.some((p) => p.retornable && (p.cantidad_retornable || 0) < p.cantidad); if (hasOwedRetornables && !clienteSeleccionado) { showToast('Se requiere un cliente para productos retornables con botellas pendientes', 'error'); return; } setDrawerConfirmarOpen(true); };
+  const handleRegistrarVenta = () => { 
+    if (selectedProductos.length === 0) { 
+      showToast('Debe seleccionar al menos un producto', 'error'); 
+      return; 
+    } 
+    
+    // Verificar si hay productos retornables que generan deuda de botellas
+    const hasOwedRetornables = selectedProductos.some((p) => p.retornable && (p.cantidad_retornable || 0) < p.cantidad); 
+    
+    if (hasOwedRetornables && !clienteSeleccionado) { 
+      showToast('Se requiere un cliente específico para productos retornables que generan deuda de botellas', 'error'); 
+      return; 
+    } 
+    
+    setDrawerConfirmarOpen(true); 
+  };
   const handleConfirmarVenta = async ({ estado, montoPagado, historialPagos, notas }) => { try { const total = calcularTotal(); const ventaData = { cliente_ref: clienteSeleccionado ? clienteSeleccionado.id : null, nombre_cliente: clienteSeleccionado ? clienteSeleccionado.nombre : 'Cliente Genérico', productos: selectedProductos.map((p) => ({ producto_ref: p.id && !p.id.startsWith('temp_') ? p.id : null, nombre: p.nombre, cantidad: p.cantidad, precio_unitario: parseFloat(p.precio_unitario), subtotal: parseFloat(p.subtotal), retornable: p.retornable, cantidad_retornable: p.cantidad_retornable || 0, })), notas: notas || '', estado, monto_pagado: montoPagado, monto_pendiente: total - montoPagado, historial_pagos: historialPagos, }; const newVentaId = await crearVenta(ventaData); setVentaId(newVentaId); showToast(`Venta registrada con éxito (ID: ${newVentaId})`, 'success'); setClienteSeleccionado(null); setSelectedProductos([]); localStorage.removeItem('ventaEnProgreso'); setDrawerConfirmarOpen(false); return newVentaId; } catch (error) { showToast(`Error al registrar venta: ${error.message}`, 'error'); throw error; } };
   const handleViewNotaVenta = () => { if (ventaId) { navigate(`/ventas/${ventaId}`); } else { showToast('No se pudo cargar la nota de venta: ID no disponible', 'error'); } };
   const calcularTotal = () => selectedProductos.reduce((sum, p) => sum + parseFloat(p.subtotal), 0);

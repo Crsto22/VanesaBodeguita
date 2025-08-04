@@ -133,20 +133,18 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
-  const filtrarProductosLocal = (query) => {
-    if (!query.trim()) {
-      return todosLosProductos;
-    }
+  const filtrarProductosLocal = (query) => {
+    if (!query.trim()) {
+      return todosLosProductos;
+    }
 
-    const queryNormalizado = query.toLowerCase().trim();
-    return todosLosProductos.filter(producto => 
-      producto.nombre.toLowerCase().includes(queryNormalizado) ||
-      producto.codigo_barras?.includes(query) ||
-      producto.marca?.toLowerCase().includes(queryNormalizado)
-    );
-  };
-
-  const paginarProductos = (productosArray, pagina) => {
+    const queryNormalizado = query.toLowerCase().trim();
+    return todosLosProductos.filter(producto => 
+      producto.nombre.toLowerCase().includes(queryNormalizado) ||
+      producto.codigo_barras?.includes(query) ||
+      producto.marca?.toLowerCase().includes(queryNormalizado)
+    );
+  };  const paginarProductos = (productosArray, pagina) => {
     const inicio = (pagina - 1) * PRODUCTOS_POR_PAGINA;
     const fin = inicio + PRODUCTOS_POR_PAGINA;
     return productosArray.slice(inicio, fin);
@@ -419,36 +417,35 @@ export const ProductProvider = ({ children }) => {
     return categorias.find(categoria => categoria.id === id);
   };
 
-  const crearProducto = async (productoData, imagenFile) => {
-    try {
-      let imagenUrl = '';
-      if (imagenFile) {
-        imagenUrl = await uploadImageToImageKit(imagenFile, productoData.nombre);
-      }
+  const crearProducto = async (productoData, imagenFile) => {
+    try {
+      let imagenUrl = '';
+      if (imagenFile) {
+        imagenUrl = await uploadImageToImageKit(imagenFile, productoData.nombre);
+      }
 
-      const nuevoProducto = {
-        ...productoData,
-        categoria_ref: productoData.categoria_ref,
-        nombre: productoData.nombre.toUpperCase(),
-        imagen: imagenUrl || null,
-        estado: 'activo',
-        fecha_creacion: new Date().toISOString(),
-        precio: parseFloat(productoData.precio),
-        stock: parseFloat(productoData.stock),
-        precio_alternativo: productoData.has_precio_alternativo && productoData.precio_alternativo ? parseFloat(productoData.precio_alternativo) : null,
-        motivo_precio_alternativo: productoData.has_precio_alternativo ? productoData.motivo_precio_alternativo || null : null,
-      };
-      
-      const docRef = await addDoc(productosCollection, nuevoProducto);
-      await recargarProductos();
-      return docRef.id;
-    } catch (error) {
-      console.error('Error al crear producto:', error);
-      throw error;
-    }
-  };
-
-  const actualizarProducto = async (id, productoData, imagenFile) => {
+      const nuevoProducto = {
+        ...productoData,
+        categoria_ref: productoData.categoria_ref,
+        nombre: productoData.nombre.toUpperCase(),
+        codigo_barras: productoData.codigoBarras,
+        imagen: imagenUrl || null,
+        estado: 'activo',
+        fecha_creacion: new Date().toISOString(),
+        precio: parseFloat(productoData.precio_venta || productoData.precio || 0),
+        stock: parseFloat(productoData.stock || 0),
+        precio_alternativo: productoData.has_precio_alternativo && productoData.precio_alternativo ? parseFloat(productoData.precio_alternativo) : null,
+        motivo_precio_alternativo: productoData.has_precio_alternativo ? productoData.motivo_precio_alternativo || null : null,
+      };
+      
+      const docRef = await addDoc(productosCollection, nuevoProducto);
+      await recargarProductos();
+      return docRef.id;
+    } catch (error) {
+      console.error('Error al crear producto:', error);
+      throw error;
+    }
+  };  const actualizarProducto = async (id, productoData, imagenFile) => {
     try {
       let imagenUrl = productoData.imagen || '';
       if (imagenFile) {
@@ -510,30 +507,28 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
-  const obtenerProductoPorCodigoBarrasDirecto = async (codigoBarras) => {
-    try {
-      const productosQuery = query(
-        productosCollection,
-        where('codigo_barras', '==', codigoBarras),
-        where('estado', '==', 'activo'),
-        limit(1)
-      );
-      const snapshot = await getDocs(productosQuery);
-      if (snapshot.empty) {
-        return null;
-      }
-      const productoDoc = snapshot.docs[0];
-      return {
-        id: productoDoc.id,
-        ...productoDoc.data(),
-      };
-    } catch (error) {
-      console.error('Error al obtener producto por código de barras:', error);
-      return null;
-    }
-  };
-
- // MODIFICADO: Nueva función para obtener productos relacionados con lógica priorizada
+  const obtenerProductoPorCodigoBarrasDirecto = async (codigoBarras) => {
+    try {
+      const productosQuery = query(
+        productosCollection,
+        where('codigo_barras', '==', codigoBarras),
+        where('estado', '==', 'activo'),
+        limit(1)
+      );
+      const snapshot = await getDocs(productosQuery);
+      if (snapshot.empty) {
+        return null;
+      }
+      const productoDoc = snapshot.docs[0];
+      return {
+        id: productoDoc.id,
+        ...productoDoc.data(),
+      };
+    } catch (error) {
+      console.error('Error al obtener producto por código de barras:', error);
+      return null;
+    }
+  }; // MODIFICADO: Nueva función para obtener productos relacionados con lógica priorizada
  const obtenerProductosRelacionados = (productoBase) => {
     if (!productoBase || !productoBase.id || !productoBase.nombre || todosLosProductos.length === 0) {
       return [];
