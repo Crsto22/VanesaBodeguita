@@ -326,7 +326,7 @@ const Compras = () => {
             
             const productoData = {
               nombre: producto.nombre,
-              codigoBarras: producto.codigoBarras,
+              codigo_barras: producto.codigo_barras,
               categoria_ref: producto.categoria_ref,
               precio_venta: parseFloat(producto.precio_venta),
               precio_alternativo: producto.has_precio_alternativo ? parseFloat(producto.precio_alternativo) : null,
@@ -343,7 +343,7 @@ const Compras = () => {
             console.log('Datos del producto a enviar:', productoData);
             
             // Validar que los campos requeridos no sean undefined
-            if (!productoData.codigoBarras) {
+            if (!productoData.codigo_barras) {
               throw new Error(`El código de barras del producto ${producto.nombre} es requerido`);
             }
             if (!productoData.nombre) {

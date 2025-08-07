@@ -518,7 +518,7 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                       className="animate-spin h-3 w-3 sm:h-4 sm:w-4 text-white"
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
-                      viewBox="0 24 24"
+                      viewBox="0 0 24 24"
                     >
                       <circle
                         className="opacity-25"

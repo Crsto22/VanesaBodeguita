@@ -6,7 +6,7 @@ const DrawerNuevoProducto = ({ isOpen, onClose, codigoBarras, categorias = [], o
     categoria_ref: '',
     nombre: '',
     tipo_unidad: 'unidad',
-    codigoBarras: '',
+    codigo_barras: '',
     marca: '',
     fecha_vencimiento: '',
     retornable: false,
@@ -19,7 +19,7 @@ const DrawerNuevoProducto = ({ isOpen, onClose, codigoBarras, categorias = [], o
     if (isOpen) {
       setFormData(prev => ({
         ...prev,
-        codigoBarras: codigoBarras || '', // Usar el código escaneado o dejar vacío para entrada manual
+        codigo_barras: codigoBarras || '', // Usar el código escaneado o dejar vacío para entrada manual
         categoria_ref: categorias.length > 0 ? categorias[0].id : '',
       }));
     }
@@ -29,8 +29,8 @@ const DrawerNuevoProducto = ({ isOpen, onClose, codigoBarras, categorias = [], o
     const newErrors = {};
     if (!formData.categoria_ref) newErrors.categoria_ref = 'La categoría es obligatoria';
     if (!formData.nombre.trim()) newErrors.nombre = 'El nombre es obligatorio';
-    if (!formData.codigoBarras.trim()) newErrors.codigoBarras = 'El código de barras es obligatorio';
-    if (!/^\d+$/.test(formData.codigoBarras.trim())) newErrors.codigoBarras = 'El código de barras debe contener solo números';
+    if (!formData.codigo_barras.trim()) newErrors.codigo_barras = 'El código de barras es obligatorio';
+    if (!/^\d+$/.test(formData.codigo_barras.trim())) newErrors.codigo_barras = 'El código de barras debe contener solo números';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -68,7 +68,7 @@ const DrawerNuevoProducto = ({ isOpen, onClose, codigoBarras, categorias = [], o
       categoria_ref: '',
       nombre: '',
       tipo_unidad: 'unidad',
-      codigoBarras: '',
+      codigo_barras: '',
       marca: '',
       fecha_vencimiento: '',
       retornable: false,
@@ -84,7 +84,7 @@ const DrawerNuevoProducto = ({ isOpen, onClose, codigoBarras, categorias = [], o
       categoria_ref: '',
       nombre: '',
       tipo_unidad: 'unidad',
-      codigoBarras: '',
+      codigo_barras: '',
       marca: '',
       fecha_vencimiento: '',
       retornable: false,
@@ -160,17 +160,17 @@ const DrawerNuevoProducto = ({ isOpen, onClose, codigoBarras, categorias = [], o
             {!codigoBarras && (
               // Campo de código de barras solo cuando es entrada manual
               <div className="space-y-2">
-                <label htmlFor="codigoBarras" className="block text-sm font-semibold text-gray-800">
+                <label htmlFor="codigo_barras" className="block text-sm font-semibold text-gray-800">
                   Código de Barras *
                 </label>
                 <input
                   type="text"
-                  id="codigoBarras"
-                  name="codigoBarras"
-                  value={formData.codigoBarras}
+                  id="codigo_barras"
+                  name="codigo_barras"
+                  value={formData.codigo_barras}
                   onChange={handleChange}
                   className={`w-full rounded-xl border-2 px-4 py-3 text-sm font-medium transition-all duration-200 ${
-                    errors.codigoBarras 
+                    errors.codigo_barras 
                       ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200' 
                       : 'border-gray-200 bg-gray-50 focus:border-blue-400 focus:bg-white hover:border-gray-300'
                   } focus:outline-none focus:ring-4 focus:ring-opacity-20`}
@@ -178,7 +178,7 @@ const DrawerNuevoProducto = ({ isOpen, onClose, codigoBarras, categorias = [], o
                   inputMode="numeric"
                   pattern="[0-9]*"
                 />
-                {errors.codigoBarras && <p className="text-xs text-red-600 font-medium">{errors.codigoBarras}</p>}
+                {errors.codigo_barras && <p className="text-xs text-red-600 font-medium">{errors.codigo_barras}</p>}
               </div>
             )}
 

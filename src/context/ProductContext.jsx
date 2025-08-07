@@ -425,15 +425,18 @@ export const ProductProvider = ({ children }) => {
       }
 
       const nuevoProducto = {
-        ...productoData,
         categoria_ref: productoData.categoria_ref,
         nombre: productoData.nombre.toUpperCase(),
-        codigo_barras: productoData.codigoBarras,
+        codigo_barras: productoData.codigo_barras || null,
         imagen: imagenUrl || null,
         estado: 'activo',
         fecha_creacion: new Date().toISOString(),
         precio: parseFloat(productoData.precio_venta || productoData.precio || 0),
         stock: parseFloat(productoData.stock || 0),
+        tipo_unidad: productoData.tipo_unidad || 'unidad',
+        marca: productoData.marca || null,
+        fecha_vencimiento: productoData.fecha_vencimiento || null,
+        retornable: productoData.retornable || false,
         precio_alternativo: productoData.has_precio_alternativo && productoData.precio_alternativo ? parseFloat(productoData.precio_alternativo) : null,
         motivo_precio_alternativo: productoData.has_precio_alternativo ? productoData.motivo_precio_alternativo || null : null,
       };
@@ -453,19 +456,21 @@ export const ProductProvider = ({ children }) => {
         imagenUrl = await uploadImageToImageKit(imagenFile, productoData.nombre);
       }
 
-      const productoRef = doc(db, 'productos', id);
-      const updatedProducto = {
-        ...productoData,
-        categoria_ref: productoData.categoria_ref,
-        nombre: productoData.nombre.toUpperCase(),
-        imagen: imagenUrl || null,
-        precio: parseFloat(productoData.precio),
-        stock: parseFloat(productoData.stock),
-        precio_alternativo: productoData.has_precio_alternativo && productoData.precio_alternativo ? parseFloat(productoData.precio_alternativo) : null,
-        motivo_precio_alternativo: productoData.has_precio_alternativo ? productoData.motivo_precio_alternativo || null : null,
-      };
-
-      await updateDoc(productoRef, updatedProducto);
+      const productoRef = doc(db, 'productos', id);
+      const updatedProducto = {
+        categoria_ref: productoData.categoria_ref,
+        nombre: productoData.nombre.toUpperCase(),
+        codigo_barras: productoData.codigo_barras || null,
+        imagen: imagenUrl || null,
+        precio: parseFloat(productoData.precio),
+        stock: parseFloat(productoData.stock),
+        tipo_unidad: productoData.tipo_unidad || 'unidad',
+        marca: productoData.marca || null,
+        fecha_vencimiento: productoData.fecha_vencimiento || null,
+        retornable: productoData.retornable || false,
+        precio_alternativo: productoData.has_precio_alternativo && productoData.precio_alternativo ? parseFloat(productoData.precio_alternativo) : null,
+        motivo_precio_alternativo: productoData.has_precio_alternativo ? productoData.motivo_precio_alternativo || null : null,
+      };      await updateDoc(productoRef, updatedProducto);
       await recargarProductos();
     } catch (error) {
       console.error('Error al actualizar producto:', error);

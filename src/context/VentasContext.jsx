@@ -24,7 +24,8 @@ export const VentasProvider = ({ children }) => {
   
   const { currentUser } = useAuth();
   const { clientes, obtenerClientePorId } = useClientes();
-  const { obtenerProductoPorIdDirecto } = useProducts();
+  const productsContext = useProducts();
+  const { obtenerProductoPorIdDirecto } = productsContext || {};
 
   // Configuración de paginación
   const VENTAS_POR_PAGINA = 5;
@@ -95,7 +96,7 @@ export const VentasProvider = ({ children }) => {
       let totalRetornables = 0;
       const productosProcesados = await Promise.all(ventaData.productos.map(async (item) => {
         let producto = null;
-        if (item.producto_ref) {
+        if (item.producto_ref && obtenerProductoPorIdDirecto) {
           producto = await obtenerProductoPorIdDirecto(item.producto_ref);
           if (!producto) throw new Error(`Producto ${item.producto_ref} no encontrado`);
         }
