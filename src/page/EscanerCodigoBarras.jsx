@@ -11,6 +11,7 @@ import {
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import Escaner from '../assets/Productos/Escaner.svg';
 import EscanerNoEscaneo from '../assets/Productos/EscanerNoEscaneo.svg';
+import EscanerPistola from '../assets/Productos/EscanerPistola.svg';
 import { useProducts } from '../context/ProductContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -21,10 +22,16 @@ const EscanerCodigoBarras = () => {
   const [error, setError] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [scannedProduct, setScannedProduct] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [barcodeInput, setBarcodeInput] = useState('');
+  const [countdown, setCountdown] = useState(0);
   const scannerRef = useRef(null);
   const scannerContainerRef = useRef(null);
+  const barcodeInputRef = useRef(null);
+  const isProcessingRef = useRef(false);
+  const countdownTimerRef = useRef(null);
 
-  const stopScanner = async () => {
+  const stopScanner = async (silent = false) => {
     if (scannerRef.current) {
       try {
         await scannerRef.current.stop();
@@ -40,14 +47,78 @@ const EscanerCodigoBarras = () => {
         setIsScanning(false);
       } catch (err) {
         console.error('Error stopping scanner:', err);
-        setError('Error al detener el escáner.');
+        if (!silent) {
+          setError('Error al detener el escáner.');
+        }
+        scannerRef.current = null;
         setIsScanning(false);
       }
+    } else {
+      setIsScanning(false);
+    }
+  };
+
+  const startCountdown = (seconds) => {
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+    }
+    
+    setCountdown(seconds);
+    countdownTimerRef.current = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(countdownTimerRef.current);
+          handleScanAgain();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const clearCountdown = () => {
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    setCountdown(0);
+  };
+
+  const handleProcessBarcode = async (code) => {
+    if (isProcessingRef.current) {
+      return;
+    }
+    isProcessingRef.current = true;
+    try {
+      if (!/^\d+$/.test(code)) {
+        setError('Código de barras inválido');
+        // Timer de 3 segundos para código inválido
+        startCountdown(3);
+        return;
+      }
+      const foundProduct = await obtenerProductoPorCodigoBarrasDirecto(code);
+      if (foundProduct) {
+        setScannedProduct(foundProduct);
+        setError('');
+        // Timer de 5 segundos cuando encuentra producto
+        startCountdown(5);
+      } else {
+        setError('No se encontró un producto con ese código de barras.');
+        // Timer de 3 segundos cuando no encuentra producto
+        startCountdown(3);
+      }
+    } catch (err) {
+      console.error('Error processing barcode:', err);
+      setError('Error al procesar el código escaneado.');
+      // Timer de 3 segundos para errores
+      startCountdown(3);
+    } finally {
+      isProcessingRef.current = false;
     }
   };
 
   const startScanner = async () => {
-    await stopScanner();
+    await stopScanner(true); // silent = true para evitar errores
 
     if (scannerContainerRef.current) {
       scannerContainerRef.current.innerHTML = '';
@@ -105,6 +176,20 @@ const EscanerCodigoBarras = () => {
     }
   };
 
+  // useEffect para detectar si es dispositivo móvil
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 768); // Consideramos móvil si es menor a 768px
+    };
+
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+
+    return () => {
+      window.removeEventListener('resize', checkIsMobile);
+    };
+  }, []);
+
   useEffect(() => {
     if (!currentUser) {
       setError('Debes iniciar sesión para usar el escáner.');
@@ -112,35 +197,96 @@ const EscanerCodigoBarras = () => {
       return;
     }
 
-    if (!loading) {
+    // Si es móvil, usar cámara. Si es desktop, usar pistola escáner
+    if (isMobile && !loading) {
       startScanner();
+    } else if (!isMobile) {
+      stopScanner(true); // silent = true
+      // Focus en el input oculto para capturar la pistola escáner
+      setTimeout(() => {
+        if (barcodeInputRef.current) {
+          barcodeInputRef.current.focus({ preventScroll: true });
+        }
+      }, 100);
     }
 
     return () => {
-      stopScanner();
+      stopScanner(true);
     };
-  }, [currentUser, loading]);
+  }, [currentUser, loading, isMobile]);
+
+  // useEffect para manejar la entrada de la pistola escáner en desktop
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!isMobile && e.key === 'Enter' && barcodeInput.trim()) {
+        e.preventDefault();
+        handleProcessBarcode(barcodeInput.trim());
+        setBarcodeInput('');
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [barcodeInput, isMobile]);
+
+  // useEffect para mantener el focus en el input cuando está en modo desktop
+  useEffect(() => {
+    const handleGlobalClick = () => {
+      if (!isMobile && barcodeInputRef.current) {
+        barcodeInputRef.current.focus({ preventScroll: true });
+      }
+    };
+
+    if (!isMobile) {
+      document.addEventListener('click', handleGlobalClick);
+      return () => {
+        document.removeEventListener('click', handleGlobalClick);
+      };
+    }
+  }, [isMobile]);
 
   const handleBack = () => {
-    stopScanner();
+    clearCountdown();
+    stopScanner(true);
     navigate(-1);
   };
 
   const goToHome = () => {
-    stopScanner();
+    clearCountdown();
+    stopScanner(true);
     navigate('/');
   };
 
   const goToProducts = () => {
-    stopScanner();
+    clearCountdown();
+    stopScanner(true);
     navigate('/productos');
   };
 
   const handleScanAgain = async () => {
+    clearCountdown();
     setScannedProduct(null);
     setError('');
-    await startScanner();
+    isProcessingRef.current = false;
+    
+    if (isMobile) {
+      await startScanner();
+    } else {
+      // En modo desktop (pistola), solo limpiamos y enfocamos
+      if (barcodeInputRef.current) {
+        barcodeInputRef.current.focus({ preventScroll: true });
+      }
+    }
   };
+
+  // useEffect para limpiar el countdown al desmontar
+  useEffect(() => {
+    return () => {
+      clearCountdown();
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-100 font-sans text-gray-900 flex flex-col">
@@ -177,11 +323,18 @@ const EscanerCodigoBarras = () => {
               />
             </div>
             <h2 className="text-lg font-medium text-gray-900 mb-2">Ocurrió un error</h2>
-            <p className="text-sm text-gray-600 text-center mb-6">{error}</p>
+            <p className="text-sm text-gray-600 text-center mb-4">{error}</p>
+            {countdown > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 w-full">
+                <p className="text-sm text-blue-600 text-center">
+                  Reintentando automáticamente en <span className="font-bold">{countdown}</span> segundo{countdown !== 1 ? 's' : ''}...
+                </p>
+              </div>
+            )}
             <div className="w-full flex flex-col gap-3">
               <button
                 onClick={handleScanAgain}
-                className="w-full py-3 bg-[#45923a] text-white rounded-xl font-medium flex items-center justify-center transition hover:bg-indigo-700 shadow-sm"
+                className="w-full py-3 bg-[#45923a] text-white rounded-xl font-medium flex items-center justify-center transition hover:bg-[#3a7a31] shadow-sm"
               >
                 <RefreshCw className="h-5 w-5 mr-2" />
                 Escanear otro producto
@@ -238,9 +391,17 @@ const EscanerCodigoBarras = () => {
                 )}
               </div>
 
+              {countdown > 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4 w-full">
+                  <p className="text-sm text-green-600 text-center">
+                    Escaneando automáticamente en <span className="font-bold">{countdown}</span> segundo{countdown !== 1 ? 's' : ''}...
+                  </p>
+                </div>
+              )}
+
               <button
                 onClick={handleScanAgain}
-                className="w-full py-3 bg-[#45923a] text-white rounded-xl font-medium flex items-center justify-center transition hover:bg-indigo-700 shadow-sm"
+                className="w-full py-3 bg-[#45923a] text-white rounded-xl font-medium flex items-center justify-center transition hover:bg-[#3a7a31] shadow-sm"
               >
                 <RefreshCw className="h-5 w-5 mr-2" />
                 Escanear otro producto
@@ -249,67 +410,110 @@ const EscanerCodigoBarras = () => {
           </div>
         ) : (
           <>
-            <div className="relative w-full aspect-square max-w-md rounded-2xl overflow-hidden bg-black shadow-md mt-4 border-2 border-indigo-500">
-              <div id="barcode-scanner" ref={scannerContainerRef} className="w-full h-full" />
+            {isMobile ? (
+              <>
+                {/* Interfaz de cámara para móviles */}
+                <div className="relative w-full aspect-square max-w-md rounded-2xl overflow-hidden bg-black shadow-md mt-4 border-2 border-indigo-500">
+                  <div id="barcode-scanner" ref={scannerContainerRef} className="w-full h-full" />
 
-              {isScanning && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <div
-                    className="w-[300px] h-[120px] border-2 border-indigo-400 rounded-md bg-transparent relative"
-                    style={{
-                      boxShadow: '0 0 20px rgba(79, 70, 229, 0.3)',
-                    }}
-                  >
-                    <div
-                      className="absolute left-0 top-0 h-[2px] bg-indigo-400 w-full"
-                      style={{
-                        animation: 'scanline 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                      }}
-                    />
-                    <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-indigo-400" />
-                    <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-indigo-400" />
-                    <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-indigo-400" />
-                    <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-indigo-400" />
+                  {isScanning && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <div
+                        className="w-[300px] h-[120px] border-2 border-indigo-400 rounded-md bg-transparent relative"
+                        style={{
+                          boxShadow: '0 0 20px rgba(79, 70, 229, 0.3)',
+                        }}
+                      >
+                        <div
+                          className="absolute left-0 top-0 h-[2px] bg-indigo-400 w-full"
+                          style={{
+                            animation: 'scanline 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                          }}
+                        />
+                        <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-indigo-400" />
+                        <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-indigo-400" />
+                        <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-indigo-400" />
+                        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-indigo-400" />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
+                    <div className="flex items-center">
+                      {isScanning ? (
+                        <>
+                          <div className="h-3 w-3 rounded-full bg-green-400 mr-2 animate-pulse" />
+                          <p className="text-white text-sm font-medium">Escaneando...</p>
+                        </>
+                      ) : (
+                        <>
+                          <div className="h-3 w-3 rounded-full bg-yellow-400 mr-2" />
+                          <p className="text-white text-sm font-medium">Preparando cámara...</p>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-              )}
 
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
-                <div className="flex items-center">
-                  {isScanning ? (
-                    <>
-                      <div className="h-3 w-3 rounded-full bg-green-400 mr-2 animate-pulse" />
-                      <p className="text-white text-sm font-medium">Escaneando...</p>
-                    </>
-                  ) : (
-                    <>
-                      <div className="h-3 w-3 rounded-full bg-yellow-400 mr-2" />
-                      <p className="text-white text-sm font-medium">Preparando cámara...</p>
-                    </>
-                  )}
+                <div className="bg-white rounded-2xl p-6 w-full mt-4 shadow-sm border border-gray-100">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="p-4 mb-4">
+                      <img
+                        src={Escaner}
+                        alt="Icono de Código de Barras"
+                        className="w-32"
+                      />
+                    </div>
+                    <h2 className="text-lg font-medium text-gray-900 mb-2">
+                      Escáner de Código de Barras con Cámara
+                    </h2>
+                    <p className="text-sm text-gray-600 mb-6">
+                      Alinea el código de barras del producto dentro del recuadro para escanearlo automáticamente.
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl p-6 w-full mt-4 shadow-sm border border-gray-100">
-              <div className="flex flex-col items-center text-center">
-                <div className="p-4 mb-4">
-                  <img
-                    src={Escaner}
-                    alt="Icono de Código de Barras"
-                    className="w-32"
-                  />
+              </>
+            ) : (
+              <>
+                {/* Interfaz de pistola escáner para desktop */}
+                <div className="bg-white rounded-2xl p-6 w-full mt-4 shadow-sm border border-gray-100">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="p-4 mb-4">
+                      <img
+                        src={EscanerPistola}
+                        alt="Icono de Pistola Escáner"
+                        className="w-32"
+                      />
+                    </div>
+                    <h2 className="text-lg font-medium text-gray-900 mb-2">
+                      Escáner con Pistola de Código de Barras
+                    </h2>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Usa tu pistola escáner para leer los códigos de barras. Los productos aparecerán automáticamente.
+                    </p>
+                    <div className="bg-[#45923a]/10 border border-[#45923a]/20 rounded-xl p-4 w-full">
+                      <div className="flex items-center justify-center">
+                        <div className="h-3 w-3 rounded-full bg-[#45923a] mr-2 animate-pulse" />
+                        <p className="text-[#45923a] text-sm font-medium">Listo para escanear</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <h2 className="text-lg font-medium text-gray-900 mb-2">
-                  Escáner de Código de Barras
-                </h2>
-                <p className="text-sm text-gray-600 mb-6">
-                  Alinea el código de barras del producto dentro del recuadro para escanearlo automáticamente.
-                </p>
-              </div>
-            </div>
+              </>
+            )}
           </>
         )}
+
+        {/* Input oculto para capturar la pistola escáner en desktop */}
+        <input
+          ref={barcodeInputRef}
+          type="text"
+          inputMode="none"
+          value={barcodeInput}
+          onChange={(e) => setBarcodeInput(e.target.value)}
+          className="absolute top-[-9999px] left-[-9999px] opacity-0 pointer-events-none"
+          autoComplete="off"
+        />
       </main>
 
       <style jsx global>{`

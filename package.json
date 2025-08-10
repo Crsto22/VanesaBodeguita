@@ -20,6 +20,7 @@
     "firebase": "^11.7.1",
     "framer-motion": "^12.16.0",
     "html5-qrcode": "^2.3.8",
+    "lottie-react": "^2.4.1",
     "lucide-react": "^0.509.0",
     "movilvanebodega": "file:",
     "pdfmake": "^0.2.20",

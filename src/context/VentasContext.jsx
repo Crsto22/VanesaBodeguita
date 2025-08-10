@@ -111,7 +111,11 @@ export const VentasProvider = ({ children }) => {
 
         const cantidadRetornable = item.retornable ? item.cantidad_retornable || 0 : 0;
         total += subtotalCalculado;
-        totalRetornables += cantidadRetornable;
+        
+        // Sumar directamente cantidad_retornable (que ahora representa botellas que debe)
+        if (item.retornable) {
+          totalRetornables += cantidadRetornable;
+        }
 
         return {
           producto_ref: item.producto_ref || null,

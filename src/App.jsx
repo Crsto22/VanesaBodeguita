@@ -21,6 +21,7 @@ import Deudas from './page/Deudas';
 import NotaEstadoCuenta from './page/NotaEstadoCuenta';
 import Compras from './page/Compras';
 import ComprasHistorial from './page/ComprasHistorial';
+import VentasDestock from './page/VentasDestock';
 
 function App() {
   return (
@@ -79,6 +80,14 @@ function App() {
                         element={
                           <ProtectedRoute>
                             <Ventas />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="ventas-destock"
+                        element={
+                          <ProtectedRoute>
+                            <VentasDestock />
                           </ProtectedRoute>
                         }
                       />

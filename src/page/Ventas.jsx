@@ -528,7 +528,40 @@ const Ventas = () => {
     
     setDrawerConfirmarOpen(true); 
   };
-  const handleConfirmarVenta = async ({ estado, montoPagado, historialPagos, notas }) => { try { const total = calcularTotal(); const ventaData = { cliente_ref: clienteSeleccionado ? clienteSeleccionado.id : null, nombre_cliente: clienteSeleccionado ? clienteSeleccionado.nombre : 'Cliente Genérico', productos: selectedProductos.map((p) => ({ producto_ref: p.id && !p.id.startsWith('temp_') ? p.id : null, nombre: p.nombre, cantidad: p.cantidad, precio_unitario: parseFloat(p.precio_unitario), subtotal: parseFloat(p.subtotal), retornable: p.retornable, cantidad_retornable: p.cantidad_retornable || 0, })), notas: notas || '', estado, monto_pagado: montoPagado, monto_pendiente: total - montoPagado, historial_pagos: historialPagos, }; const newVentaId = await crearVenta(ventaData); setVentaId(newVentaId); showToast(`Venta registrada con éxito (ID: ${newVentaId})`, 'success'); setClienteSeleccionado(null); setSelectedProductos([]); localStorage.removeItem('ventaEnProgreso'); setDrawerConfirmarOpen(false); return newVentaId; } catch (error) { showToast(`Error al registrar venta: ${error.message}`, 'error'); throw error; } };
+  const handleConfirmarVenta = async ({ estado, montoPagado, historialPagos, notas }) => { 
+    try { 
+      const total = calcularTotal(); 
+      const ventaData = { 
+        cliente_ref: clienteSeleccionado ? clienteSeleccionado.id : null, 
+        nombre_cliente: clienteSeleccionado ? clienteSeleccionado.nombre : 'Cliente Genérico', 
+        productos: selectedProductos.map((p) => ({ 
+          producto_ref: p.id && !p.id.startsWith('temp_') ? p.id : null, 
+          nombre: p.nombre, 
+          cantidad: p.cantidad, 
+          precio_unitario: parseFloat(p.precio_unitario), 
+          subtotal: parseFloat(p.subtotal), 
+          retornable: p.retornable, 
+          cantidad_retornable: p.retornable ? p.cantidad - (p.cantidad_retornable || 0) : 0, 
+        })), 
+        notas: notas || '', 
+        estado, 
+        monto_pagado: montoPagado, 
+        monto_pendiente: total - montoPagado, 
+        historial_pagos: historialPagos, 
+      }; 
+      const newVentaId = await crearVenta(ventaData); 
+      setVentaId(newVentaId); 
+      showToast(`Venta registrada con éxito (ID: ${newVentaId})`, 'success'); 
+      setClienteSeleccionado(null); 
+      setSelectedProductos([]); 
+      localStorage.removeItem('ventaEnProgreso'); 
+      setDrawerConfirmarOpen(false); 
+      return newVentaId; 
+    } catch (error) { 
+      showToast(`Error al registrar venta: ${error.message}`, 'error'); 
+      throw error; 
+    } 
+  };
   const handleViewNotaVenta = () => { if (ventaId) { navigate(`/ventas/${ventaId}`); } else { showToast('No se pudo cargar la nota de venta: ID no disponible', 'error'); } };
   const calcularTotal = () => selectedProductos.reduce((sum, p) => sum + parseFloat(p.subtotal), 0);
   const calcularTotalProductos = () => selectedProductos.reduce((sum, p) => sum + p.cantidad, 0);
