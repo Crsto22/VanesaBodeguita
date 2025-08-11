@@ -289,9 +289,9 @@ const EscanerCodigoBarras = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-100 font-sans text-gray-900 flex flex-col">
-      <header className="bg-white shadow-md sticky top-0 z-10">
-        <div className="max-w-lg mx-auto px-4">
+    <div className="h-screen w-screen bg-gray-100 font-sans text-gray-900 flex flex-col overflow-hidden">
+      <header className="bg-white shadow-md sticky top-0 z-10 flex-shrink-0">
+        <div className="max-w-full px-4">
           <div className="flex justify-between h-16 items-center">
             <button
               onClick={handleBack}
@@ -312,9 +312,9 @@ const EscanerCodigoBarras = () => {
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col items-center p-4 max-w-lg mx-auto w-full">
+      <main className="flex-1 flex flex-col items-center justify-center p-4 w-full h-full overflow-auto">
         {error ? (
-          <div className="bg-red-50 border border-red-100 rounded-2xl p-6 flex flex-col items-center w-full mt-4 shadow-sm">
+          <div className="bg-red-50 border border-red-100 rounded-2xl p-6 flex flex-col items-center w-full max-w-2xl mx-auto shadow-sm">
             <div className="p-3 mb-4">
               <img
                 src={EscanerNoEscaneo}
@@ -351,61 +351,71 @@ const EscanerCodigoBarras = () => {
             </div>
           </div>
         ) : scannedProduct ? (
-          <div className="w-full bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-4">
-            <div className="flex flex-col items-center">
-              <div className="bg-gray-100 rounded-2xl p-4 mb-6 w-full flex justify-center">
+          <div className="w-full h-full flex flex-col lg:flex-row items-center justify-center gap-8 p-6">
+            {/* Imagen del producto - Lado izquierdo en pantallas grandes */}
+            <div className="flex-shrink-0 lg:w-1/2 flex justify-center">
+              <div className="bg-white rounded-3xl p-4 shadow-lg border border-gray-200 w-full max-w-lg">
                 <img
                   src={scannedProduct.imagen}
                   alt={scannedProduct.nombre}
-                  className="w-40 h-40 object-contain rounded-lg"
+                  className="w-full h-96 lg:h-[32rem] object-contain rounded-2xl"
                 />
               </div>
+            </div>
 
-              <div className="bg-indigo-50 rounded-full px-4 py-1 mb-2">
-                <span className="text-xs font-medium text-indigo-600">Producto Escaneado</span>
-              </div>
-
-              <h2 className="text-xl font-semibold text-gray-900 mb-2 text-center">
-                {scannedProduct.nombre}
-              </h2>
-
-              <div className="w-full bg-gray-50 rounded-xl p-4 mb-6">
-                <div className="flex justify-between mb-4">
-                  <span className="text-sm text-gray-500">Precio regular:</span>
-                  <div className="flex items-end">
-                    <span className="text-sm text-indigo-600 mr-1 mb-1">S/</span>
-                    <span className="text-2xl font-bold text-indigo-600">{Number(scannedProduct.precio).toFixed(2)}</span>
-                  </div>
+            {/* Datos del producto - Lado derecho en pantallas grandes */}
+            <div className="flex-1 lg:w-1/2 bg-white rounded-3xl p-8 shadow-lg border border-gray-200 max-w-2xl">
+              <div className="flex flex-col">
+                <div className="bg-indigo-50 rounded-full px-6 py-2 mb-4 self-start">
+                  <span className="text-sm font-medium text-indigo-600">Producto Escaneado</span>
                 </div>
 
-                {scannedProduct.has_precio_alternativo && (
-                  <div className="flex justify-between pt-3 border-t border-gray-200">
-                    <div className="flex flex-col">
-                      <span className="text-sm text-gray-500">Precio {scannedProduct.motivo_precio_alternativo}:</span>
-                    </div>
+                <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-6 leading-tight">
+                  {scannedProduct.nombre}
+                </h2>
+
+                <div className="bg-gray-50 rounded-2xl p-6 mb-8">
+                  <div className="flex justify-between items-center mb-6">
+                    <span className="text-xl font-bold text-gray-700">Precio regular:</span>
                     <div className="flex items-end">
-                      <span className="text-sm text-green-600 mr-1 mb-1">S/</span>
-                      <span className="text-2xl font-bold text-green-600">{Number(scannedProduct.precio_alternativo).toFixed(2)}</span>
+                      <span className="text-lg text-indigo-600 mr-2 mb-2">S/</span>
+                      <span className="text-5xl font-bold text-indigo-600">
+                        {Number(scannedProduct.precio).toFixed(2)}
+                      </span>
                     </div>
+                  </div>
+
+                  {scannedProduct.has_precio_alternativo && (
+                    <div className="flex justify-between items-center pt-6 border-t border-gray-200">
+                      <span className="text-xl font-bold text-gray-700">Precio {scannedProduct.motivo_precio_alternativo}:</span>
+                      <div className="flex items-end">
+                        <span className="text-lg text-green-600 mr-2 mb-2">S/</span>
+                        <span className="text-5xl font-bold text-green-600">
+                          {Number(scannedProduct.precio_alternativo).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {countdown > 0 && (
+                  <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6">
+                    <p className="text-lg text-green-600 text-center">
+                      Escaneando automáticamente en <span className="font-bold text-2xl">
+                        {countdown}
+                      </span> segundo{countdown !== 1 ? 's' : ''}...
+                    </p>
                   </div>
                 )}
+
+                <button
+                  onClick={handleScanAgain}
+                  className="w-full py-4 bg-[#45923a] text-white rounded-2xl font-medium text-lg flex items-center justify-center transition hover:bg-[#3a7a31] shadow-lg"
+                >
+                  <RefreshCw className="h-6 w-6 mr-3" />
+                  Escanear otro producto
+                </button>
               </div>
-
-              {countdown > 0 && (
-                <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4 w-full">
-                  <p className="text-sm text-green-600 text-center">
-                    Escaneando automáticamente en <span className="font-bold">{countdown}</span> segundo{countdown !== 1 ? 's' : ''}...
-                  </p>
-                </div>
-              )}
-
-              <button
-                onClick={handleScanAgain}
-                className="w-full py-3 bg-[#45923a] text-white rounded-xl font-medium flex items-center justify-center transition hover:bg-[#3a7a31] shadow-sm"
-              >
-                <RefreshCw className="h-5 w-5 mr-2" />
-                Escanear otro producto
-              </button>
             </div>
           </div>
         ) : (
@@ -413,7 +423,7 @@ const EscanerCodigoBarras = () => {
             {isMobile ? (
               <>
                 {/* Interfaz de cámara para móviles */}
-                <div className="relative w-full aspect-square max-w-md rounded-2xl overflow-hidden bg-black shadow-md mt-4 border-2 border-indigo-500">
+                <div className="relative w-full h-full max-w-4xl mx-auto rounded-2xl overflow-hidden bg-black shadow-md border-2 border-indigo-500 flex-1">
                   <div id="barcode-scanner" ref={scannerContainerRef} className="w-full h-full" />
 
                   {isScanning && (
@@ -476,7 +486,7 @@ const EscanerCodigoBarras = () => {
             ) : (
               <>
                 {/* Interfaz de pistola escáner para desktop */}
-                <div className="bg-white rounded-2xl p-6 w-full mt-4 shadow-sm border border-gray-100">
+                <div className="w-full h-full flex flex-col items-center justify-center text-center">
                   <div className="flex flex-col items-center text-center">
                     <div className="p-4 mb-4">
                       <img
@@ -491,7 +501,7 @@ const EscanerCodigoBarras = () => {
                     <p className="text-sm text-gray-600 mb-4">
                       Usa tu pistola escáner para leer los códigos de barras. Los productos aparecerán automáticamente.
                     </p>
-                    <div className="bg-[#45923a]/10 border border-[#45923a]/20 rounded-xl p-4 w-full">
+                    <div className="bg-[#45923a]/10 border border-[#45923a]/20 rounded-xl p-4 max-w-md">
                       <div className="flex items-center justify-center">
                         <div className="h-3 w-3 rounded-full bg-[#45923a] mr-2 animate-pulse" />
                         <p className="text-[#45923a] text-sm font-medium">Listo para escanear</p>
