@@ -27,6 +27,7 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto, onQuickAddProducto
   const [localSearchQuery, setLocalSearchQuery] = useState('');
   const [showProductDrawer, setShowProductDrawer] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [initialProductData, setInitialProductData] = useState(null);
 
   // Colores personalizados
   const COLORS = {
@@ -106,6 +107,23 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto, onQuickAddProducto
 
   // Handle add new product
   const handleAddProduct = () => {
+    // Crear los datos iniciales solo cuando se abre el drawer
+    setInitialProductData({
+      id: null,
+      categoria_ref: categorias[0]?.id || '',
+      nombre: '',
+      precio: '',
+      stock: '',
+      tipo_unidad: 'unidad',
+      codigo_barras: '',
+      marca: '',
+      fecha_vencimiento: '',
+      imagen: '',
+      retornable: false,
+      has_precio_alternativo: false,
+      precio_alternativo: '',
+      motivo_precio_alternativo: '',
+    });
     setShowProductDrawer(true);
   };
 
@@ -613,22 +631,7 @@ const ProductosDrawer = ({ isOpen, onClose, onSelectProducto, onQuickAddProducto
           isOpen={showProductDrawer}
           onClose={() => setShowProductDrawer(false)}
           isEditMode={false}
-          initialData={{
-            id: null,
-            categoria_ref: categorias[0]?.id || '',
-            nombre: '',
-            precio: '',
-            stock: '',
-            tipo_unidad: 'unidad',
-            codigo_barras: '',
-            marca: '',
-            fecha_vencimiento: '',
-            imagen: '',
-            retornable: false,
-            has_precio_alternativo: false,
-            precio_alternativo: '',
-            motivo_precio_alternativo: '',
-          }}
+          initialData={initialProductData}
           onSubmit={handleSaveProduct}
           colors={COLORS}
           categorias={categorias}
