@@ -17,7 +17,7 @@
     "embla-carousel": "^8.6.0",
     "embla-carousel-autoplay": "^8.6.0",
     "embla-carousel-react": "^8.6.0",
-    "firebase": "^11.7.1",
+    "firebase": "^11.10.0",
     "framer-motion": "^12.16.0",
     "html5-qrcode": "^2.3.8",
     "lottie-react": "^2.4.1",

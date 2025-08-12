@@ -1,0 +1,5 @@
+<!-- Badge icon for notifications -->
+<svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="36" cy="36" r="36" fill="#FF6B35"/>
+  <text x="36" y="48" text-anchor="middle" fill="white" font-size="36" font-family="Arial, sans-serif">V</text>
+</svg>

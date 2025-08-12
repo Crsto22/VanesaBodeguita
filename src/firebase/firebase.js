@@ -4,6 +4,7 @@ import { getAnalytics } from 'firebase/analytics';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { getMessaging } from 'firebase/messaging';
 
 // Configuración de Firebase para el proyecto bodeguitavanesa
 const firebaseConfig = {
@@ -24,5 +25,6 @@ const analytics = getAnalytics(app);
 const auth = getAuth(app);
 const db = getFirestore(app, 'negociovanesa'); // Especificar la base de datos negociovanesa
 const storage = getStorage(app);
+const messaging = getMessaging(app);
 
-export { auth, db, storage, analytics };
+export { auth, db, storage, analytics, messaging };
