@@ -770,7 +770,7 @@ const Ventas = () => {
       <ClientesDrawer isOpen={drawerClientesOpen} onClose={() => setDrawerClientesOpen(false)} onSelectCliente={handleSelectCliente} />
       <ProductosDrawer isOpen={drawerProductosOpen} onClose={() => setDrawerProductosOpen(false)} onSelectProducto={handleSelectProducto} onQuickAddProducto={handleQuickAddProducto} />
       <ConfirmarVentaDrawer isOpen={drawerConfirmarOpen} onClose={() => setDrawerConfirmarOpen(false)} onConfirm={handleConfirmarVenta} onViewNotaVenta={handleViewNotaVenta} clienteSeleccionado={clienteSeleccionado} setClienteSeleccionado={setClienteSeleccionado} total={calcularTotal()} currentUser={currentUser} clientesLoading={clientesLoading} />
-      {productoEditIndex !== null && (<EditarPrecioDrawer isOpen={drawerEditarPrecioOpen} onClose={() => setDrawerEditarPrecioOpen(false)} producto={selectedProductos[productoEditIndex]} onUpdatePrecio={(nuevoPrecio) => handleUpdatePrecio(productoEditIndex, nuevoPrecio)} />)}
+  {productoEditIndex !== null && (<EditarPrecioDrawer isOpen={drawerEditarPrecioOpen} onClose={() => setDrawerEditarPrecioOpen(false)} producto={selectedProductos[productoEditIndex]} onConfirm={(nuevoPrecio) => handleUpdatePrecio(productoEditIndex, nuevoPrecio)} />)}
       <EscanearProductoDrawer isOpen={drawerEscanearOpen} onClose={() => setDrawerEscanearOpen(false)} onSelectProducto={handleSelectProducto} />
     </div>
   );
