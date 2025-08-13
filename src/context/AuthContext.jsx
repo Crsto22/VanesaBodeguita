@@ -18,9 +18,26 @@ export const AuthProvider = ({ children }) => {
     return signInWithEmailAndPassword(auth, email, password);
   };
 
-  // Sign out
-  const logout = () => {
-    return signOut(auth);
+  // Sign out (eliminar solo el token de ESTE dispositivo)
+  const logout = async () => {
+    try {
+      // Si hay un usuario actual, eliminar solo el token de ESTE dispositivo
+      if (currentUser) {
+        const tokenActual = localStorage.getItem('fcmTokenActual');
+        if (tokenActual) {
+          console.log('Eliminando token de este dispositivo al cerrar sesión:', tokenActual);
+          await eliminarFCMTokenDispositivo(currentUser.uid, tokenActual);
+          localStorage.removeItem('fcmTokenActual');
+        }
+      }
+      
+      // Cerrar sesión
+      return signOut(auth);
+    } catch (error) {
+      console.error('Error durante logout:', error);
+      // Cerrar sesión aunque haya error limpiando token
+      return signOut(auth);
+    }
   };
 
   // Solicitar permiso para notificaciones y obtener FCM token
@@ -80,17 +97,96 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Guardar FCM token en Firestore
+  // Guardar FCM token en Firestore (como array de dispositivos)
   const guardarFCMToken = async (uid, token) => {
     try {
       const userRef = doc(db, "usuarios", uid);
-      await updateDoc(userRef, {
-        fcmToken: token,
-        fcmTokenActualizado: new Date()
-      });
-      console.log('FCM Token guardado en Firestore');
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const fcmTokens = userData.fcmTokens || [];
+        
+        // Verificar si el token ya existe
+        const tokenExiste = fcmTokens.some(item => item.token === token);
+        
+        if (!tokenExiste) {
+          // Detectar tipo de dispositivo
+          const dispositivo = detectarDispositivo();
+          
+          // Agregar nuevo token al array
+          const nuevoToken = {
+            token: token,
+            dispositivo: dispositivo,
+            fechaCreacion: new Date(),
+            ultimoUso: new Date(),
+            userAgent: navigator.userAgent
+          };
+          
+          fcmTokens.push(nuevoToken);
+          
+          await updateDoc(userRef, {
+            fcmTokens: fcmTokens,
+            fcmTokenActualizado: new Date()
+          });
+          
+          console.log('Nuevo FCM Token agregado para dispositivo:', dispositivo);
+        } else {
+          // Actualizar última fecha de uso del token existente
+          const tokenIndex = fcmTokens.findIndex(item => item.token === token);
+          if (tokenIndex !== -1) {
+            fcmTokens[tokenIndex].ultimoUso = new Date();
+            await updateDoc(userRef, { fcmTokens: fcmTokens });
+            console.log('FCM Token existente actualizado');
+          }
+        }
+      }
     } catch (error) {
       console.error('Error guardando FCM token:', error);
+    }
+  };
+
+  // Detectar tipo de dispositivo
+  const detectarDispositivo = () => {
+    const ua = navigator.userAgent;
+    if (/Android/i.test(ua)) {
+      return `Chrome Android`;
+    } else if (/iPhone|iPad|iPod/i.test(ua)) {
+      return `Safari iOS`;
+    } else if (/Windows/i.test(ua)) {
+      return `Chrome Windows`;
+    } else if (/Mac/i.test(ua)) {
+      return `Chrome Mac`;
+    } else if (/Linux/i.test(ua)) {
+      return `Chrome Linux`;
+    } else {
+      return `Navegador Desconocido`;
+    }
+  };
+
+  // Eliminar FCM token de este dispositivo al cerrar sesión
+  const eliminarFCMTokenDispositivo = async (uid, token) => {
+    try {
+      const userRef = doc(db, "usuarios", uid);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const fcmTokens = userData.fcmTokens || [];
+        
+        // Filtrar para eliminar SOLO el token de este dispositivo
+        const tokensActualizados = fcmTokens.filter(item => item.token !== token);
+        
+        await updateDoc(userRef, {
+          fcmTokens: tokensActualizados,
+          fcmTokenActualizado: new Date()
+        });
+        
+        console.log('FCM Token de este dispositivo eliminado al cerrar sesión');
+        console.log(`Tokens restantes: ${tokensActualizados.length}`);
+      }
+    } catch (error) {
+      console.error('Error eliminando FCM token del dispositivo:', error);
     }
   };
 
@@ -124,38 +220,32 @@ export const AuthProvider = ({ children }) => {
         // Configurar listener para mensajes primero
         configurarListenerMensajes();
         
-        // Verificar si el usuario tiene FCM token (con retraso para evitar conflictos)
-        if (!userData.fcmToken) {
-          console.log('Usuario no tiene FCM token, solicitando después de un breve retraso...');
-          
-          // Esperar 2 segundos para que todo se inicialice correctamente
-          setTimeout(async () => {
-            try {
-              const token = await solicitarPermisoNotificaciones();
-              if (token) {
-                await guardarFCMToken(uid, token);
-                // Actualizar userData con el nuevo token
-                setUserData(prev => ({ ...prev, fcmToken: token }));
+        // Verificar FCM token para este dispositivo
+        setTimeout(async () => {
+          try {
+            const token = await solicitarPermisoNotificaciones();
+            if (token) {
+              // Guardar token en localStorage para poder eliminarlo después
+              localStorage.setItem('fcmTokenActual', token);
+              await guardarFCMToken(uid, token);
+              
+              // Actualizar userData con los tokens
+              const userDocActualizado = await getDoc(doc(db, "usuarios", uid));
+              if (userDocActualizado.exists()) {
+                setUserData(userDocActualizado.data());
               }
-            } catch (error) {
-              console.error('Error obteniendo FCM token en retraso:', error);
             }
-          }, 2000);
-          
-        } else {
-          console.log('Usuario ya tiene FCM token:', userData.fcmToken);
-        }
+          } catch (error) {
+            console.error('Error obteniendo FCM token en retraso:', error);
+          }
+        }, 2000);
         
       } else {
-        console.log("No se encontraron datos adicionales del usuario, cerrando sesión...");
-        await logout(); // Automatically sign out if no user data is found
-        setCurrentUser(null);
+        console.log("No se encontraron datos adicionales del usuario");
         setUserData(null);
       }
     } catch (error) {
       console.error("Error al obtener datos del usuario:", error);
-      await logout(); // Optionally sign out on error to handle potential issues
-      setCurrentUser(null);
       setUserData(null);
     }
   };

@@ -18,28 +18,37 @@ const messaging = firebase.messaging();
 
 // Manejar notificaciones en segundo plano
 messaging.onBackgroundMessage((payload) => {
-  console.log('Mensaje recibido en segundo plano:', payload);
+  console.log('[firebase-messaging-sw.js] Mensaje recibido en segundo plano:', payload);
 
-  const notificationTitle = payload.notification.title;
+  const notificationTitle = payload.notification?.title || 'Nueva notificación';
   const notificationOptions = {
-    body: payload.notification.body,
+    body: payload.notification?.body || 'Tienes una nueva notificación',
     icon: '/icon-192x192.png',
     badge: '/badge-72x72.png',
     tag: 'vanesa-bodeguita',
     requireInteraction: true,
+    vibrate: [200, 100, 200], // Vibración para móviles
+    silent: false,
+    renotify: true,
     actions: [
       {
         action: 'ver',
-        title: 'Ver detalles'
+        title: '👀 Ver',
+        icon: '/icon-192x192.png'
       },
       {
         action: 'cerrar',
-        title: 'Cerrar'
+        title: '❌ Cerrar'
       }
-    ]
+    ],
+    data: {
+      url: payload.data?.url || '/',
+      timestamp: Date.now()
+    }
   };
 
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  // Mostrar notificación con mejor compatibilidad móvil
+  return self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
 // Manejar clics en las notificaciones
@@ -48,10 +57,16 @@ self.addEventListener('notificationclick', (event) => {
   
   event.notification.close();
   
-  if (event.action === 'ver') {
-    // Abrir la aplicación
+  const notificationData = event.notification.data;
+  const targetUrl = notificationData?.url || '/';
+  
+  if (event.action === 'ver' || event.action === '') {
+    // Abrir la aplicación en la URL específica de la venta
     event.waitUntil(
-      clients.openWindow('/')
+      clients.openWindow(targetUrl)
     );
+  } else if (event.action === 'cerrar') {
+    // Solo cerrar la notificación (ya se cerró arriba)
+    console.log('Notificación cerrada por el usuario');
   }
 });
