@@ -21,13 +21,12 @@ messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Mensaje recibido en segundo plano:', payload);
 
   const notificationTitle = payload.notification?.title || 'Nueva notificación';
-  // Usar un tag único para cada notificación (por ejemplo, timestamp)
-  const uniqueTag = 'vanesa-bodeguita-' + Date.now();
+  // Usar un tag fijo para que solo haya una notificación activa
   const notificationOptions = {
     body: payload.notification?.body || 'Tienes una nueva notificación',
     icon: '/icon-192x192.png',
     badge: '/badge-72x72.png',
-    tag: uniqueTag,
+    tag: 'vanesa-bodeguita',
     requireInteraction: true,
     vibrate: [200, 100, 200], // Vibración para móviles
     silent: false,
