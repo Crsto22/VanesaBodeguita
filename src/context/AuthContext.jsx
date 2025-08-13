@@ -41,20 +41,41 @@ export const AuthProvider = ({ children }) => {
         return null;
       }
 
-      // Obtener FCM token
-      const token = await getToken(messaging, {
-        vapidKey: 'BLvQfxrgliwqE_2sjh0YIDWAJIW-Z1d2AQseabz-U8J-SnNUbpAu0NkutCado4HSkeQvwmq15U1ky0-J3HBlx4w' // Tu clave VAPID
-      });
+      // Esperar un poco para que IndexedDB se estabilice
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-      if (token) {
-        console.log('FCM Token obtenido:', token);
-        return token;
-      } else {
-        console.log('No se pudo obtener el FCM token');
-        return null;
+      // Obtener FCM token con reintentos
+      let token = null;
+      for (let intento = 0; intento < 3; intento++) {
+        try {
+          console.log(`Intento ${intento + 1} de obtener FCM token...`);
+          token = await getToken(messaging, {
+            vapidKey: 'BLvQfxrgliwqE_2sjh0YIDWAJIW-Z1d2AQseabz-U8J-SnNUbpAu0NkutCado4HSkeQvwmq15U1ky0-J3HBlx4w'
+          });
+          
+          if (token) {
+            console.log('FCM Token obtenido exitosamente:', token);
+            return token;
+          }
+        } catch (error) {
+          console.error(`Error en intento ${intento + 1}:`, error);
+          
+          // Si es un error de IndexedDB, esperar más tiempo
+          if (error.message.includes('IDBDatabase') || error.message.includes('IndexedDB')) {
+            console.log('Error de IndexedDB detectado, esperando antes del siguiente intento...');
+            await new Promise(resolve => setTimeout(resolve, 1000 * (intento + 1)));
+          } else {
+            // Si no es un error de IndexedDB, no reintentar
+            break;
+          }
+        }
       }
+
+      console.log('No se pudo obtener el FCM token después de 3 intentos');
+      return null;
+      
     } catch (error) {
-      console.error('Error obteniendo FCM token:', error);
+      console.error('Error general obteniendo FCM token:', error);
       return null;
     }
   };
@@ -100,21 +121,30 @@ export const AuthProvider = ({ children }) => {
         const userData = userDoc.data();
         setUserData(userData);
         
-        // Verificar si el usuario tiene FCM token
+        // Configurar listener para mensajes primero
+        configurarListenerMensajes();
+        
+        // Verificar si el usuario tiene FCM token (con retraso para evitar conflictos)
         if (!userData.fcmToken) {
-          console.log('Usuario no tiene FCM token, solicitando...');
-          const token = await solicitarPermisoNotificaciones();
-          if (token) {
-            await guardarFCMToken(uid, token);
-            // Actualizar userData con el nuevo token
-            setUserData(prev => ({ ...prev, fcmToken: token }));
-          }
+          console.log('Usuario no tiene FCM token, solicitando después de un breve retraso...');
+          
+          // Esperar 2 segundos para que todo se inicialice correctamente
+          setTimeout(async () => {
+            try {
+              const token = await solicitarPermisoNotificaciones();
+              if (token) {
+                await guardarFCMToken(uid, token);
+                // Actualizar userData con el nuevo token
+                setUserData(prev => ({ ...prev, fcmToken: token }));
+              }
+            } catch (error) {
+              console.error('Error obteniendo FCM token en retraso:', error);
+            }
+          }, 2000);
+          
         } else {
           console.log('Usuario ya tiene FCM token:', userData.fcmToken);
         }
-        
-        // Configurar listener para mensajes
-        configurarListenerMensajes();
         
       } else {
         console.log("No se encontraron datos adicionales del usuario, cerrando sesión...");
