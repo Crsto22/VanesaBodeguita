@@ -291,59 +291,59 @@ const EscanerCodigoBarras = () => {
   return (
     <div className="h-screen w-screen bg-gray-100 font-sans text-gray-900 flex flex-col overflow-hidden">
       <header className="bg-white shadow-md sticky top-0 z-10 flex-shrink-0">
-        <div className="max-w-full px-4">
-          <div className="flex justify-between h-16 items-center">
+        <div className="max-w-full px-3 sm:px-4">
+          <div className="flex justify-between h-12 sm:h-16 items-center">
             <button
               onClick={handleBack}
-              className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+              className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
               aria-label="Regresar"
             >
-              <ArrowLeft className="h-5 w-5 text-gray-700" />
+              <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5 text-gray-700" />
             </button>
-            <h1 className="text-lg font-medium text-gray-900">Escáner de Productos</h1>
+            <h1 className="text-base sm:text-lg font-medium text-gray-900">Escáner de Productos</h1>
             <button
               onClick={goToHome}
-              className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+              className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
               aria-label="Ir a inicio"
             >
-              <Home className="h-5 w-5 text-gray-700" />
+              <Home className="h-4 w-4 sm:h-5 sm:w-5 text-gray-700" />
             </button>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center p-4 w-full h-full overflow-auto">
+      <main className="flex-1 flex flex-col items-center justify-center p-2 sm:p-4 w-full h-full overflow-auto">
         {error ? (
-          <div className="bg-red-50 border border-red-100 rounded-2xl p-6 flex flex-col items-center w-full max-w-2xl mx-auto shadow-sm">
-            <div className="p-3 mb-4">
+          <div className="bg-red-50 border border-red-100 rounded-xl sm:rounded-2xl p-4 sm:p-6 flex flex-col items-center w-full max-w-2xl mx-auto shadow-sm">
+            <div className="p-2 sm:p-3 mb-3 sm:mb-4">
               <img
                 src={EscanerNoEscaneo}
                 alt="Icono de Código de Barras"
-                className="w-32"
+                className="w-20 sm:w-32"
               />
             </div>
-            <h2 className="text-lg font-medium text-gray-900 mb-2">Ocurrió un error</h2>
-            <p className="text-sm text-gray-600 text-center mb-4">{error}</p>
+            <h2 className="text-base sm:text-lg font-medium text-gray-900 mb-2">Ocurrió un error</h2>
+            <p className="text-xs sm:text-sm text-gray-600 text-center mb-3 sm:mb-4">{error}</p>
             {countdown > 0 && (
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 w-full">
-                <p className="text-sm text-blue-600 text-center">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg sm:rounded-xl p-2 sm:p-3 mb-3 sm:mb-4 w-full">
+                <p className="text-xs sm:text-sm text-blue-600 text-center">
                   Reintentando automáticamente en <span className="font-bold">{countdown}</span> segundo{countdown !== 1 ? 's' : ''}...
                 </p>
               </div>
             )}
-            <div className="w-full flex flex-col gap-3">
+            <div className="w-full flex flex-col gap-2 sm:gap-3">
               <button
                 onClick={handleScanAgain}
-                className="w-full py-3 bg-[#45923a] text-white rounded-xl font-medium flex items-center justify-center transition hover:bg-[#3a7a31] shadow-sm"
+                className="w-full py-2 sm:py-3 bg-[#45923a] text-white rounded-lg sm:rounded-xl font-medium flex items-center justify-center transition hover:bg-[#3a7a31] shadow-sm text-sm sm:text-base"
               >
-                <RefreshCw className="h-5 w-5 mr-2" />
+                <RefreshCw className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                 Escanear otro producto
               </button>
 
               {!scannedProduct && (
                 <button
                   onClick={goToProducts}
-                  className="w-full py-3 bg-white border border-gray-300 text-gray-700 rounded-xl font-medium transition hover:bg-gray-50 shadow-sm"
+                  className="w-full py-2 sm:py-3 bg-white border border-gray-300 text-gray-700 rounded-lg sm:rounded-xl font-medium transition hover:bg-gray-50 shadow-sm text-sm sm:text-base"
                 >
                   Gestionar Productos
                 </button>
@@ -351,85 +351,101 @@ const EscanerCodigoBarras = () => {
             </div>
           </div>
         ) : scannedProduct ? (
-          <div className="w-full h-full flex flex-col lg:flex-row items-center justify-center gap-8 p-6">
-            {/* Imagen del producto - Lado izquierdo en pantallas grandes */}
-            <div className="flex-shrink-0 lg:w-1/2 flex justify-center">
-              <div className="bg-white rounded-3xl p-4 shadow-lg border border-gray-200 w-full max-w-lg">
-                <img
-                  src={scannedProduct.imagen}
-                  alt={scannedProduct.nombre}
-                  className="w-full h-96 lg:h-[32rem] object-contain rounded-2xl"
-                />
-              </div>
-            </div>
+<div className="w-full min-h-screen flex flex-col p-3 md:p-6 lg:flex-row lg:items-center lg:justify-center lg:gap-8">
+  {/* Imagen del producto */}
+  <div className="w-full lg:w-1/2 lg:flex-shrink-0 mb-4 lg:mb-0">
+    <div className="bg-white rounded-2xl p-3 md:p-4 shadow-lg border border-gray-200">
+      <img
+        src={scannedProduct.imagen}
+        alt={scannedProduct.nombre}
+        className="w-full h-48 xs:h-56 sm:h-64 md:h-80 lg:h-96 xl:h-[32rem] object-contain rounded-xl"
+      />
+    </div>
+  </div>
 
-            {/* Datos del producto - Lado derecho en pantallas grandes */}
-            <div className="flex-1 lg:w-1/2 bg-white rounded-3xl p-8 shadow-lg border border-gray-200 max-w-2xl">
-              <div className="flex flex-col">
-                <div className="bg-indigo-50 rounded-full px-6 py-2 mb-4 self-start">
-                  <span className="text-sm font-medium text-indigo-600">Producto Escaneado</span>
-                </div>
+  {/* Datos del producto */}
+  <div className="w-full lg:w-1/2 bg-white rounded-2xl p-4 md:p-6 lg:p-8 shadow-lg border border-gray-200">
+    {/* Badge */}
+    <div className="inline-flex bg-indigo-50 rounded-full px-4 py-2 mb-4">
+      <span className="text-sm font-medium text-indigo-600">Producto Escaneado</span>
+    </div>
 
-                <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-6 leading-tight">
-                  {scannedProduct.nombre}
-                </h2>
+    {/* Título del producto */}
+    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-6 leading-tight">
+      {scannedProduct.nombre}
+    </h2>
 
-                <div className="bg-gray-50 rounded-2xl p-6 mb-8">
-                  <div className="flex justify-between items-center mb-6">
-                    <span className="text-xl font-bold text-gray-700">Precio regular:</span>
-                    <div className="flex items-end">
-                      <span className="text-lg text-indigo-600 mr-2 mb-2">S/</span>
-                      <span className="text-5xl font-bold text-indigo-600">
-                        {Number(scannedProduct.precio).toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
+    {/* Contenedor de precios */}
+    <div className="bg-gray-50 rounded-2xl p-4 md:p-6 mb-6 space-y-4">
+      {/* Precio regular */}
+      <div className="flex flex-col xs:flex-row xs:justify-between xs:items-end gap-2">
+        <span className="text-base md:text-lg font-bold text-gray-700">
+          Precio regular:
+        </span>
+        <div className="flex items-end">
+          <span className="text-sm md:text-base text-indigo-600 mr-1 mb-1">S/</span>
+          <span className="text-3xl md:text-4xl lg:text-5xl font-bold text-indigo-600">
+            {Number(scannedProduct.precio).toFixed(2)}
+          </span>
+        </div>
+      </div>
 
-                  {scannedProduct.has_precio_alternativo && (
-                    <div className="flex justify-between items-center pt-6 border-t border-gray-200">
-                      <span className="text-xl font-bold text-gray-700">Precio {scannedProduct.motivo_precio_alternativo}:</span>
-                      <div className="flex items-end">
-                        <span className="text-lg text-green-600 mr-2 mb-2">S/</span>
-                        <span className="text-5xl font-bold text-green-600">
-                          {Number(scannedProduct.precio_alternativo).toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {countdown > 0 && (
-                  <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6">
-                    <p className="text-lg text-green-600 text-center">
-                      Escaneando automáticamente en <span className="font-bold text-2xl">
-                        {countdown}
-                      </span> segundo{countdown !== 1 ? 's' : ''}...
-                    </p>
-                  </div>
-                )}
-
-                <button
-                  onClick={handleScanAgain}
-                  className="w-full py-4 bg-[#45923a] text-white rounded-2xl font-medium text-lg flex items-center justify-center transition hover:bg-[#3a7a31] shadow-lg"
-                >
-                  <RefreshCw className="h-6 w-6 mr-3" />
-                  Escanear otro producto
-                </button>
-              </div>
+      {/* Precio alternativo */}
+      {scannedProduct.has_precio_alternativo && (
+        <div className="pt-4 border-t border-gray-200">
+          <div className="flex flex-col xs:flex-row xs:justify-between xs:items-end gap-2">
+            <span className="text-base md:text-lg font-bold text-gray-700">
+              Precio {scannedProduct.motivo_precio_alternativo}:
+            </span>
+            <div className="flex items-end">
+              <span className="text-sm md:text-base text-green-600 mr-1 mb-1">S/</span>
+              <span className="text-3xl md:text-4xl lg:text-5xl font-bold text-green-600">
+                {Number(scannedProduct.precio_alternativo).toFixed(2)}
+              </span>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+
+    {/* Countdown */}
+    {countdown > 0 && (
+      <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6">
+        <p className="text-base md:text-lg text-green-600 text-center">
+          Escaneando automáticamente en{' '}
+          <span className="font-bold text-xl md:text-2xl">
+            {countdown}
+          </span>{' '}
+          segundo{countdown !== 1 ? 's' : ''}...
+        </p>
+      </div>
+    )}
+
+    {/* Botón de escanear */}
+    <button
+      onClick={handleScanAgain}
+      className="w-full py-4 md:py-5 bg-[#45923a] text-white rounded-2xl font-semibold text-base md:text-lg 
+                 flex items-center justify-center gap-3 transition-all duration-200 
+                 hover:bg-[#3a7a31] active:bg-[#2d5e26] active:scale-[0.98] 
+                 shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-200"
+    >
+      <RefreshCw className="h-5 w-5 md:h-6 md:w-6" />
+      Escanear otro producto
+    </button>
+  </div>
+</div>
         ) : (
           <>
             {isMobile ? (
               <>
                 {/* Interfaz de cámara para móviles */}
-                <div className="relative w-full h-full max-w-4xl mx-auto rounded-2xl overflow-hidden bg-black shadow-md border-2 border-indigo-500 flex-1">
+                <div className="relative w-full h-full max-w-4xl mx-auto rounded-xl sm:rounded-2xl overflow-hidden bg-black shadow-md border-2 border-indigo-500 flex-1">
                   <div id="barcode-scanner" ref={scannerContainerRef} className="w-full h-full" />
 
                   {isScanning && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                       <div
-                        className="w-[300px] h-[120px] border-2 border-indigo-400 rounded-md bg-transparent relative"
+                        className="w-[250px] h-[100px] sm:w-[300px] sm:h-[120px] border-2 border-indigo-400 rounded-md bg-transparent relative"
                         style={{
                           boxShadow: '0 0 20px rgba(79, 70, 229, 0.3)',
                         }}
@@ -440,44 +456,44 @@ const EscanerCodigoBarras = () => {
                             animation: 'scanline 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                           }}
                         />
-                        <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-indigo-400" />
-                        <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-indigo-400" />
-                        <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-indigo-400" />
-                        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-indigo-400" />
+                        <div className="absolute top-0 left-0 w-6 h-6 sm:w-8 sm:h-8 border-t-2 border-l-2 border-indigo-400" />
+                        <div className="absolute top-0 right-0 w-6 h-6 sm:w-8 sm:h-8 border-t-2 border-r-2 border-indigo-400" />
+                        <div className="absolute bottom-0 left-0 w-6 h-6 sm:w-8 sm:h-8 border-b-2 border-l-2 border-indigo-400" />
+                        <div className="absolute bottom-0 right-0 w-6 h-6 sm:w-8 sm:h-8 border-b-2 border-r-2 border-indigo-400" />
                       </div>
                     </div>
                   )}
 
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 sm:p-6">
                     <div className="flex items-center">
                       {isScanning ? (
                         <>
-                          <div className="h-3 w-3 rounded-full bg-green-400 mr-2 animate-pulse" />
-                          <p className="text-white text-sm font-medium">Escaneando...</p>
+                          <div className="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-green-400 mr-2 animate-pulse" />
+                          <p className="text-white text-xs sm:text-sm font-medium">Escaneando...</p>
                         </>
                       ) : (
                         <>
-                          <div className="h-3 w-3 rounded-full bg-yellow-400 mr-2" />
-                          <p className="text-white text-sm font-medium">Preparando cámara...</p>
+                          <div className="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-yellow-400 mr-2" />
+                          <p className="text-white text-xs sm:text-sm font-medium">Preparando cámara...</p>
                         </>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl p-6 w-full mt-4 shadow-sm border border-gray-100">
+                <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full mt-3 sm:mt-4 shadow-sm border border-gray-100">
                   <div className="flex flex-col items-center text-center">
-                    <div className="p-4 mb-4">
+                    <div className="p-2 sm:p-4 mb-3 sm:mb-4">
                       <img
                         src={Escaner}
                         alt="Icono de Código de Barras"
-                        className="w-32"
+                        className="w-20 sm:w-32"
                       />
                     </div>
-                    <h2 className="text-lg font-medium text-gray-900 mb-2">
+                    <h2 className="text-base sm:text-lg font-medium text-gray-900 mb-2">
                       Escáner de Código de Barras con Cámara
                     </h2>
-                    <p className="text-sm text-gray-600 mb-6">
+                    <p className="text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">
                       Alinea el código de barras del producto dentro del recuadro para escanearlo automáticamente.
                     </p>
                   </div>
