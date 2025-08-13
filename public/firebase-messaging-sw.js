@@ -21,11 +21,13 @@ messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Mensaje recibido en segundo plano:', payload);
 
   const notificationTitle = payload.notification?.title || 'Nueva notificación';
+  // Usar un tag único para cada notificación (por ejemplo, timestamp)
+  const uniqueTag = 'vanesa-bodeguita-' + Date.now();
   const notificationOptions = {
     body: payload.notification?.body || 'Tienes una nueva notificación',
     icon: '/icon-192x192.png',
     badge: '/badge-72x72.png',
-    tag: 'vanesa-bodeguita',
+    tag: uniqueTag,
     requireInteraction: true,
     vibrate: [200, 100, 200], // Vibración para móviles
     silent: false,
@@ -33,12 +35,11 @@ messaging.onBackgroundMessage((payload) => {
     actions: [
       {
         action: 'ver',
-        title: '👀 Ver',
-        icon: '/icon-192x192.png'
+        title: 'Ver',
       },
       {
         action: 'cerrar',
-        title: '❌ Cerrar'
+        title: 'Cerrar'
       }
     ],
     data: {
