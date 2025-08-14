@@ -1,10 +1,10 @@
 // Service Worker para Firebase Cloud Messaging
-// Este archivo maneja las notificaciones cuando la app está en segundo plano
+// Este archivo SOLO va en el frontend/cliente, NO en el servidor
 
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
-// Configuración de Firebase (debe coincidir con tu proyecto)
+// Configuración de Firebase
 firebase.initializeApp({
   apiKey: 'AIzaSyCx8JzJ_eVrArMUDi-GkZ9FpgKM6mnZEV8',
   authDomain: 'bodeguitavanesa.firebaseapp.com',
@@ -16,38 +16,43 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+// Variable para evitar duplicados
+let lastNotificationId = null;
+let lastNotificationTime = 0;
+
 // Manejar notificaciones en segundo plano
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Mensaje recibido en segundo plano:', payload);
 
+  // Crear un tag único para cada notificación usando timestamp y un random
+  const uniqueTag = `vanesa-bodeguita-${Date.now()}-${Math.random()}`;
   const notificationTitle = payload.notification?.title || 'Nueva notificación';
   const notificationOptions = {
     body: payload.notification?.body || 'Tienes una nueva notificación',
     icon: '/icon-192x192.png',
     badge: '/badge-72x72.png',
-    tag: 'vanesa-bodeguita',
+    tag: uniqueTag, // Tag único para que cada notificación sea independiente
     requireInteraction: true,
-    vibrate: [200, 100, 200], // Vibración para móviles
+    vibrate: [200, 100, 200],
     silent: false,
-    renotify: true,
+    renotify: false,
     actions: [
       {
         action: 'ver',
-        title: '👀 Ver',
-        icon: '/icon-192x192.png'
+        title: 'Ver',
       },
       {
         action: 'cerrar',
-        title: '❌ Cerrar'
+        title: 'Cerrar'
       }
     ],
     data: {
+      id: uniqueTag,
       url: payload.data?.url || '/',
       timestamp: Date.now()
     }
   };
-
-  // Mostrar notificación con mejor compatibilidad móvil
+  // Mostrar notificación
   return self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
@@ -61,12 +66,36 @@ self.addEventListener('notificationclick', (event) => {
   const targetUrl = notificationData?.url || '/';
   
   if (event.action === 'ver' || event.action === '') {
-    // Abrir la aplicación en la URL específica de la venta
     event.waitUntil(
-      clients.openWindow(targetUrl)
+      clients.matchAll({ type: 'window', includeUncontrolled: true })
+        .then((clientList) => {
+          // Buscar si ya hay una ventana abierta
+          for (let i = 0; i < clientList.length; i++) {
+            const client = clientList[i];
+            if (client.url.includes(window.location.origin) && 'focus' in client) {
+              // Si hay una ventana abierta, enfocarla y navegar
+              return client.focus().then(() => {
+                if ('navigate' in client) {
+                  return client.navigate(targetUrl);
+                }
+              });
+            }
+          }
+          // Si no hay ventana abierta, abrir una nueva
+          if (clients.openWindow) {
+            return clients.openWindow(targetUrl);
+          }
+        })
     );
   } else if (event.action === 'cerrar') {
-    // Solo cerrar la notificación (ya se cerró arriba)
     console.log('Notificación cerrada por el usuario');
   }
+});
+
+// Limpiar cache de notificaciones antiguas
+self.addEventListener('activate', (event) => {
+  console.log('Service Worker activado');
+  // Resetear variables al activar
+  lastNotificationId = null;
+  lastNotificationTime = 0;
 });
