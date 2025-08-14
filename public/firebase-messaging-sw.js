@@ -1,5 +1,6 @@
 // Service Worker para Firebase Cloud Messaging
 // Este archivo SOLO va en el frontend/cliente, NO en el servidor
+// VERSIÓN SIN DUPLICACIÓN: Solo maneja visualización y clics, no crea notificaciones adicionales
 
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
@@ -16,47 +17,11 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Variable para evitar duplicados
-let lastNotificationId = null;
-let lastNotificationTime = 0;
+// ELIMINADO: Ya no manejamos onBackgroundMessage para evitar duplicados
+// La Cloud Function ya envía la notificación con toda la configuración necesaria
+// El navegador automáticamente mostrará la notificación enviada desde el servidor
 
-// Manejar notificaciones en segundo plano
-messaging.onBackgroundMessage((payload) => {
-  console.log('[firebase-messaging-sw.js] Mensaje recibido en segundo plano:', payload);
-
-  // Crear un tag único para cada notificación usando timestamp y un random
-  const uniqueTag = `vanesa-bodeguita-${Date.now()}-${Math.random()}`;
-  const notificationTitle = payload.notification?.title || 'Nueva notificación';
-  const notificationOptions = {
-    body: payload.notification?.body || 'Tienes una nueva notificación',
-    icon: '/icon-192x192.png',
-    badge: '/badge-72x72.png',
-    tag: uniqueTag, // Tag único para que cada notificación sea independiente
-    requireInteraction: true,
-    vibrate: [200, 100, 200],
-    silent: false,
-    renotify: false,
-    actions: [
-      {
-        action: 'ver',
-        title: 'Ver',
-      },
-      {
-        action: 'cerrar',
-        title: 'Cerrar'
-      }
-    ],
-    data: {
-      id: uniqueTag,
-      url: payload.data?.url || '/',
-      timestamp: Date.now()
-    }
-  };
-  // Mostrar notificación
-  return self.registration.showNotification(notificationTitle, notificationOptions);
-});
-
-// Manejar clics en las notificaciones
+// Solo manejar clics en las notificaciones (esto sí es necesario)
 self.addEventListener('notificationclick', (event) => {
   console.log('Clic en notificación:', event);
   
@@ -72,7 +37,7 @@ self.addEventListener('notificationclick', (event) => {
           // Buscar si ya hay una ventana abierta
           for (let i = 0; i < clientList.length; i++) {
             const client = clientList[i];
-            if (client.url.includes(window.location.origin) && 'focus' in client) {
+            if (client.url.includes(self.location.origin) && 'focus' in client) {
               // Si hay una ventana abierta, enfocarla y navegar
               return client.focus().then(() => {
                 if ('navigate' in client) {
@@ -92,10 +57,15 @@ self.addEventListener('notificationclick', (event) => {
   }
 });
 
-// Limpiar cache de notificaciones antiguas
+// Opcional: Log para debugging cuando se recibe un mensaje
+// (pero sin mostrar notificación adicional)
+messaging.onBackgroundMessage((payload) => {
+  console.log('[firebase-messaging-sw.js] Mensaje recibido desde Cloud Function:', payload);
+  // NO llamamos a self.registration.showNotification() aquí
+  // La notificación ya viene configurada desde la Cloud Function
+});
+
+// Limpiar cache al activar
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker activado');
-  // Resetear variables al activar
-  lastNotificationId = null;
-  lastNotificationTime = 0;
+  console.log('Service Worker activado - Version sin duplicados');
 });
