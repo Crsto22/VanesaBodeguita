@@ -1,6 +1,5 @@
 // Service Worker para Firebase Cloud Messaging
-// Este archivo SOLO debe estar en el frontend/cliente web
-// NO debe existir en el servidor
+// Este archivo SOLO va en el frontend/cliente, NO en el servidor
 
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
@@ -17,37 +16,39 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Variable para controlar notificaciones duplicadas
+// Variable para evitar duplicados
+let lastNotificationId = null;
 let lastNotificationTime = 0;
-let lastNotificationTitle = '';
 
 // Manejar notificaciones en segundo plano
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Mensaje recibido en segundo plano:', payload);
 
-  const notificationTitle = payload.notification?.title || 'Nueva notificación';
-  const notificationBody = payload.notification?.body || 'Tienes una nueva notificación';
+  // Crear un ID único para la notificación
+  const notificationId = payload.data?.id || `${Date.now()}-${Math.random()}`;
   const currentTime = Date.now();
   
-  // Prevenir notificaciones duplicadas
-  // Si la misma notificación llegó hace menos de 2 segundos, ignorarla
-  if (currentTime - lastNotificationTime < 2000 && lastNotificationTitle === notificationTitle) {
-    console.log('Notificación duplicada ignorada');
+  // Evitar duplicados (si la misma notificación llega en menos de 5 segundos)
+  if (lastNotificationId === notificationId || 
+      (currentTime - lastNotificationTime < 5000 && lastNotificationId)) {
+    console.log('Notificación duplicada detectada, ignorando...');
     return;
   }
   
+  lastNotificationId = notificationId;
   lastNotificationTime = currentTime;
-  lastNotificationTitle = notificationTitle;
 
+  const notificationTitle = payload.notification?.title || 'Nueva notificación';
+  
   const notificationOptions = {
-    body: notificationBody,
+    body: payload.notification?.body || 'Tienes una nueva notificación',
     icon: '/icon-192x192.png',
     badge: '/badge-72x72.png',
-    tag: 'vanesa-bodeguita', // Tag único para reemplazar notificaciones anteriores
+    tag: `vanesa-bodeguita-${notificationId}`, // Tag único para evitar reemplazos
     requireInteraction: true,
     vibrate: [200, 100, 200],
     silent: false,
-    renotify: true,
+    renotify: false, // Cambiado a false para evitar duplicados
     actions: [
       {
         action: 'ver',
@@ -59,9 +60,9 @@ messaging.onBackgroundMessage((payload) => {
       }
     ],
     data: {
+      id: notificationId,
       url: payload.data?.url || '/',
-      timestamp: currentTime,
-      messageId: payload.messageId || Math.random().toString(36)
+      timestamp: currentTime
     }
   };
 
@@ -79,36 +80,36 @@ self.addEventListener('notificationclick', (event) => {
   const targetUrl = notificationData?.url || '/';
   
   if (event.action === 'ver' || event.action === '') {
-    // Abrir la aplicación en la URL específica
     event.waitUntil(
-      clients.matchAll().then((clientList) => {
-        // Si hay una ventana abierta, enfocarla
-        for (const client of clientList) {
-          if (client.url === targetUrl && 'focus' in client) {
-            return client.focus();
+      clients.matchAll({ type: 'window', includeUncontrolled: true })
+        .then((clientList) => {
+          // Buscar si ya hay una ventana abierta
+          for (let i = 0; i < clientList.length; i++) {
+            const client = clientList[i];
+            if (client.url.includes(window.location.origin) && 'focus' in client) {
+              // Si hay una ventana abierta, enfocarla y navegar
+              return client.focus().then(() => {
+                if ('navigate' in client) {
+                  return client.navigate(targetUrl);
+                }
+              });
+            }
           }
-        }
-        // Si no hay ventana abierta, abrir una nueva
-        return clients.openWindow(targetUrl);
-      })
+          // Si no hay ventana abierta, abrir una nueva
+          if (clients.openWindow) {
+            return clients.openWindow(targetUrl);
+          }
+        })
     );
   } else if (event.action === 'cerrar') {
     console.log('Notificación cerrada por el usuario');
   }
 });
 
-// Limpiar notificaciones antiguas
+// Limpiar cache de notificaciones antiguas
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    self.registration.getNotifications().then((notifications) => {
-      const now = Date.now();
-      notifications.forEach((notification) => {
-        const notificationTime = notification.data?.timestamp || 0;
-        // Cerrar notificaciones más antiguas de 1 hora
-        if (now - notificationTime > 3600000) {
-          notification.close();
-        }
-      });
-    })
-  );
+  console.log('Service Worker activado');
+  // Resetear variables al activar
+  lastNotificationId = null;
+  lastNotificationTime = 0;
 });

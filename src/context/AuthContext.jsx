@@ -190,18 +190,39 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Configurar listener para mensajes en primer plano
+  // ❌ FUNCIÓN ELIMINADA - ESTA CAUSABA LA DUPLICACIÓN
+  // const configurarListenerMensajes = () => {
+  //   try {
+  //     onMessage(messaging, (payload) => {
+  //       console.log('Mensaje recibido en primer plano:', payload);
+  //       
+  //       // Mostrar notificación personalizada si la app está abierta
+  //       if (payload.notification) {
+  //         new Notification(payload.notification.title, {
+  //           body: payload.notification.body,
+  //           icon: '/icon-192x192.png'
+  //         });
+  //       }
+  //     });
+  //   } catch (error) {
+  //     console.error('Error configurando listener de mensajes:', error);
+  //   }
+  // };
+
+  // ✅ NUEVA FUNCIÓN OPCIONAL - Solo para manejar datos en primer plano SIN mostrar notificación
   const configurarListenerMensajes = () => {
     try {
       onMessage(messaging, (payload) => {
-        console.log('Mensaje recibido en primer plano:', payload);
+        console.log('Mensaje recibido en primer plano (solo para procesar datos):', payload);
         
-        // Mostrar notificación personalizada si la app está abierta
-        if (payload.notification) {
-          new Notification(payload.notification.title, {
-            body: payload.notification.body,
-            icon: '/icon-192x192.png'
-          });
+        // ✅ SOLO procesar datos si es necesario, NO mostrar notificación
+        // La notificación la maneja automáticamente el Service Worker
+        
+        // Ejemplo: actualizar estado de la app, mostrar badge, etc.
+        if (payload.data) {
+          console.log('Datos del mensaje:', payload.data);
+          // Aquí puedes actualizar el estado de tu app si necesitas
+          // Por ejemplo: actualizar contador de mensajes, refrescar datos, etc.
         }
       });
     } catch (error) {
@@ -217,7 +238,7 @@ export const AuthProvider = ({ children }) => {
         const userData = userDoc.data();
         setUserData(userData);
         
-        // Configurar listener para mensajes primero
+        // ✅ Configurar listener SOLO para procesar datos (sin mostrar notificaciones)
         configurarListenerMensajes();
         
         // Verificar FCM token para este dispositivo
