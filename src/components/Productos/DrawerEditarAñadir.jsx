@@ -118,7 +118,16 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
 
     setIsSubmitting(true);
     try {
-      await onSubmit(formData, imagenFile);
+      // Asegurar que has_precio_alternativo se actualice correctamente
+      const dataToSubmit = {
+        ...formData,
+        has_precio_alternativo: formData.has_precio_alternativo,
+        // Si no hay precio alternativo marcado, limpiar los campos relacionados
+        precio_alternativo: formData.has_precio_alternativo ? formData.precio_alternativo : '',
+        motivo_precio_alternativo: formData.has_precio_alternativo ? formData.motivo_precio_alternativo : ''
+      };
+      
+      await onSubmit(dataToSubmit, imagenFile);
       setImagenFile(null);
       setUploadProgress(0);
       onClose();

@@ -437,6 +437,7 @@ export const ProductProvider = ({ children }) => {
         marca: productoData.marca || null,
         fecha_vencimiento: productoData.fecha_vencimiento || null,
         retornable: productoData.retornable || false,
+        has_precio_alternativo: !!productoData.has_precio_alternativo,
         precio_alternativo: productoData.has_precio_alternativo && productoData.precio_alternativo ? parseFloat(productoData.precio_alternativo) : null,
         motivo_precio_alternativo: productoData.has_precio_alternativo ? productoData.motivo_precio_alternativo || null : null,
       };
@@ -468,6 +469,7 @@ export const ProductProvider = ({ children }) => {
         marca: productoData.marca || null,
         fecha_vencimiento: productoData.fecha_vencimiento || null,
         retornable: productoData.retornable || false,
+        has_precio_alternativo: !!productoData.has_precio_alternativo,
         precio_alternativo: productoData.has_precio_alternativo && productoData.precio_alternativo ? parseFloat(productoData.precio_alternativo) : null,
         motivo_precio_alternativo: productoData.has_precio_alternativo ? productoData.motivo_precio_alternativo || null : null,
       };      await updateDoc(productoRef, updatedProducto);
