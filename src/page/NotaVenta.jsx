@@ -136,26 +136,26 @@ const NotaVenta = () => {
         </div>
         {/* Ticket Info */}
         <div className="text-center mb-2">
-          <div className="text-2xl font-black uppercase">NOTA DE VENTA</div>
+          <div className="text-2xl font-black uppercase font-consolamono-bold">NOTA DE VENTA</div>
         </div>
 
         <div className="border-t border-dashed border-black my-2"></div>
 
         {/* Customer Info */}
         <div className="mb-3 space-y-1">
-          <div className="flex justify-between text-base font-extrabold">
+          <div className="flex justify-between text-base font-extrabold font-consolamono-bold">
             <span>CLIENTE: {venta.nombre_cliente.toUpperCase()}</span>
           </div>
-          <div className="flex justify-between text-base font-extrabold">
+          <div className="flex justify-between text-base font-extrabold font-consolamono-bold">
             <span>CAJERO: {(venta.nombre_cajero || 'SISTEMA').toUpperCase()}</span>
           </div>
-          <div className="flex justify-between text-base font-extrabold">
+          <div className="flex justify-between text-base font-extrabold font-consolamono-bold">
             <span>FECHA: {fechaFormateada}</span>
           </div>
-          <div className="flex justify-between text-base font-extrabold">
+          <div className="flex justify-between text-base font-extrabold font-consolamono-bold">
             <span>HORA: {horaFormateada}</span>
           </div>
-          <div className="flex justify-between text-base font-extrabold">
+          <div className="flex justify-between text-base font-extrabold font-consolamono-bold">
             <span>ESTADO: {venta.estado.toUpperCase()}</span>
           </div>
         </div>
@@ -164,15 +164,15 @@ const NotaVenta = () => {
 
         {/* Products */}
         <div className="mb-3">
-          <div className="text-base font-black mb-2 text-center">DETALLE DE PRODUCTOS</div>
+          <div className="text-base font-black mb-2 text-center font-consolamono-bold">DETALLE DE PRODUCTOS</div>
           {venta.productos.map((producto, index) => (
             <div key={index} className="mb-2 border-b border-dotted border-gray-400 pb-1">
-              <div className="text-base font-extrabold uppercase mb-1">
+              <div className="text-base font-extrabold uppercase mb-1 font-consolamono-bold">
                 {producto.nombre}
               </div>
               <div className="flex justify-between text-base font-black">
-                <span>{producto.cantidad} x S/{producto.precio_unitario.toFixed(2)}</span>
-                <span className="bg-yellow-200 px-2 py-1 rounded font-black">S/{producto.subtotal.toFixed(2)}</span>
+                <span className="font-mono">{producto.cantidad} x S/{producto.precio_unitario.toFixed(2)}</span>
+                <span className="bg-yellow-200 px-2 py-1 rounded font-black font-consolamono-bold">S/{producto.subtotal.toFixed(2)}</span>
               </div>
             </div>
           ))}
@@ -183,7 +183,7 @@ const NotaVenta = () => {
         {/* Totals */}
         <div className="mb-2">
           <div className="bg-black text-white p-1 text-center mb-1">
-            <div className="flex justify-between text-lg font-black">
+            <div className="flex justify-between text-lg font-black font-consolamono-bold">
               <span>TOTAL:</span>
               <span>S/{venta.total.toFixed(2)}</span>
             </div>
@@ -191,11 +191,11 @@ const NotaVenta = () => {
 
           {venta.estado === 'parcial' && (
             <div className="space-y-0.5 text-base font-extrabold">
-              <div className="flex justify-between">
+              <div className="flex justify-between font-consolamono-bold">
                 <span>PAGADO:</span>
                 <span className="text-green-700 bg-green-100 px-2 py-1 rounded font-black">S/{venta.monto_pagado.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between font-consolamono-bold">
                 <span>PENDIENTE:</span>
                 <span className="text-red-700 bg-red-100 px-2 py-1 rounded font-black">S/{venta.monto_pendiente.toFixed(2)}</span>
               </div>
@@ -203,14 +203,14 @@ const NotaVenta = () => {
           )}
 
           {venta.estado === 'pendiente' && (
-            <div className="flex justify-between text-base font-extrabold">
+            <div className="flex justify-between text-base font-extrabold font-consolamono-bold">
               <span>PENDIENTE:</span>
               <span className="text-red-700 bg-red-100 px-2 py-1 rounded font-black">S/{venta.monto_pendiente.toFixed(2)}</span>
             </div>
           )}
 
           {venta.total_retornables > 0 && (
-            <div className="text-center text-base font-black mt-2 bg-yellow-100 p-1 rounded">
+            <div className="text-center text-base font-black mt-2 bg-yellow-100 p-1 rounded font-consolamono-bold">
               🍾 BOTELLAS PENDIENTES: {venta.total_retornables}
             </div>
           )}
@@ -220,11 +220,11 @@ const NotaVenta = () => {
           <>
             <div className="border-t border-dashed border-black my-2"></div>
             <div className="mb-2">
-              <div className="text-base font-black text-center mb-1">📋 HISTORIAL DE DEVOLUCIONES</div>
+              <div className="text-base font-black text-center mb-1 font-consolamono-bold">📋 HISTORIAL DE DEVOLUCIONES</div>
               {venta.historial_retornables.map((devolucion, index) => (
                 <div key={index} className="mb-1 bg-gray-50 p-1 rounded text-base">
                   <div className="flex justify-between font-extrabold">
-                    <span>
+                    <span className="font-mono">
                       {new Date(devolucion.fecha).toLocaleString('es-PE', {
                         day: '2-digit',
                         month: '2-digit',
@@ -232,10 +232,10 @@ const NotaVenta = () => {
                         minute: '2-digit',
                       })}
                     </span>
-                    <span className="text-green-700">✓ {devolucion.cantidad_devuelta} DEVUELTO</span>
+                    <span className="text-green-700 font-consolamono-bold">✓ {devolucion.cantidad_devuelta} DEVUELTO</span>
                   </div>
                   {devolucion.notas && (
-                    <div className="text-base text-gray-600 mt-0.5 font-bold">
+                    <div className="text-base text-gray-600 mt-0.5 font-bold font-mono">
                       💬 {devolucion.notas}
                     </div>
                   )}
@@ -249,8 +249,8 @@ const NotaVenta = () => {
           <>
             <div className="border-t border-dashed border-black my-2"></div>
             <div className="mb-2">
-              <div className="text-base font-black text-center mb-1">📝 OBSERVACIONES</div>
-              <div className="text-base font-bold bg-yellow-50 p-1 rounded text-gray-700">{venta.notas}</div>
+              <div className="text-base font-black text-center mb-1 font-consolamono-bold">📝 OBSERVACIONES</div>
+              <div className="text-base font-bold bg-yellow-50 p-1 rounded text-gray-700 font-mono">{venta.notas}</div>
             </div>
           </>
         )}
@@ -259,19 +259,19 @@ const NotaVenta = () => {
         
         {/* QR Code */}
         <div className="text-center my-3">
-          <div className="text-base font-black mb-1">CÓDIGO DE VERIFICACIÓN</div>
+          <div className="text-base font-black mb-1 font-consolamono-bold">CÓDIGO DE VERIFICACIÓN</div>
           <div className="bg-white p-2 inline-block border border-gray-300">
             <QRCode value={id} size={80} level="H" />
           </div>
-          <div className="text-base font-bold mt-1">ID: {id.slice(-8).toUpperCase()}</div>
+          <div className="text-base font-bold mt-1 font-mono">ID: {id.slice(-8).toUpperCase()}</div>
         </div>
 
         <div className="border-t border-dashed border-black my-2"></div>
 
         {/* Footer */}
         <div className="text-center space-y-1">
-          <div className="text-lg font-black">¡GRACIAS POR SU COMPRA!</div>
-          <div className="text-base font-bold">Conserve este ticket</div>
+          <div className="text-lg font-black font-consolamono-bold">¡GRACIAS POR SU COMPRA!</div>
+          <div className="text-base font-bold font-mono">Conserve este ticket</div>
         </div>
 
         {/* Bottom spacing */}
@@ -339,7 +339,11 @@ const NotaVenta = () => {
 
       <style jsx global>{`
         .font-mono {
-          font-family: 'Courier New', 'Lucida Console', monospace !important;
+          font-family: 'ConsolaMono-Book' !important;
+        }
+
+        .font-consolamono-bold {
+          font-family: 'ConsolaMono-Bold' !important;
         }
 
         @media print {
@@ -351,7 +355,7 @@ const NotaVenta = () => {
           }
 
           body {
-            font-family: 'Courier New', 'Lucida Console', monospace !important;
+            font-family: 'ConsolaMono-Book' !important;
             background: white !important;
             color: black !important;
             -webkit-print-color-adjust: exact !important;

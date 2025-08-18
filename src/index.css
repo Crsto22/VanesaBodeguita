@@ -1,2 +1,22 @@
 @import "tailwindcss";
 @plugin "daisyui";
+
+@font-face {
+  font-family: 'ConsolaMono-Bold';
+  src: url('./assets/fonts/ConsolaMono-Bold.woff2') format('woff2'),
+       url('./assets/fonts/ConsolaMono-Bold.woff') format('woff'),
+       url('./assets/fonts/ConsolaMono-Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'ConsolaMono-Book';
+  src: url('./assets/fonts/ConsolaMono-Book.woff2') format('woff2'),
+       url('./assets/fonts/ConsolaMono-Book.woff') format('woff'),
+       url('./assets/fonts/ConsolaMono-Book.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
