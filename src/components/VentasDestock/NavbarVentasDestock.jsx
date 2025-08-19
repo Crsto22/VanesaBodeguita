@@ -23,7 +23,7 @@ const NavbarVentasDestock = ({
   barcodeInput, 
   setBarcodeInput, 
   escanerActivo,
-  toggleEscaner,
+  setEscanerActivo,
   onBack,
   isDisabled = false
 }) => {
@@ -119,46 +119,43 @@ const NavbarVentasDestock = ({
                   }
                 }}
                 onFocus={() => {
-                  // Al enfocar el input de búsqueda, quitar focus del input invisible del escáner
+                  // Al enfocar el input de búsqueda, deshabilitar el escáner automáticamente
+                  setEscanerActivo(false);
                   const scannerInput = document.querySelector('#scanner-input');
                   if (scannerInput) {
                     scannerInput.blur();
                   }
                 }}
+                onBlur={() => {
+                  // Al salir del input de búsqueda, habilitar el escáner automáticamente
+                  setEscanerActivo(true);
+                  // Enfocar el input invisible del escáner después de un pequeño delay
+                  setTimeout(() => {
+                    const scannerInput = document.querySelector('#scanner-input');
+                    if (scannerInput) {
+                      scannerInput.focus();
+                    }
+                  }, 100);
+                }}
                 className={`w-full pl-12 pr-4 py-3 text-gray-700 placeholder-gray-400 focus:outline-none ${
-                  !escanerActivo ? '' : 'bg-gray-50'
-                } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                disabled={escanerActivo || isDisabled}
+                  isDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                disabled={isDisabled}
               />
             </div>
           </div>
           
-          {/* Toggle del Escáner y Botón de Historial */}
+          {/* Botón de Historial */}
           <div className="flex items-center gap-4 flex-shrink-0">
-            {/* Toggle del Escáner */}
+            {/* Indicador de estado del escáner */}
             <div className="flex items-center gap-2">
               <ScanBarcode className="w-5 h-5 text-gray-700" />
-             
-              <button
-                onClick={() => {
-                  if (!isDisabled) {
-                    toggleEscaner();
-                  }
-                }}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                  escanerActivo ? 'bg-green-500' : 'bg-gray-300'
-                } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                title={escanerActivo ? 'Escáner activado' : 'Escáner desactivado'}
-                disabled={isDisabled}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    escanerActivo ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-              <span className={`text-xs font-medium ${escanerActivo ? 'text-green-600' : 'text-gray-500'}`}>
-                {escanerActivo ? 'ON' : 'OFF'}
+              <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                escanerActivo 
+                  ? 'bg-green-100 text-green-600' 
+                  : 'bg-gray-100 text-gray-500'
+              }`}>
+                {escanerActivo ? 'ESCÁNER ON' : 'ESCÁNER OFF'}
               </span>
             </div>
 

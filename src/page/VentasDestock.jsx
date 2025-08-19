@@ -58,11 +58,8 @@ const VentasDestock = () => {
     const [productosVisibles, setProductosVisibles] = useState(10); // Controla cuántos productos se muestran
     const [productoAnimando, setProductoAnimando] = useState(null); // Para la animación de agregar
     
-    // Estado del toggle del escáner (OFF por defecto)
-    const [escanerActivo, setEscanerActivo] = useState(() => {
-        const saved = localStorage.getItem('escanerActivo');
-        return saved ? JSON.parse(saved) : false; // Default: OFF
-    });
+    // Estado del escáner (ON por defecto, se controla automáticamente con el input de búsqueda)
+    const [escanerActivo, setEscanerActivo] = useState(true); // Default: ON
     
     const [drawerClientesOpen, setDrawerClientesOpen] = useState(false);
     const [drawerEditarPrecioOpen, setDrawerEditarPrecioOpen] = useState(false);
@@ -198,43 +195,10 @@ const VentasDestock = () => {
         return producto;
     };
 
-    // Función para manejar el toggle del escáner
-    const toggleEscaner = () => {
-        // Bloquear el toggle del escáner durante la venta
-        if (ventaStatus === 'uploading') {
-            return;
-        }
-        
-        const nuevoEstado = !escanerActivo;
-        setEscanerActivo(nuevoEstado);
-        localStorage.setItem('escanerActivo', JSON.stringify(nuevoEstado));
-        
-        if (nuevoEstado) {
-            // Si se activa el escáner, enfocar el input invisible
-            setTimeout(() => {
-                const barcodeInput = document.querySelector('#scanner-input');
-                if (barcodeInput) {
-                    barcodeInput.focus();
-                }
-            }, 100);
-        } else {
-            // Si se desactiva, desenfocar el input invisible
-            const barcodeInput = document.querySelector('#scanner-input');
-            if (barcodeInput) {
-                barcodeInput.blur();
-            }
-        }
-        
-        console.log('🔧 Escáner:', nuevoEstado ? 'ACTIVADO' : 'DESACTIVADO');
-    };
+
 
     // Función para activar el escáner de código de barras
     const activarEscaner = () => {
-        // Activar el toggle del escáner
-        if (!escanerActivo) {
-            toggleEscaner();
-        }
-        
         // Primero, desenfocar cualquier input activo
         const activeElement = document.activeElement;
         if (activeElement && activeElement.matches('input, textarea, select, [contenteditable]')) {
@@ -876,7 +840,7 @@ const VentasDestock = () => {
                 barcodeInput={barcodeInput}
                 setBarcodeInput={setBarcodeInput}
                 escanerActivo={escanerActivo}
-                toggleEscaner={toggleEscaner}
+                setEscanerActivo={setEscanerActivo}
                 onBack={() => navigate('/dashboard')}
                 isDisabled={ventaStatus === 'uploading'}
             />
@@ -1243,25 +1207,16 @@ const VentasDestock = () => {
                                 <p className="font-medium mb-2">Carrito vacío</p>
                                 <p className="text-sm mb-4">Añade productos del catálogo</p>
                                 
-                                {/* Toggle de escanear en carrito vacío */}
-                                <div className="flex items-center gap-3 bg-[#45923a] hover:bg-[#3a7d30] px-4 py-3 rounded-xl transition-colors">
+                                {/* Indicador de estado del escáner en carrito vacío */}
+                                <div className="flex items-center gap-3 bg-[#45923a] px-4 py-3 rounded-xl">
                                     <ScanBarcode className="w-5 h-5 text-white" />
-                                    <span className="text-white font-medium text-sm">Escáner:</span>
-                                    <button
-                                        onClick={toggleEscaner}
-                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-                                            escanerActivo ? 'bg-green-200' : 'bg-gray-300'
-                                        }`}
-                                        title={escanerActivo ? 'Escáner activado' : 'Escáner desactivado'}
-                                    >
-                                        <span
-                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                                escanerActivo ? 'translate-x-6' : 'translate-x-1'
-                                            }`}
-                                        />
-                                    </button>
-                                    <span className={`text-sm font-medium ${escanerActivo ? 'text-green-200' : 'text-gray-200'}`}>
-                                        {escanerActivo ? 'ON' : 'OFF'}
+                                    <span className="text-white font-medium text-sm">Estado del escáner:</span>
+                                    <span className={`text-sm font-medium px-2 py-1 rounded-full ${
+                                        escanerActivo 
+                                            ? 'bg-green-200 text-green-800' 
+                                            : 'bg-gray-200 text-gray-800'
+                                    }`}>
+                                        {escanerActivo ? 'ACTIVO' : 'INACTIVO'}
                                     </span>
                                 </div>
                             </div>
