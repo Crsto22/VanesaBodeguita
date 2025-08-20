@@ -25,7 +25,8 @@ import {
     AlertTriangle,
     Milk,
     CheckCircle,
-    ScanBarcode
+    ScanBarcode,
+    PlusCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useClientes } from '../context/ClientesContext';
@@ -37,6 +38,7 @@ import EditarPrecioDrawer from '../components/VentasDestock/EditarPrecioDrawer';
 import KilogramoDrawer from '../components/VentasDestock/KilogramoDrawer';
 import PrecioAlternativoDrawer from '../components/VentasDestock/PrecioAlternativoDrawer';
 import ConfirmarVentaDrawer from '../components/VentasDestock/ConfirmarVentaDrawer';
+import QuickAddProductDrawer from '../components/VentasDestock/QuickAddProductDrawer';
 
 const VentasDestock = () => {
     const navigate = useNavigate();
@@ -66,6 +68,7 @@ const VentasDestock = () => {
     const [drawerKilogramoOpen, setDrawerKilogramoOpen] = useState(false);
     const [drawerPrecioAlternativoOpen, setDrawerPrecioAlternativoOpen] = useState(false);
     const [drawerConfirmarOpen, setDrawerConfirmarOpen] = useState(false);
+    const [drawerQuickAddOpen, setDrawerQuickAddOpen] = useState(false);
     const [productoEditando, setProductoEditando] = useState(null);
     const [productoParaEditar, setProductoParaEditar] = useState(null);
     const [productoKilogramo, setProductoKilogramo] = useState(null);
@@ -707,6 +710,32 @@ const VentasDestock = () => {
         console.log('Cliente removido');
     };
 
+    // Función para agregar producto rápido
+    const handleQuickAddProduct = (nombre, precio) => {
+        if (!nombre || !precio || isNaN(precio) || parseFloat(precio) <= 0) {
+            console.error('Nombre o precio inválido para producto rápido');
+            return;
+        }
+
+        const productoRapido = {
+            id: `temp_${Date.now().toString()}`, // ID temporal único
+            carritoId: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // ID único para el carrito
+            nombre: nombre.trim(),
+            precio: parseFloat(precio),
+            cantidad: 1,
+            subtotal: parseFloat(precio),
+            imagen: null,
+            categoria_ref: null,
+            tipo_unidad: 'unidad',
+            retornable: false,
+            cantidad_retornable: 0
+        };
+
+        setSelectedProducts(prev => [...prev, productoRapido]);
+        setDrawerQuickAddOpen(false);
+        console.log('Producto rápido agregado:', productoRapido);
+    };
+
     // Calcular total del carrito
     const calcularTotal = () => {
         return selectedProducts.reduce((total, producto) => total + producto.subtotal, 0);
@@ -862,6 +891,28 @@ const VentasDestock = () => {
                     </div>
 
                     <div className="p-3 flex-1 overflow-y-auto custom-scrollbar">
+                        {/* Botón "Agregar Producto Rápido" */}
+                        <motion.button
+                            onClick={() => {
+                                if (ventaStatus !== 'uploading') {
+                                    setDrawerQuickAddOpen(true);
+                                }
+                            }}
+                            className={`w-full p-4 text-left rounded-xl mb-4 transition-colors shadow-sm ${
+                                ventaStatus === 'uploading'
+                                    ? 'opacity-50 cursor-not-allowed'
+                                    : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-md hover:shadow-lg'
+                            }`}
+                            variants={buttonVariants}
+                            whileHover={ventaStatus !== 'uploading' ? "hover" : {}}
+                            whileTap={ventaStatus !== 'uploading' ? "tap" : {}}
+                        >
+                            <div className="flex items-center justify-center gap-2">
+                                <PlusCircle size={20} />
+                                <span className="font-bold">Agregar Producto Rápido</span>
+                            </div>
+                        </motion.button>
+
                         {/* Botón "Todas las categorías" */}
                         <motion.button
                             onClick={() => {
@@ -1233,8 +1284,9 @@ const VentasDestock = () => {
                                             exit="exit"
                                             layout
                                         >
-                                            {/* Header del producto */}
-                                            <div className="flex items-center gap-3 mb-4">
+                                            {/* Header del producto con nuevo diseño */}
+                                            <div className="flex items-start gap-3 mb-4">
+                                                {/* Imagen del producto - Izquierda */}
                                                 <div className="w-16 h-16 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl flex items-center justify-center overflow-hidden shadow-sm flex-shrink-0">
                                                     {producto.imagen ? (
                                                         <img src={producto.imagen} alt={producto.nombre} className="w-full h-full object-cover" />
@@ -1242,25 +1294,40 @@ const VentasDestock = () => {
                                                         <Package size={24} className="text-gray-400" />
                                                     )}
                                                 </div>
+                                                
+                                                {/* Información del producto - Centro */}
                                                 <div className="flex-1 min-w-0">
-                                                    <h4 className="font-bold text-gray-800 text-base leading-tight">{producto.nombre}</h4>
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        <span className="text-sm text-gray-500">S/{producto.precio.toFixed(2)} c/u</span>
-                                                        <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
-                                                        <span className="text-sm font-medium text-[#45923a]">S/{producto.subtotal.toFixed(2)}</span>
+                                                    {/* Nombre del producto */}
+                                                    <h4 className="font-bold text-gray-800 text-base leading-tight mb-2">{producto.nombre}</h4>
+                                                    
+                                                    {/* Precios en línea horizontal */}
+                                                    <div className="flex items-center justify-between">
+                                                        {/* Precio unitario - Izquierda */}
+                                                        <div className="flex flex-col">
+                                                            <span className="text-xs text-gray-500 uppercase font-bold tracking-wide">Precio Unidad</span>
+                                                            <span className="text-lg font-bold text-gray-800">S/{producto.precio.toFixed(2)}</span>
+                                                        </div>
+                                                        
+                                                        {/* Subtotal - Derecha */}
+                                                        <div className="flex flex-col text-right">
+                                                            <span className="text-xs text-gray-500 uppercase tracking-wide">Subtotal</span>
+                                                            <span className="text-xl font-extrabold text-[#45923a]">S/{producto.subtotal.toFixed(2)}</span>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <div className="flex gap-2 flex-shrink-0">
+                                                
+                                                {/* Botones de acción - Derecha */}
+                                                <div className="flex flex-col gap-2 flex-shrink-0">
                                                     <button
                                                         onClick={() => {
                                                             if (ventaStatus !== 'uploading') {
                                                                 handleEditProduct(producto);
                                                             }
                                                         }}
-                                                        className={`p-2 text-blue-600 bg-blue-50 rounded-xl transition-colors active:scale-95 ${
+                                                        className={`p-2.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors active:scale-95 ${
                                                             ventaStatus === 'uploading' 
                                                                 ? 'opacity-50 cursor-not-allowed' 
-                                                                : ''
+                                                                : 'hover:shadow-md'
                                                         }`}
                                                         title="Editar producto"
                                                         disabled={ventaStatus === 'uploading'}
@@ -1273,10 +1340,10 @@ const VentasDestock = () => {
                                                                 handleRemoveFromCart(producto.carritoId || producto.id);
                                                             }
                                                         }}
-                                                        className={`p-2 text-red-600 bg-red-50 rounded-xl transition-colors active:scale-95 ${
+                                                        className={`p-2.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors active:scale-95 ${
                                                             ventaStatus === 'uploading' 
                                                                 ? 'opacity-50 cursor-not-allowed' 
-                                                                : ''
+                                                                : 'hover:shadow-md'
                                                         }`}
                                                         title="Eliminar producto"
                                                         disabled={ventaStatus === 'uploading'}
@@ -1456,6 +1523,13 @@ const VentasDestock = () => {
                         clientesLoading={false}
                         clienteSeleccionado={clienteSeleccionado}
                         setClienteSeleccionado={setClienteSeleccionado}
+                    />
+
+                    {/* Drawer de Producto Rápido */}
+                    <QuickAddProductDrawer
+                        isOpen={drawerQuickAddOpen}
+                        onClose={() => setDrawerQuickAddOpen(false)}
+                        onQuickAdd={handleQuickAddProduct}
                     />
 
                     {/* Notificaciones */}

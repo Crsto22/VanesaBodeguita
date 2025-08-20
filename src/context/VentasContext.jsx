@@ -96,10 +96,14 @@ export const VentasProvider = ({ children }) => {
       let totalRetornables = 0;
       const productosProcesados = await Promise.all(ventaData.productos.map(async (item) => {
         let producto = null;
-        if (item.producto_ref && obtenerProductoPorIdDirecto) {
+        
+        // Solo validar productos que tienen un ID real (no temporal)
+        if (item.producto_ref && obtenerProductoPorIdDirecto && !item.producto_ref.startsWith('temp_')) {
           producto = await obtenerProductoPorIdDirecto(item.producto_ref);
           if (!producto) throw new Error(`Producto ${item.producto_ref} no encontrado`);
         }
+        
+        // Validaciones básicas
         if (item.cantidad <= 0) throw new Error(`Cantidad inválida para ${item.nombre}`);
         if (item.cantidad_retornable > item.cantidad) throw new Error(`Cantidad retornable inválida para ${item.nombre}`);
         if (item.precio_unitario <= 0) throw new Error(`Precio unitario inválido para ${item.nombre}`);
@@ -118,7 +122,8 @@ export const VentasProvider = ({ children }) => {
         }
 
         return {
-          producto_ref: item.producto_ref || null,
+          // Solo incluir producto_ref si no es temporal
+          producto_ref: (item.producto_ref && !item.producto_ref.startsWith('temp_')) ? item.producto_ref : null,
           nombre: item.nombre,
           cantidad: item.cantidad,
           precio_unitario: formatToTwoDecimals(item.precio_unitario),

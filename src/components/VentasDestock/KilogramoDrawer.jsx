@@ -347,9 +347,23 @@ const KilogramoDrawer = ({ isOpen, onClose, producto, productoCarrito, onAgregar
                     </>
                   ) : (
                     <>
-                      <p className="text-xs text-gray-400 mb-1">Precio Total</p>
-                      <div className="text-xl font-bold text-white">
-                        S/ {parseFloat(nuevoPrecio || '0').toFixed(2)}
+                      {/* Precio y Peso Calculado en fila */}
+                      <div className="flex justify-between items-center">
+                        <div className="flex-1">
+                          <p className="text-xs text-gray-400 mb-1">Precio Total</p>
+                          <div className="text-xl font-bold text-white">
+                            S/ {parseFloat(nuevoPrecio || '0').toFixed(2)}
+                          </div>
+                        </div>
+                        <div className="flex-1 text-right">
+                          <p className="text-xs text-gray-400 mb-1">Peso Equivalente</p>
+                          <div className="text-xl font-bold text-blue-400">
+                            {nuevoPrecio && parseFloat(nuevoPrecio) > 0 
+                              ? (parseFloat(nuevoPrecio) / producto.precio).toFixed(3) + ' kg'
+                              : '0.000 kg'
+                            }
+                          </div>
+                        </div>
                       </div>
                     </>
                   )}
