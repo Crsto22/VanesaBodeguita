@@ -1628,7 +1628,7 @@ const VentasDestock = () => {
                                 
                                 {ventaStatus === 'success' && (
                                     <motion.button 
-                                        className="btn btn-sm bg-[#45923a] hover:bg-[#3a7d30] text-white border-none"
+                                        className="btn bg-[#45923a] hover:bg-[#3a7d30] text-white border-none"
                                         onClick={handleViewTicketFromAlert}
                                         initial={{ opacity: 0, x: 30, scale: 0.8 }}
                                         animate={{ opacity: 1, x: 0, scale: 1 }}
@@ -1642,7 +1642,7 @@ const VentasDestock = () => {
                                         whileHover={{ scale: 1.05 }}
                                         whileTap={{ scale: 0.95 }}
                                     >
-                                        Ver Ticket
+                                        Imprimir Ticket
                                     </motion.button>
                                 )}
                             </div>
