@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useVentas } from '../context/VentasContext';
 import { Loader2, ArrowLeft, Printer, Download, Plus } from 'lucide-react';
 import Logo from '../assets/Logo.svg';
@@ -9,11 +9,14 @@ import QRCode from 'react-qr-code';
 const NotaVenta = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { obtenerVentaCompletaPorId } = useVentas();
   const [venta, setVenta] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isPrintMode, setIsPrintMode] = useState(false);
+  const [printExecuted, setPrintExecuted] = useState(false);
   const notaVentaRef = useRef(null);
 
   useEffect(() => {
@@ -36,6 +39,129 @@ const NotaVenta = () => {
 
     fetchVenta();
   }, [id, obtenerVentaCompletaPorId]);
+
+  // Efecto para detectar modo de impresión automática
+  useEffect(() => {
+    const printParam = searchParams.get('print');
+    if (printParam === 'true') {
+      setIsPrintMode(true);
+    }
+  }, [searchParams]);
+
+  // Efecto para ejecutar impresión automática cuando la venta esté cargada y sea modo impresión
+  useEffect(() => {
+    if (isPrintMode && venta && !loading && !error && !printExecuted) {
+      // Esperar un momento para que el componente se renderice completamente
+      const timer = setTimeout(() => {
+        console.log('🖨️ Ejecutando impresión automática...');
+        setPrintExecuted(true);
+        
+        if (window.print) {
+          window.print();
+        } else {
+          console.warn('⚠️ window.print no está disponible');
+          // Si no hay impresión disponible, redirigir inmediatamente
+          navigate('/ventas-destock');
+        }
+      }, 800); // Reducido de 1000ms a 800ms
+
+      return () => clearTimeout(timer);
+    }
+  }, [isPrintMode, venta, loading, error, printExecuted, navigate]);
+
+  // Efecto para detectar cuando se cierra el diálogo de impresión - ULTRA AGRESIVO
+  useEffect(() => {
+    if (isPrintMode && printExecuted) {
+      console.log('🖨️ Iniciando detección ultra agresiva...');
+      
+      const redirectToVentasDestock = () => {
+        console.log('🖨️ Redirigiendo inmediatamente...');
+        navigate('/ventas-destock');
+      };
+
+      // Detectar finalización/cancelación de impresión
+      const handleAfterPrint = () => {
+        console.log('🖨️ AfterPrint detectado');
+        redirectToVentasDestock();
+      };
+
+      // Detectar cualquier tecla presionada
+      const handleAnyKey = (event) => {
+        console.log('🖨️ Tecla detectada:', event.key);
+        redirectToVentasDestock();
+      };
+
+      // Detectar cualquier click
+      const handleAnyClick = () => {
+        console.log('🖨️ Click detectado');
+        redirectToVentasDestock();
+      };
+
+      // Detectar cambio de foco
+      const handleFocusChange = () => {
+        console.log('🖨️ Cambio de foco detectado');
+        redirectToVentasDestock();
+      };
+
+      // Detectar movimiento del mouse
+      const handleMouseMove = () => {
+        console.log('🖨️ Movimiento de mouse detectado');
+        redirectToVentasDestock();
+      };
+
+      // Detectar scroll
+      const handleScroll = () => {
+        console.log('🖨️ Scroll detectado');
+        redirectToVentasDestock();
+      };
+
+      // Detectar cambio de visibilidad
+      const handleVisibilityChange = () => {
+        if (!document.hidden) {
+          console.log('🖨️ Página visible otra vez');
+          redirectToVentasDestock();
+        }
+      };
+
+      // Timeout ultra agresivo - 1.5 segundos
+      const ultraFastTimer = setTimeout(() => {
+        console.log('🖨️ Timeout ultra rápido alcanzado (1.5s)');
+        redirectToVentasDestock();
+      }, 1500);
+
+      // Agregar todos los event listeners
+      window.addEventListener('afterprint', handleAfterPrint);
+      document.addEventListener('keydown', handleAnyKey);
+      document.addEventListener('keyup', handleAnyKey);
+      document.addEventListener('click', handleAnyClick);
+      document.addEventListener('mousedown', handleAnyClick);
+      document.addEventListener('mousemove', handleMouseMove, { once: true });
+      window.addEventListener('focus', handleFocusChange);
+      window.addEventListener('blur', handleFocusChange);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      document.addEventListener('scroll', handleScroll);
+      
+      // También detectar eventos táctiles para móviles
+      document.addEventListener('touchstart', handleAnyClick);
+      document.addEventListener('touchend', handleAnyClick);
+
+      return () => {
+        window.removeEventListener('afterprint', handleAfterPrint);
+        document.removeEventListener('keydown', handleAnyKey);
+        document.removeEventListener('keyup', handleAnyKey);
+        document.removeEventListener('click', handleAnyClick);
+        document.removeEventListener('mousedown', handleAnyClick);
+        document.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('focus', handleFocusChange);
+        window.removeEventListener('blur', handleFocusChange);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        document.removeEventListener('scroll', handleScroll);
+        document.removeEventListener('touchstart', handleAnyClick);
+        document.removeEventListener('touchend', handleAnyClick);
+        clearTimeout(ultraFastTimer);
+      };
+    }
+  }, [isPrintMode, printExecuted, navigate]);
 
   const handlePrint = () => {
     if (window.print) {
@@ -80,7 +206,11 @@ const NotaVenta = () => {
   };
 
   const handleBack = () => {
-    navigate(-1);
+    if (isPrintMode) {
+      navigate('/ventas-destock');
+    } else {
+      navigate(-1);
+    }
   };
 
   if (loading) {
@@ -88,7 +218,9 @@ const NotaVenta = () => {
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="flex flex-col items-center">
           <Loader2 className="h-8 w-8 text-green-600 animate-spin" />
-          <p className="mt-1 text-gray-600 font-medium text-lg">Cargando ticket...</p>
+          <p className="mt-1 text-gray-600 font-medium text-lg">
+            {isPrintMode ? 'Preparando impresión...' : 'Cargando ticket...'}
+          </p>
         </div>
       </div>
     );
@@ -282,40 +414,52 @@ const NotaVenta = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
-      <div className="fixed top-0 left-0 right-0 bg-white z-10 shadow-md">
+      {/* Indicador de impresión automática */}
+      {isPrintMode && printExecuted && (
+        <div className="fixed top-0 left-0 right-0 bg-red-600 text-white z-20 p-2">
+          <div className="flex items-center justify-center gap-2">
+            <Printer className="animate-pulse" size={18} />
+            <span className="font-bold text-sm">IMPRIMIENDO... Cualquier acción lo regresará automáticamente</span>
+          </div>
+        </div>
+      )}
+
+      <div className={`fixed top-0 left-0 right-0 bg-white z-10 shadow-md ${isPrintMode && printExecuted ? 'mt-10' : ''}`}>
         <div className="flex justify-between items-center p-4">
           <button
             onClick={handleBack}
             className="flex items-center gap-1 text-green-600 hover:text-green-700 font-medium text-lg"
           >
             <ArrowLeft size={16} />
-            <span>Volver</span>
+            <span>{isPrintMode ? 'Cancelar' : 'Volver'}</span>
           </button>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handlePrint}
-              className="text-[#45923a]"
-              aria-label="Imprimir ticket"
-            >
-              <Printer size={20} />
-            </button>
-            <button
-              onClick={handleDownload}
-              className="text-[#45923a] relative"
-              aria-label="Descargar ticket"
-              disabled={isDownloading}
-            >
-              {isDownloading ? (
-                <Loader2 size={20} className="animate-spin" />
-              ) : (
-                <Download size={20} />
-              )}
-            </button>
-          </div>
+          {!isPrintMode && (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handlePrint}
+                className="text-[#45923a]"
+                aria-label="Imprimir ticket"
+              >
+                <Printer size={20} />
+              </button>
+              <button
+                onClick={handleDownload}
+                className="text-[#45923a] relative"
+                aria-label="Descargar ticket"
+                disabled={isDownloading}
+              >
+                {isDownloading ? (
+                  <Loader2 size={20} className="animate-spin" />
+                ) : (
+                  <Download size={20} />
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="mt-24 mb-24 pb-6 flex justify-center px-4">
+      <div className={`mb-24 pb-6 flex justify-center px-4 ${isPrintMode && printExecuted ? 'mt-32' : 'mt-24'}`}>
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           {renderTicketContent()}
         </div>
@@ -327,15 +471,17 @@ const NotaVenta = () => {
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] p-4">
-        <button
-          onClick={handleNuevaVenta}
-          className="flex items-center justify-center gap-2 w-full bg-[#45923a] text-white py-3 px-4 rounded-full hover:bg-green-700 transition-colors font-medium"
-        >
-          <Plus size={18} />
-          Nueva Venta
-        </button>
-      </div>
+      {!isPrintMode && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] p-4">
+          <button
+            onClick={handleNuevaVenta}
+            className="flex items-center justify-center gap-2 w-full bg-[#45923a] text-white py-3 px-4 rounded-full hover:bg-green-700 transition-colors font-medium"
+          >
+            <Plus size={18} />
+            Nueva Venta
+          </button>
+        </div>
+      )}
 
       <style jsx global>{`
         .font-mono {

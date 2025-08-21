@@ -144,13 +144,14 @@ const ConfirmarVentaDrawer = ({
     }
   };
 
-  // Función para ver el ticket
+  // Función para ver el ticket con impresión automática
   const handleViewTicket = () => {
     if (ventaId) {
       setVentaStatus('idle'); // Esto activa la animación exit
       setTimeout(() => {
         setVentaId(null);
-        onViewNotaVenta(ventaId);
+        // Usar navigate directamente con el parámetro print=true
+        window.location.href = `/ventas/${ventaId}?print=true`;
       }, 100); // Pequeño delay para que inicie la animación
     }
   };

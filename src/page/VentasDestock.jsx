@@ -678,7 +678,7 @@ const VentasDestock = () => {
             setVentaStatus('idle');
             setTimeout(() => {
                 setVentaAlertId(null);
-                navigate(`/ventas/${ventaAlertId}`);
+                navigate(`/ventas/${ventaAlertId}?print=true`);
             }, 100);
         }
     };
