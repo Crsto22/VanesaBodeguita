@@ -32,6 +32,10 @@ const NavbarVentasDestock = ({
   
   // Estado para la hora actual
   const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // Estado para controlar el timeout del input de búsqueda
+  const [isSearchDisabledByTimeout, setIsSearchDisabledByTimeout] = useState(false);
+  const [searchTimeoutId, setSearchTimeoutId] = useState(null);
 
   // Actualizar la hora cada segundo
   useEffect(() => {
@@ -76,6 +80,56 @@ const NavbarVentasDestock = ({
     return totalMinutes >= 390 && totalMinutes < 1110; // 6:30 AM a 6:30 PM
   };
 
+  // Función para iniciar el timeout de búsqueda
+  const startSearchTimeout = () => {
+    // Limpiar timeout anterior si existe
+    if (searchTimeoutId) {
+      clearTimeout(searchTimeoutId);
+    }
+    
+    // Crear nuevo timeout de 3 minutos (180000 ms)
+    const timeoutId = setTimeout(() => {
+      // Limpiar el texto de búsqueda
+      setSearchTerm('');
+      // Deshabilitar el input por timeout
+      setIsSearchDisabledByTimeout(true);
+      // Reactivar el escáner
+      setEscanerActivo(true);
+      // Enfocar el input invisible del escáner
+      setTimeout(() => {
+        const scannerInput = document.querySelector('#scanner-input');
+        if (scannerInput) {
+          scannerInput.focus();
+        }
+      }, 100);
+    }, 180000); // 3 minutos
+    
+    setSearchTimeoutId(timeoutId);
+  };
+
+  // Función para cancelar el timeout de búsqueda
+  const cancelSearchTimeout = () => {
+    if (searchTimeoutId) {
+      clearTimeout(searchTimeoutId);
+      setSearchTimeoutId(null);
+    }
+  };
+
+  // Función para reactivar el input de búsqueda
+  const reactivateSearchInput = () => {
+    setIsSearchDisabledByTimeout(false);
+    cancelSearchTimeout();
+  };
+
+  // Limpiar timeout al desmontar el componente
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutId) {
+        clearTimeout(searchTimeoutId);
+      }
+    };
+  }, [searchTimeoutId]);
+
   // Importar useAuth para obtener datos del usuario
   const { currentUser, userData } = useAuth();
   
@@ -111,22 +165,44 @@ const NavbarVentasDestock = ({
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <input
                 type="text"
-                placeholder="Buscar productos por nombre, código de barras o categoría..."
+                placeholder={
+                  isSearchDisabledByTimeout 
+                    ? "Input deshabilitado por inactividad. Haz clic para reactivar..." 
+                    : "Buscar productos por nombre, código de barras o categoría..."
+                }
                 value={searchTerm}
                 onChange={(e) => {
-                  if (!isDisabled) {
+                  if (!isDisabled && !isSearchDisabledByTimeout) {
                     setSearchTerm(e.target.value);
+                    // Reiniciar el timeout cada vez que el usuario escribe
+                    startSearchTimeout();
                   }
                 }}
                 onFocus={() => {
+                  // Si está deshabilitado por timeout, reactivarlo
+                  if (isSearchDisabledByTimeout) {
+                    reactivateSearchInput();
+                    return;
+                  }
+                  
                   // Al enfocar el input de búsqueda, deshabilitar el escáner automáticamente
                   setEscanerActivo(false);
                   const scannerInput = document.querySelector('#scanner-input');
                   if (scannerInput) {
                     scannerInput.blur();
                   }
+                  
+                  // Iniciar timeout si hay texto
+                  if (searchTerm.length > 0) {
+                    startSearchTimeout();
+                  }
                 }}
                 onBlur={() => {
+                  // Si está deshabilitado por timeout, no hacer nada más
+                  if (isSearchDisabledByTimeout) {
+                    return;
+                  }
+                  
                   // Al salir del input de búsqueda, habilitar el escáner automáticamente
                   setEscanerActivo(true);
                   // Enfocar el input invisible del escáner después de un pequeño delay
@@ -137,10 +213,25 @@ const NavbarVentasDestock = ({
                     }
                   }, 100);
                 }}
-                className={`w-full pl-12 pr-4 py-3 text-gray-700 placeholder-gray-400 focus:outline-none ${
-                  isDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                onKeyDown={(e) => {
+                  // Reiniciar timeout con cualquier tecla presionada
+                  if (!isDisabled && !isSearchDisabledByTimeout && searchTerm.length > 0) {
+                    startSearchTimeout();
+                  }
+                }}
+                onClick={() => {
+                  // Si está deshabilitado por timeout, reactivarlo al hacer clic
+                  if (isSearchDisabledByTimeout) {
+                    reactivateSearchInput();
+                  }
+                }}
+                className={`w-full pl-12 pr-4 py-3 text-gray-700 placeholder-gray-400 focus:outline-none transition-all duration-200 ${
+                  isDisabled || isSearchDisabledByTimeout 
+                    ? 'opacity-50 cursor-pointer bg-gray-50' 
+                    : ''
                 }`}
                 disabled={isDisabled}
+                readOnly={isSearchDisabledByTimeout}
               />
             </div>
           </div>
