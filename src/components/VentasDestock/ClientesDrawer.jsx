@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Search, User, Mail, Phone, Plus } from 'lucide-react';
 import { useClientes } from '../../context/ClientesContext';
@@ -12,6 +12,7 @@ const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
     const [filteredClientes, setFilteredClientes] = useState([]);
     const [isVisible, setIsVisible] = useState(false);
     const [drawerCrearClienteOpen, setDrawerCrearClienteOpen] = useState(false);
+    const searchInputRef = useRef(null);
 
     // Manejar la visibilidad con animación
     useEffect(() => {
@@ -46,6 +47,17 @@ const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
             setFilteredClientes(clientes);
         }
     }, [isOpen, clientes]);
+
+    // Enfocar el input de búsqueda cuando se abre el drawer
+    useEffect(() => {
+        if (isOpen && isVisible && searchInputRef.current) {
+            // Delay mayor para asegurar que la animación termine
+            const timer = setTimeout(() => {
+                searchInputRef.current?.focus();
+            }, 400);
+            return () => clearTimeout(timer);
+        }
+    }, [isOpen, isVisible]);
 
     // Variantes de animación para Framer Motion
     const drawerVariants = {
@@ -131,6 +143,12 @@ const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
                     variants={contentVariants}
                     initial="hidden"
                     animate="visible"
+                    onAnimationComplete={() => {
+                        // Enfocar el input cuando la animación termine
+                        if (isOpen && searchInputRef.current) {
+                            searchInputRef.current.focus();
+                        }
+                    }}
                 >
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-white">
@@ -149,6 +167,7 @@ const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
                     <div className="mt-4 relative">
                         <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                         <input
+                            ref={searchInputRef}
                             type="text"
                             placeholder="Buscar cliente..."
                             value={searchTerm}
