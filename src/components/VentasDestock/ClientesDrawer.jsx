@@ -3,13 +3,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Search, User, Mail, Phone, Plus } from 'lucide-react';
 import { useClientes } from '../../context/ClientesContext';
 import { useVentas } from '../../context/VentasContext';
+import CrearClienteDrawer from './CrearClienteDrawer';
 
 const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
-    const { clientes, loading: clientesLoading } = useClientes();
+    const { clientes, loading: clientesLoading, obtenerClientePorId } = useClientes();
     const { obtenerDeudaTotalPorCliente } = useVentas();
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredClientes, setFilteredClientes] = useState([]);
     const [isVisible, setIsVisible] = useState(false);
+    const [drawerCrearClienteOpen, setDrawerCrearClienteOpen] = useState(false);
 
     // Manejar la visibilidad con animación
     useEffect(() => {
@@ -122,6 +124,7 @@ const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
                     animate={isOpen ? "visible" : "hidden"}
                     exit="exit"
                 >
+                <div className="relative flex flex-col h-full">
                 {/* Header */}
                 <motion.div 
                     className="p-4 bg-gradient-to-r from-[#45923a] to-[#3a7d30] flex-shrink-0"
@@ -259,11 +262,32 @@ const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
                     initial="hidden"
                     animate="visible"
                 >
-                    <button className="w-full bg-[#45923a] hover:bg-[#3a7d30] text-white py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2">
+                    <button 
+                        onClick={() => setDrawerCrearClienteOpen(true)}
+                        className="w-full bg-[#45923a] hover:bg-[#3a7d30] text-white py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                    >
                         <Plus size={16} />
                         Crear Nuevo Cliente
                     </button>
                 </motion.div>
+
+                {/* Drawer para crear cliente */}
+                <CrearClienteDrawer
+                    isOpen={drawerCrearClienteOpen}
+                    onClose={() => setDrawerCrearClienteOpen(false)}
+                    onClienteCreado={(nuevoClienteId) => {
+                        // Cerrar el drawer de crear
+                        setDrawerCrearClienteOpen(false);
+                        
+                        // Obtener el cliente recién creado y seleccionarlo automáticamente
+                        const nuevoCliente = obtenerClientePorId(nuevoClienteId);
+                        if (nuevoCliente) {
+                            onSelectCliente(nuevoCliente);
+                            onClose();
+                        }
+                    }}
+                />
+                </div>
                 </motion.div>
             )}
         </AnimatePresence>

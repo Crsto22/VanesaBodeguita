@@ -52,10 +52,25 @@ const VentasDestock = () => {
     const [cacheTimestamp, setCacheTimestamp] = useState(null);
     const [cacheVersion, setCacheVersion] = useState(0);
     
+    // Keys para localStorage
+    const STORAGE_KEY_CART = 'ventasDestock_carrito';
+    const STORAGE_KEY_CLIENTE = 'ventasDestock_cliente';
+    
+    // Función para cargar datos desde localStorage
+    const loadFromLocalStorage = (key, defaultValue) => {
+        try {
+            const item = localStorage.getItem(key);
+            return item ? JSON.parse(item) : defaultValue;
+        } catch (error) {
+            console.error(`Error al cargar ${key} desde localStorage:`, error);
+            return defaultValue;
+        }
+    };
+    
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('all');
-    const [selectedProducts, setSelectedProducts] = useState([]);
-    const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
+    const [selectedProducts, setSelectedProducts] = useState(() => loadFromLocalStorage(STORAGE_KEY_CART, []));
+    const [clienteSeleccionado, setClienteSeleccionado] = useState(() => loadFromLocalStorage(STORAGE_KEY_CLIENTE, null));
     const [barcodeInput, setBarcodeInput] = useState('');
     const [productosVisibles, setProductosVisibles] = useState(10); // Controla cuántos productos se muestran
     const [productoAnimando, setProductoAnimando] = useState(null); // Para la animación de agregar
@@ -149,6 +164,54 @@ const VentasDestock = () => {
             setProductosLoading(true);
         }
     }, [productosOptimizados, todosLosProductos]);
+
+    // Efecto para guardar el carrito en localStorage cada vez que cambie
+    React.useEffect(() => {
+        try {
+            localStorage.setItem(STORAGE_KEY_CART, JSON.stringify(selectedProducts));
+            console.log('💾 Carrito guardado en localStorage:', selectedProducts.length, 'productos');
+        } catch (error) {
+            console.error('Error al guardar carrito en localStorage:', error);
+        }
+    }, [selectedProducts]);
+
+    // Efecto para guardar el cliente seleccionado en localStorage cada vez que cambie
+    React.useEffect(() => {
+        try {
+            localStorage.setItem(STORAGE_KEY_CLIENTE, JSON.stringify(clienteSeleccionado));
+            console.log('💾 Cliente guardado en localStorage:', clienteSeleccionado?.nombre || 'Cliente Genérico');
+        } catch (error) {
+            console.error('Error al guardar cliente en localStorage:', error);
+        }
+    }, [clienteSeleccionado]);
+
+    // Efecto para validar productos del carrito al cargar desde localStorage
+    React.useEffect(() => {
+        // Solo ejecutar cuando los productos optimizados estén cargados y haya productos en el carrito
+        if (productosOptimizados.length > 0 && selectedProducts.length > 0) {
+            const productosValidos = selectedProducts.filter(productoCarrito => {
+                // Productos temporales (agregados rápidos) siempre son válidos
+                if (productoCarrito.id.toString().startsWith('temp_')) {
+                    return true;
+                }
+                
+                // Verificar si el producto aún existe en la base de datos
+                const productoExiste = productosOptimizados.find(p => p.id === productoCarrito.id);
+                
+                if (!productoExiste) {
+                    console.warn('⚠️ Producto eliminado de la BD encontrado en carrito:', productoCarrito.nombre);
+                }
+                
+                return productoExiste !== undefined;
+            });
+
+            // Si se eliminaron productos, actualizar el carrito
+            if (productosValidos.length !== selectedProducts.length) {
+                console.log('🔄 Actualizando carrito: algunos productos ya no existen');
+                setSelectedProducts(productosValidos);
+            }
+        }
+    }, [productosOptimizados]); // Solo cuando los productos se cargan inicialmente
 
     // Filtrar productos según categoría seleccionada y término de búsqueda
     const productosFiltrados = React.useMemo(() => {
@@ -650,6 +713,15 @@ const VentasDestock = () => {
             setClienteSeleccionado(null);
             setDrawerConfirmarOpen(false);
 
+            // Limpiar localStorage
+            try {
+                localStorage.removeItem(STORAGE_KEY_CART);
+                localStorage.removeItem(STORAGE_KEY_CLIENTE);
+                console.log('🗑️ Carrito y cliente limpiados de localStorage');
+            } catch (error) {
+                console.error('Error al limpiar localStorage:', error);
+            }
+
             // Reset del caché para reflejar cambios en stock
             resetProductsCache();
 
@@ -708,6 +780,19 @@ const VentasDestock = () => {
     const handleRemoveCliente = () => {
         setClienteSeleccionado(null);
         console.log('Cliente removido');
+    };
+
+    // Función para limpiar todo el carrito manualmente
+    const handleLimpiarCarrito = () => {
+        setSelectedProducts([]);
+        setClienteSeleccionado(null);
+        try {
+            localStorage.removeItem(STORAGE_KEY_CART);
+            localStorage.removeItem(STORAGE_KEY_CLIENTE);
+            console.log('🗑️ Carrito limpiado manualmente');
+        } catch (error) {
+            console.error('Error al limpiar localStorage:', error);
+        }
     };
 
     // Función para agregar producto rápido
@@ -819,24 +904,6 @@ const VentasDestock = () => {
         }
     };
 
-    const cartItemVariants = {
-        hidden: { opacity: 0, x: 50 },
-        visible: {
-            opacity: 1,
-            x: 0,
-            transition: {
-                type: "spring",
-                stiffness: 80,
-                damping: 10
-            }
-        },
-        exit: {
-            opacity: 0,
-            x: -50,
-            transition: { duration: 0.3 }
-        }
-    };
-
     return (
         <motion.div
             className="min-h-screen bg-gray-50"
@@ -844,7 +911,7 @@ const VentasDestock = () => {
             animate="visible"
             variants={containerVariants}
         >
-            {/* Estilos personalizados para scrollbar */}
+            {/* Estilos personalizados para scrollbar y animaciones */}
             <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
@@ -859,6 +926,22 @@ const VentasDestock = () => {
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: #3a7d30;
+        }
+        
+        /* Animación de fade in para productos del carrito */
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out forwards;
         }
       `}</style>
 
@@ -1212,6 +1295,18 @@ const VentasDestock = () => {
                                         </span>
                                     </div>
                                 )}
+                                
+                                {/* Botón para vaciar carrito */}
+                                {selectedProducts.length > 0 && (
+                                    <button
+                                        onClick={handleLimpiarCarrito}
+                                        className="p-2 bg-red-500/90 btn  hover:bg-red-600 rounded-full transition-colors"
+                                        title="Vaciar carrito"
+                                        disabled={ventaStatus === 'uploading'}
+                                    >
+                                        <Trash2 size={20}  className="text-white" />
+                                    </button>
+                                )}
                             </div>
                         </div>
 
@@ -1272,18 +1367,13 @@ const VentasDestock = () => {
                                 </div>
                             </div>
                         ) : (
-                            <motion.div className="space-y-4">
-                                <AnimatePresence>
-                                    {selectedProducts.map((producto, index) => (
-                                        <motion.div
-                                            key={`${producto.id}-${index}`}
-                                            className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4"
-                                            variants={cartItemVariants}
-                                            initial="hidden"
-                                            animate="visible"
-                                            exit="exit"
-                                            layout
-                                        >
+                            <div className="space-y-4">
+                                {selectedProducts.map((producto, index) => (
+                                    <div
+                                        key={`${producto.carritoId || producto.id}-${index}`}
+                                        className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 animate-fadeIn"
+                                        style={{ animationDelay: `${index * 0.05}s` }}
+                                    >
                                             {/* Header del producto con nuevo diseño */}
                                             <div className="flex items-start gap-3 mb-4">
                                                 {/* Imagen del producto - Izquierda */}
@@ -1425,10 +1515,9 @@ const VentasDestock = () => {
                                                     </div>
                                                 </div>
                                             )}
-                                        </motion.div>
-                                    ))}
-                                </AnimatePresence>
-                            </motion.div>
+                                    </div>
+                                ))}
+                            </div>
                         )}
                     </div>
 
