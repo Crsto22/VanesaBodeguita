@@ -12,8 +12,7 @@ import {
   Search,
   ArrowRight,
   ShoppingBag,
-  Truck,
-  Monitor
+  Truck
 } from 'lucide-react';
 import Logo from '../assets/Logo.svg';
 import Sidebar from '../components/Sidebar';
@@ -35,7 +34,7 @@ const Dashboard = () => {
       title: 'Ventas',
       icon: <ShoppingCart className="h-6 w-6" />,
       color: 'bg-emerald-500',
-      description: 'Registrar ventas y ver historial',
+      description: 'Registro rápido de ventas',
       path: '/ventas'
     },
     {
@@ -93,7 +92,13 @@ const Dashboard = () => {
   }, []);
 
   const handleOptionClick = (path) => {
-    navigate(path);
+    // Si es el path de ventas, redirigir según el tamaño de pantalla
+    if (path === '/ventas') {
+      const isMobile = window.innerWidth < 768; // md breakpoint
+      navigate(isMobile ? '/ventas' : '/ventas-destock');
+    } else {
+      navigate(path);
+    }
     setMenuOpen(false);
   };
 
@@ -155,32 +160,10 @@ const Dashboard = () => {
                     </span>
                   )}
 
-                  {/* Contenedor de iconos para ventas */}
-                  {option.id === 'ventas' ? (
-                    <div className="mb-3 flex gap-2">
-                      <div className={`flex h-14 w-14 items-center justify-center rounded-xl text-white ${option.color}`}>
-                        {option.icon}
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOptionClick('/ventas-destock');
-                        }}
-                        className="flex h-14 w-14 items-center justify-center rounded-xl bg-teal-500 text-white transition-all hover:bg-teal-600 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-teal-300 relative"
-                        title="Ventas para dispositivos grandes"
-                      >
-                        <Monitor className="h-6 w-6" />
-                        {/* Pequeño icono de carrito en la esquina inferior */}
-                        <div className="absolute bottom-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
-                          <ShoppingCart className="h-2.5 w-2.5" />
-                        </div>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className={`mb-3 flex h-14 w-14 items-center justify-center rounded-xl text-white ${option.color}`}>
-                      {option.icon}
-                    </div>
-                  )}
+                  {/* Icono de la opción */}
+                  <div className={`mb-3 flex h-14 w-14 items-center justify-center rounded-xl text-white ${option.color}`}>
+                    {option.icon}
+                  </div>
                   <h3 className="mb-1 font-medium text-gray-800">{option.title}</h3>
                   <p className="text-xs text-gray-500">{option.description}</p>
 
