@@ -302,7 +302,7 @@ const VentasDestock = () => {
                 // Mostrar notificación de éxito
                 setBarcodeNotification({
                     type: 'success',
-                    message: `Producto agregado: ${producto.nombre}`,
+                    message: `Producto agregado`,
                     codigo: codigo
                 });
                 
@@ -334,21 +334,8 @@ const VentasDestock = () => {
         }, 200); // Delay reducido para mayor velocidad
     };
 
-    // Efecto para manejar el escaneo de código de barras
-    React.useEffect(() => {
-        if (barcodeInput.trim() && escanerActivo) {
-            // Solo procesar si el escáner está activo
-            // Limpiar el input inmediatamente para estar listo para el siguiente escaneo
-            const codigo = barcodeInput.trim();
-            setBarcodeInput('');
-            
-            // Procesar el código
-            procesarCodigoBarras(codigo);
-        } else if (barcodeInput.trim() && !escanerActivo) {
-            // Si el escáner está desactivado, solo limpiar el input
-            setBarcodeInput('');
-        }
-    }, [barcodeInput, productosOptimizados, escanerActivo]);
+    // ELIMINADO: El procesamiento ahora solo ocurre cuando se presiona Enter en el input
+    // Esto evita procesamiento múltiple cuando el escáner ingresa dígitos lentamente
 
     // Efecto para mantener el focus en el input de código de barras SOLO cuando el escáner esté activo
     React.useEffect(() => {
@@ -1093,7 +1080,10 @@ const VentasDestock = () => {
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && barcodeInput.trim() && escanerActivo) {
                                 e.preventDefault();
-                                console.log('🔍 Enter detectado con código:', barcodeInput);
+                                const codigo = barcodeInput.trim();
+                                console.log('🔍 Enter detectado con código:', codigo);
+                                setBarcodeInput(''); // Limpiar input
+                                procesarCodigoBarras(codigo); // Procesar código
                             }
                         }}
                         className="absolute top-[-9999px] left-[-9999px] opacity-0"
@@ -1738,6 +1728,7 @@ const VentasDestock = () => {
                         </motion.div>
                     )}
                     </AnimatePresence>
+
                         {/* Notificación de código de barras */}
                         {barcodeNotification && (
                             <motion.div
