@@ -28,7 +28,7 @@ const Deudas = () => {
 
   // ✨ ESTADOS PARA PAGINACIÓN
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5); // Número de clientes por página - Reducido para optimizar Firebase
+  const [itemsPerPage] = useState(10); // Número de clientes por página
   const [totalClientes, setTotalClientes] = useState(0);
 
   const quickAccessOptions = [
@@ -246,7 +246,7 @@ const Deudas = () => {
               </div>
             ) : (
               <>
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {clientesPaginados.map((cliente) => (
                   <div
                     key={cliente.id}
