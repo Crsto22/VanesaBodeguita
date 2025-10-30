@@ -19,6 +19,8 @@
     "embla-carousel-react": "^8.6.0",
     "firebase": "^11.10.0",
     "framer-motion": "^12.16.0",
+    "html-to-image": "^1.11.13",
+    "html2canvas": "^1.4.1",
     "html5-qrcode": "^2.3.8",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.509.0",

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   DollarSign, X, CheckSquare, ChevronDown, ChevronUp, CreditCard, 
   Receipt, Calendar, FileText, ShoppingBag, Zap, ListOrdered, 
-  Package, RefreshCw, Wallet, History, AlertCircle 
+  Package, RefreshCw, Wallet, History, AlertCircle, Clock, Eye 
 } from 'lucide-react';
 import { useVentas } from '../../context/VentasContext';
 
@@ -149,6 +149,21 @@ const PagarDeudaDrawer = ({ isOpen, onClose, cliente, onPagarDeuda }) => {
       month: 'short',
       year: 'numeric',
     });
+  };
+
+  const formatDateTime = (isoString) => {
+    const date = new Date(isoString);
+    const dateStr = date.toLocaleDateString('es-PE', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+    const timeStr = date.toLocaleTimeString('es-PE', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+    return { date: dateStr, time: timeStr };
   };
 
   const formatCurrency = (amount) => {
@@ -367,54 +382,77 @@ const PagarDeudaDrawer = ({ isOpen, onClose, cliente, onPagarDeuda }) => {
                   >
                     {/* Encabezado de la venta */}
                     <div className="p-3">
-                      <label className="flex items-start gap-3 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedVentas.includes(venta.id) || pagarTodo}
-                          onChange={() => handleSelectVenta(venta.id)}
-                          disabled={modoAbono || pagarTodo}
-                          className="hidden"
-                        />
-                        <div className={`w-4 h-4 mt-0.5 rounded-lg border-2 flex items-center justify-center transition-all duration-300 ${
-                          selectedVentas.includes(venta.id) || pagarTodo
-                            ? 'bg-blue-500 border-blue-500 shadow-lg shadow-blue-200/50'
-                            : 'border-gray-300 hover:border-gray-400'
-                        } ${modoAbono ? 'opacity-50' : ''}`}
-                        style={{ transform: (selectedVentas.includes(venta.id) || pagarTodo) ? 'scale(1.1)' : 'scale(1)' }}>
-                          {(selectedVentas.includes(venta.id) || pagarTodo) && (
-                            <CheckSquare className="h-2.5 w-2.5 text-white" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="flex items-center gap-2">
-                              <div className="p-1 rounded-lg bg-blue-100">
-                                <Calendar className="h-3 w-3 text-blue-600" />
+                      <div className="flex items-start gap-3">
+                        <label className="flex items-start gap-3 cursor-pointer flex-1">
+                          <input
+                            type="checkbox"
+                            checked={selectedVentas.includes(venta.id) || pagarTodo}
+                            onChange={() => handleSelectVenta(venta.id)}
+                            disabled={modoAbono || pagarTodo}
+                            className="hidden"
+                          />
+                          <div className={`w-4 h-4 mt-0.5 rounded-lg border-2 flex items-center justify-center transition-all duration-300 ${
+                            selectedVentas.includes(venta.id) || pagarTodo
+                              ? 'bg-blue-500 border-blue-500 shadow-lg shadow-blue-200/50'
+                              : 'border-gray-300 hover:border-gray-400'
+                          } ${modoAbono ? 'opacity-50' : ''}`}
+                          style={{ transform: (selectedVentas.includes(venta.id) || pagarTodo) ? 'scale(1.1)' : 'scale(1)' }}>
+                            {(selectedVentas.includes(venta.id) || pagarTodo) && (
+                              <CheckSquare className="h-2.5 w-2.5 text-white" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                  <div className="p-1 rounded-lg bg-blue-100">
+                                    <Calendar className="h-3 w-3 text-blue-600" />
+                                  </div>
+                                  <span className="text-xs text-gray-600 font-medium">
+                                    {formatDateTime(venta.fecha_creacion).date}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 ml-0.5">
+                                  <div className="p-1 rounded-lg bg-purple-100">
+                                    <Clock className="h-3 w-3 text-purple-600" />
+                                  </div>
+                                  <span className="text-xs text-gray-500 font-medium">
+                                    {formatDateTime(venta.fecha_creacion).time}
+                                  </span>
+                                </div>
                               </div>
-                              <span className="text-xs text-gray-600 font-medium">
-                                {formatDate(venta.fecha_creacion)}
-                              </span>
+                              <div className="text-right">
+                                <div className="inline-flex items-center gap-1 bg-red-100 px-2 py-0.5 rounded-lg">
+                                  <p className="text-xs font-bold text-red-700">
+                                    {formatCurrency(venta.monto_pendiente)}
+                                  </p>
+                                </div>
+                              </div>
                             </div>
-                            <div className="text-right">
-                              <div className="inline-flex items-center gap-1 bg-red-100 px-2 py-0.5 rounded-lg">
-                                <p className="text-xs font-bold text-red-700">
-                                  {formatCurrency(venta.monto_pendiente)}
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-bold" style={{ color: colors.textDark }}>
+                                  Compra #{index + 1}
                                 </p>
                               </div>
-                            </div>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-bold" style={{ color: colors.textDark }}>
-                                Compra #{index + 1}
+                              <p className="text-sm font-semibold text-gray-700">
+                                Total: {formatCurrency(venta.total)}
                               </p>
                             </div>
-                            <p className="text-sm font-semibold text-gray-700">
-                              Total: {formatCurrency(venta.total)}
-                            </p>
                           </div>
-                        </div>
-                      </label>
+                        </label>
+                        {/* Botón Ver Nota de Venta */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/ventas/${venta.id}`);
+                          }}
+                          className="p-2 rounded-lg bg-gradient-to-br from-green-100 to-green-50 hover:from-green-200 hover:to-green-100 border border-green-200 transition-all duration-200 hover:shadow-md active:scale-95 group"
+                          title="Ver nota de venta"
+                        >
+                          <Eye className="h-4 w-4 text-green-700 group-hover:text-green-800" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Botón para expandir productos */}

@@ -32,30 +32,30 @@ export const ProductProvider = ({ children }) => {
   const [productosLoading, setProductosLoading] = useState(false);
   
   const [paginaActual, setPaginaActual] = useState(1);
-  const [ultimoDocumento, setUltimoDocumento] = useState(null);
-  const [primerDocumento, setPrimerDocumento] = useState(null);
-  const [hayMasPaginas, setHayMasPaginas] = useState(true);
-  const [historialPaginacion, setHistorialPaginacion] = useState([]);
-  
-  const [searchQuery, setSearchQuery] = useState('');
-  const [modoFiltrado, setModoFiltrado] = useState(false);
+  const [ultimoDocumento, setUltimoDocumento] = useState(null);
+  const [primerDocumento, setPrimerDocumento] = useState(null);
+  const [hayMasPaginas, setHayMasPaginas] = useState(true);
+  const [historialPaginacion, setHistorialPaginacion] = useState([]);
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [modoFiltrado, setModoFiltrado] = useState(false);
 
-  const { currentUser } = useAuth();
-  const PRODUCTOS_POR_PAGINA = 5;
+  const { currentUser } = useAuth();
+  const PRODUCTOS_POR_PAGINA = 10;
 
-  const categoriasCollection = collection(db, 'categorias');
-  const productosCollection = collection(db, 'productos');
+  const categoriasCollection = collection(db, 'categorias');
+  const productosCollection = collection(db, 'productos');
 
-  // ImageKit Authenticator (INSECURE for frontend, use server-side in production)
-  const authenticator = () => {
-    const privateKey = 'private_pSNg9URbLW/oSPfPxVuTSWLgLPQ=';
-    const publicKey = 'public_tYwmzcByvWvOQ21qtLqTdoHJneQ=';
-    const token = Math.random().toString(36).substring(2);
-    const expire = Math.floor(Date.now() / 1000) + 600;
-    const signature = CryptoJS.HmacSHA1(`${token}${expire}`, privateKey).toString(CryptoJS.enc.Hex);
+  // ImageKit Authenticator (INSECURE for frontend, use server-side in production)
+  const authenticator = () => {
+    const privateKey = 'private_pSNg9URbLW/oSPfPxVuTSWLgLPQ=';
+    const publicKey = 'public_tYwmzcByvWvOQ21qtLqTdoHJneQ=';
+    const token = Math.random().toString(36).substring(2);
+    const expire = Math.floor(Date.now() / 1000) + 600;
+    const signature = CryptoJS.HmacSHA1(`${token}${expire}`, privateKey).toString(CryptoJS.enc.Hex);
 
-    return { signature, expire: expire.toString(), token, publicKey };
-  };
+    return { signature, expire: expire.toString(), token, publicKey };
+  };
 
   // Upload image to ImageKit
   const uploadImageToImageKit = async (imagenFile, productName) => {

@@ -4,7 +4,7 @@ import { useVentas } from '../context/VentasContext';
 import { useClientes } from '../context/ClientesContext';
 import { Loader2, ArrowLeft, Printer, Download, Plus } from 'lucide-react';
 import Logo from '../assets/Logo.svg';
-import domtoimage from 'dom-to-image';
+import { toPng } from 'html-to-image';
 
 const NotaEstadoCuenta = () => {
   const { id } = useParams();
@@ -58,17 +58,12 @@ const NotaEstadoCuenta = () => {
   const handleDownload = async () => {
     try {
       setIsDownloading(true);
-      const dataUrl = await domtoimage.toPng(estadoCuentaRef.current, {
-        bgcolor: '#ffffff',
-        quality: 1,
-        width: 302 * 3,
-        height: estadoCuentaRef.current.clientHeight * 3,
-        style: {
-          transform: 'scale(3)',
-          transformOrigin: 'top left',
-          width: '302px',
-          height: `${estadoCuentaRef.current.clientHeight}px`
-        }
+      
+      const dataUrl = await toPng(estadoCuentaRef.current, {
+        cacheBust: true,
+        backgroundColor: '#ffffff',
+        pixelRatio: 3,
+        quality: 1
       });
 
       const link = document.createElement('a');
@@ -172,16 +167,16 @@ const NotaEstadoCuenta = () => {
           alt="LOGO"
           className="mx-auto mb-2 max-w-[80px] h-auto"
         />
-        <div className="text-2xl font-black uppercase">ESTADO DE CUENTA</div>
+        <div className="text-2xl font-black uppercase font-consolamono-bold">ESTADO DE CUENTA</div>
       </div>
 
       <div className="border-t border-dashed border-black my-2"></div>
 
       <div className="mb-3 space-y-1">
-        <div className="flex justify-between text-base font-extrabold">
+        <div className="flex justify-between text-base font-extrabold font-consolamono-bold">
           <span>CLIENTE: {cliente.nombre.toUpperCase()}</span>
         </div>
-        <div className="flex justify-between text-base font-extrabold">
+        <div className="flex justify-between text-base font-extrabold font-consolamono-bold">
           <span>FECHA: {formatDate(new Date())}</span>
         </div>
       </div>
@@ -189,31 +184,31 @@ const NotaEstadoCuenta = () => {
       <div className="border-t border-dashed border-black my-2"></div>
 
       <div className="mb-3">
-        <div className="text-base font-black mb-2 text-center">DETALLE DE DEUDAS</div>
+        <div className="text-base font-black mb-2 text-center font-consolamono-bold">DETALLE DE DEUDAS</div>
         {ventas.length === 0 ? (
-          <div className="text-center text-base font-black">NO HAY PAGOS PENDIENTES.</div>
+          <div className="text-center text-base font-black font-consolamono-bold">NO HAY PAGOS PENDIENTES.</div>
         ) : (
           ventas.map((venta, index) => (
             <div key={venta.id} className="mb-2">
               {!showProductsOnly && (
-                <div className="flex justify-between text-base font-black">
+                <div className="flex justify-between text-base font-black font-consolamono-bold">
                   <span>VENTA {index + 1}</span>
                   <span>{formatDate(venta.fecha_creacion)}</span>
                 </div>
               )}
               {showProductsOnly ? (
                 venta.monto_pagado > 0 ? (
-                  <div className="flex justify-between text-base font-extrabold">
+                  <div className="flex justify-between text-base font-extrabold font-consolamono-bold">
                     <span>PENDIENTE: {formatProductNamesForPendiente(venta.productos)}</span>
                     <span>S/{venta.monto_pendiente.toFixed(2)}</span>
                   </div>
                 ) : (
                   venta.productos.map((producto, prodIndex) => (
                     <div key={prodIndex} className="mb-1">
-                      <div className="text-base font-black uppercase mb-1">{producto.nombre.toUpperCase()}</div>
-                      <div className="flex justify-between text-base font-extrabold">
-                        <span>{producto.cantidad} X S/{producto.precio_unitario.toFixed(2)}</span>
-                        <span>S/{producto.subtotal.toFixed(2)}</span>
+                      <div className="text-base font-black uppercase mb-1 font-consolamono-bold">{producto.nombre.toUpperCase()}</div>
+                      <div className="flex justify-between text-base font-black">
+                        <span className="font-mono">{producto.cantidad} X S/{producto.precio_unitario.toFixed(2)}</span>
+                        <span className="bg-yellow-200 px-2 py-1 rounded font-black font-consolamono-bold">S/{producto.subtotal.toFixed(2)}</span>
                       </div>
                     </div>
                   ))
@@ -222,48 +217,48 @@ const NotaEstadoCuenta = () => {
                 <>
                   {venta.productos.map((producto, prodIndex) => (
                     <div key={prodIndex} className="mb-2 border-b border-dotted border-gray-400 pb-1">
-                      <div className="text-base font-black uppercase mb-1">{producto.nombre.toUpperCase()}</div>
-                      <div className="flex justify-between text-base font-extrabold">
-                        <span>{producto.cantidad} X S/{producto.precio_unitario.toFixed(2)}</span>
-                        <span>S/{producto.subtotal.toFixed(2)}</span>
+                      <div className="text-base font-black uppercase mb-1 font-consolamono-bold">{producto.nombre.toUpperCase()}</div>
+                      <div className="flex justify-between text-base font-black">
+                        <span className="font-mono">{producto.cantidad} X S/{producto.precio_unitario.toFixed(2)}</span>
+                        <span className="bg-yellow-200 px-2 py-1 rounded font-black font-consolamono-bold">S/{producto.subtotal.toFixed(2)}</span>
                       </div>
                     </div>
                   ))}
 
                   {venta.monto_pagado > 0 && (
-                    <div className="flex justify-between text-base font-extrabold border-t border-black pt-1">
+                    <div className="flex justify-between text-base font-extrabold border-t border-black pt-1 font-consolamono-bold">
                       <span>TOTAL VENTA:</span>
                       <span>S/{venta.total.toFixed(2)}</span>
                     </div>
                   )}
 
                   {venta.monto_pagado > 0 && (
-                    <div className="flex justify-between text-base font-extrabold">
+                    <div className="flex justify-between text-base font-extrabold font-consolamono-bold">
                       <span>PAGADO:</span>
-                      <span className="text-green-700">S/{venta.monto_pagado.toFixed(2)}</span>
+                      <span className="text-green-700 bg-green-100 px-2 py-1 rounded font-black">S/{venta.monto_pagado.toFixed(2)}</span>
                     </div>
                   )}
                   <div className="bg-black text-white p-1 text-center mb-1">
-                    <div className="flex justify-between text-base font-black">
+                    <div className="flex justify-between text-base font-black font-consolamono-bold">
                       <span>POR PAGAR:</span>
                       <span>S/{venta.monto_pendiente.toFixed(2)}</span>
                     </div>
                   </div>
                   {venta.historial_pagos && venta.historial_pagos.length > 0 && (
                     <div className="mt-2">
-                      <div className="text-base font-black">PAGOS REALIZADOS:</div>
+                      <div className="text-base font-black font-consolamono-bold">PAGOS REALIZADOS:</div>
                       {venta.historial_pagos.map((pago, pagoIndex) => (
-                        <div key={pagoIndex} className="text-base font-extrabold">
+                        <div key={pagoIndex} className="text-base font-extrabold font-mono">
                           <div>{formatDateTime(pago.fecha)}: S/{pago.monto.toFixed(2)}</div>
-                          {pago.notas && <div>NOTAS: {pago.notas.toUpperCase()}</div>}
+                          {pago.notas && <div className="font-consolamono-bold">NOTAS: {pago.notas.toUpperCase()}</div>}
                         </div>
                       ))}
                     </div>
                   )}
                   {venta.notas && (
                     <div className="mt-2">
-                      <div className="text-base font-black">NOTAS:</div>
-                      <div className="text-base font-extrabold text-gray-700">{venta.notas.toUpperCase()}</div>
+                      <div className="text-base font-black font-consolamono-bold">NOTAS:</div>
+                      <div className="text-base font-extrabold text-gray-700 font-mono">{venta.notas.toUpperCase()}</div>
                     </div>
                   )}
                   {index < ventas.length - 1 && (
@@ -285,7 +280,7 @@ const NotaEstadoCuenta = () => {
 
       <div className="mb-2">
         <div className="bg-black text-white p-1 text-center mb-1">
-          <div className="flex justify-between text-lg font-black">
+          <div className="flex justify-between text-lg font-black font-consolamono-bold">
             <span>DEUDA TOTAL:</span>
             <span>S/{totalDeuda.toFixed(2)}</span>
           </div>
@@ -295,8 +290,8 @@ const NotaEstadoCuenta = () => {
       <div className="border-t border-dashed border-black my-2"></div>
 
       <div className="text-center space-y-1">
-        <div className="text-lg font-black">¡GRACIAS POR SU PREFERENCIA!</div>
-        <div className="text-base font-extrabold">Conserve este estado de cuenta</div>
+        <div className="text-lg font-black font-consolamono-bold">¡GRACIAS POR SU PREFERENCIA!</div>
+        <div className="text-base font-bold font-mono">Conserve este estado de cuenta</div>
       </div>
 
       {/* Bottom spacing */}
@@ -372,7 +367,11 @@ const NotaEstadoCuenta = () => {
 
       <style jsx global>{`
         .font-mono {
-          font-family: 'Courier New', 'Lucida Console', monospace !important;
+          font-family: 'ConsolaMono-Book' !important;
+        }
+
+        .font-consolamono-bold {
+          font-family: 'ConsolaMono-Bold' !important;
         }
 
         @media print {
@@ -384,7 +383,7 @@ const NotaEstadoCuenta = () => {
           }
 
           body {
-            font-family: 'Courier New', 'Lucida Console', monospace !important;
+            font-family: 'ConsolaMono-Book' !important;
             background: white !important;
             color: black !important;
             -webkit-print-color-adjust: exact !important;
@@ -477,6 +476,30 @@ const NotaEstadoCuenta = () => {
           .bg-black {
             background: black !important;
             color: white !important;
+          }
+
+          .bg-yellow-200 {
+            background: #fef08a !important;
+            color: black !important;
+          }
+
+          .bg-green-100 {
+            background: #dcfce7 !important;
+            color: #166534 !important;
+          }
+
+          .rounded {
+            border-radius: 0.25rem !important;
+          }
+
+          .px-2 {
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+          }
+
+          .py-1 {
+            padding-top: 0.25rem !important;
+            padding-bottom: 0.25rem !important;
           }
 
           @page {

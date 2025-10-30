@@ -479,59 +479,59 @@ const Productos = () => {
                   ))}
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {productos.length > 0 ? (
                     productos.map((product) => (
-                      <div key={product.id} className="relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow">
+                      <div key={product.id} className="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow duration-200">
                         <div className="p-4">
                           <div className="flex items-start gap-3">
-                            <div className="h-20 w-20 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
+                            <div className="h-24 w-24 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center overflow-hidden border border-gray-200 flex-shrink-0">
                               {product.imagen ? (
                                 <img src={optimizeImageUrl(product.imagen)} alt={product.nombre} className="object-cover w-full h-full" />
                               ) : (
-                                <Package className="h-10 w-10 text-gray-400" />
+                                <Package className="h-12 w-12 text-gray-400" />
                               )}
                             </div>
-                            <div className="flex flex-col grow">
-                              <h3 className="font-medium text-gray-900">{product.nombre}</h3>
-                              <div className="flex items-center gap-1">
-                                <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: obtenerCategoriaPorId(product.categoria_ref)?.color || '#9ca3af' }}></span>
-                                <span className="text-xs text-gray-500">{obtenerCategoriaPorId(product.categoria_ref)?.nombre || 'Sin categoría'}</span>
+                            <div className="flex flex-col grow min-w-0">
+                              <h3 className="font-bold text-gray-900 text-base truncate">{product.nombre}</h3>
+                              <div className="flex items-center gap-1.5 mt-1">
+                                <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: obtenerCategoriaPorId(product.categoria_ref)?.color || '#9ca3af' }}></span>
+                                <span className="text-xs text-gray-600 font-medium">{obtenerCategoriaPorId(product.categoria_ref)?.nombre || 'Sin categoría'}</span>
                               </div>
-                              <div className="mt-2 flex flex-col">
+                              <div className="mt-2.5 flex flex-col gap-1.5">
                                 <div className="flex justify-between items-center">
-                                  <div className="text-lg font-bold text-[#45923a]">
-                                    S/{product.precio.toFixed(2)}{product.tipo_unidad === 'kilogramo' && ' por kg'}
+                                  <div className="text-xl font-bold text-[#45923a]">
+                                    S/{product.precio.toFixed(2)}{product.tipo_unidad === 'kilogramo' && <span className="text-sm font-medium">/kg</span>}
                                   </div>
-                                  <div className={`text-xs font-medium px-2 py-1 rounded-full ${product.stock > 20 ? 'bg-green-100 text-green-800' : product.stock > 5 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'}`}>
-                                    {product.stock} {product.tipo_unidad === 'kilogramo' ? 'kg' : ''} en stock
+                                  <div className={`text-xs font-bold px-2.5 py-1 rounded-full ${product.stock > 20 ? 'bg-green-100 text-green-700' : product.stock > 5 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                                    {product.stock} {product.tipo_unidad === 'kilogramo' ? 'kg' : 'und'}
                                   </div>
                                 </div>
                                 {product.has_precio_alternativo && product.precio_alternativo && (
-                                  <div className="mt-1 text-sm text-[#ffa40c] font-medium">
-                                    Precio {product.motivo_precio_alternativo || 'alternativo'}: <span className="font-bold">S/{parseFloat(product.precio_alternativo).toFixed(2)}</span>
+                                  <div className="text-xs text-[#ffa40c] font-semibold bg-orange-50 px-2 py-1 rounded-lg">
+                                    {product.motivo_precio_alternativo || 'Alternativo'}: <span className="font-bold">S/{parseFloat(product.precio_alternativo).toFixed(2)}</span>
                                   </div>
                                 )}
                               </div>
                             </div>
                           </div>
-                          <div className="mt-4 flex justify-between items-center border-t border-gray-100 pt-3">
-                            <div className="flex items-center gap-2">
-                              <div className="flex items-center">
-                                <Barcode className="h-4 w-4 text-gray-400 mr-1" />
-                                <span className="text-xs text-gray-500">{product.codigo_barras || 'Sin código'}</span>
+                          <div className="mt-3 flex justify-between items-center border-t border-gray-100 pt-3">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <div className="flex items-center bg-gray-50 px-2 py-1 rounded-lg">
+                                <Barcode className="h-3.5 w-3.5 text-gray-500 mr-1" />
+                                <span className="text-xs text-gray-600 font-medium">{product.codigo_barras || 'Sin código'}</span>
                               </div>
                               {product.retornable && (
-                                <div className="flex items-center bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">
+                                <div className="flex items-center bg-green-50 text-green-700 text-xs font-bold px-2 py-1 rounded-lg">
                                   <ArrowLeftRight className="h-3.5 w-3.5 mr-1" />Retornable
                                 </div>
                               )}
                             </div>
-                            <div className="flex">
-                              <button onClick={() => handleEditProduct(product.id)} className="rounded-l-lg border border-blue-600 px-3 py-2 bg-blue-600" style={{ borderRight: 'none' }}>
+                            <div className="flex gap-2">
+                              <button onClick={() => handleEditProduct(product.id)} className="rounded-lg bg-blue-600 hover:bg-blue-700 px-3 py-2 transition-colors">
                                 <Edit2 className="h-4 w-4 text-white" />
                               </button>
-                              <button onClick={() => handleDeleteProduct(product)} className="rounded-r-lg border border-red-500 bg-red-500 text-white px-3 py-2">
+                              <button onClick={() => handleDeleteProduct(product)} className="rounded-lg bg-red-500 hover:bg-red-600 text-white px-3 py-2 transition-colors">
                                 <Trash2 className="h-4 w-4" />
                               </button>
                             </div>

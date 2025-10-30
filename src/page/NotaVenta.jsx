@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useVentas } from '../context/VentasContext';
 import { Loader2, ArrowLeft, Printer, Download, Plus } from 'lucide-react';
 import Logo from '../assets/Logo.svg';
-import domtoimage from 'dom-to-image';
+import { toPng } from 'html-to-image';
 import QRCode from 'react-qr-code';
 
 const NotaVenta = () => {
@@ -176,17 +176,12 @@ const NotaVenta = () => {
   const handleDownload = async () => {
     try {
       setIsDownloading(true);
-      const dataUrl = await domtoimage.toPng(notaVentaRef.current, {
-        bgcolor: '#ffffff',
-        quality: 1,
-        width: 302 * 3,
-        height: notaVentaRef.current.clientHeight * 3,
-        style: {
-          transform: 'scale(3)',
-          transformOrigin: 'top left',
-          width: '302px',
-          height: `${notaVentaRef.current.clientHeight}px`
-        }
+      
+      const dataUrl = await toPng(notaVentaRef.current, {
+        cacheBust: true,
+        backgroundColor: '#ffffff',
+        pixelRatio: 3,
+        quality: 1
       });
 
       const link = document.createElement('a');

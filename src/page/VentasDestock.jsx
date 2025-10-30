@@ -1337,6 +1337,47 @@ const VentasDestock = () => {
 
                     {/* Lista de productos en carrito */}
                     <div className="flex-1 p-4 overflow-y-auto custom-scrollbar min-h-0">
+                        {/* Notificación de código de barras */}
+                        <AnimatePresence>
+                            {barcodeNotification && (
+                                <motion.div
+                                    className={`mb-4 rounded-lg shadow-lg p-4 ${
+                                        barcodeNotification.type === 'success' 
+                                            ? 'bg-green-500 text-white' 
+                                            : 'bg-red-500 text-white'
+                                    }`}
+                                    initial={{ opacity: 0, y: -20, scale: 0.9 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: -20, scale: 0.9 }}
+                                    transition={{ duration: 0.3, ease: 'easeOut' }}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex-shrink-0">
+                                            {barcodeNotification.type === 'success' ? (
+                                                <CheckCircle size={24} />
+                                            ) : (
+                                                <AlertTriangle size={24} />
+                                            )}
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="font-semibold text-sm">
+                                                {barcodeNotification.message}
+                                            </p>
+                                            <p className="text-xs opacity-90 mt-1 font-mono">
+                                                Código: {barcodeNotification.codigo}
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => setBarcodeNotification(null)}
+                                            className="p-1 hover:bg-white/20 rounded-full transition-colors flex-shrink-0"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
                         {selectedProducts.length === 0 ? (
                             <div className="flex flex-col items-center justify-center text-center text-gray-500 py-12">
                                 <img src={CarritoVacio} className="w-28 mb-4" alt="Carrito vacío" />
@@ -1728,109 +1769,6 @@ const VentasDestock = () => {
                         </motion.div>
                     )}
                     </AnimatePresence>
-
-                        {/* Notificación de código de barras */}
-                        {barcodeNotification && (
-                            <motion.div
-                                className={`mb-4 rounded-lg shadow-lg p-4 min-w-80 ${
-                                    barcodeNotification.type === 'success' 
-                                        ? 'bg-green-500 text-white' 
-                                        : 'bg-red-500 text-white'
-                                }`}
-                                initial={{ opacity: 0, y: -50, scale: 0.9 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: -50, scale: 0.9 }}
-                                transition={{ duration: 0.3, ease: 'easeOut' }}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="flex-shrink-0">
-                                        {barcodeNotification.type === 'success' ? (
-                                            <CheckCircle size={24} />
-                                        ) : (
-                                            <AlertTriangle size={24} />
-                                        )}
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="font-semibold text-sm">
-                                            {barcodeNotification.message}
-                                        </p>
-                                        <p className="text-xs opacity-90">
-                                            Código: {barcodeNotification.codigo}
-                                        </p>
-                                    </div>
-                                    <button
-                                        onClick={() => setBarcodeNotification(null)}
-                                        className="p-1 hover:bg-white/20 rounded-full transition-colors flex-shrink-0"
-                                    >
-                                        <X size={16} />
-                                    </button>
-                                </div>
-                            </motion.div>
-                        )}
-
-                        {/* Notificación de código de barras */}
-                        <AnimatePresence>
-                        {barcodeNotification && (
-                            <motion.div
-                                className={`mb-4 rounded-lg shadow-lg p-4 min-w-80 ${
-                                    barcodeNotification.type === 'success' 
-                                        ? 'bg-green-500 text-white' 
-                                        : 'bg-red-500 text-white'
-                                }`}
-                                initial={{ opacity: 0, y: -50, scale: 0.9 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: -50, scale: 0.9 }}
-                                transition={{ duration: 0.3, ease: 'easeOut' }}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="flex-shrink-0">
-                                        {barcodeNotification.type === 'success' ? (
-                                            <CheckCircle size={24} />
-                                        ) : (
-                                            <AlertTriangle size={24} />
-                                        )}
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="font-semibold text-sm">
-                                            {barcodeNotification.message}
-                                        </p>
-                                        {barcodeNotification.details && (
-                                            <p className="text-xs opacity-90 mt-1">
-                                                {barcodeNotification.details}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            </motion.div>
-                        )}
-                        </AnimatePresence>
-
-                        {/* Indicador de procesamiento de código de barras */}
-                        <AnimatePresence>
-                        {isProcessingBarcode && (
-                            <motion.div
-                                className="mb-4 bg-blue-500 text-white rounded-lg shadow-lg p-4 min-w-80"
-                                initial={{ opacity: 0, y: -50, scale: 0.9 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: -50, scale: 0.9 }}
-                                transition={{ duration: 0.3, ease: 'easeOut' }}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="flex-shrink-0">
-                                        <Barcode size={24} className="animate-pulse" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="font-semibold text-sm">
-                                            Procesando código de barras...
-                                        </p>
-                                        <div className="w-full bg-white/20 rounded-full h-1 mt-2">
-                                            <div className="bg-white h-1 rounded-full animate-pulse w-3/4"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        )}
-                        </AnimatePresence>
                 </motion.div>
             </div>
         </motion.div>
