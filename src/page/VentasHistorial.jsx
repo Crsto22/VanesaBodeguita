@@ -275,7 +275,9 @@ const VentasHistorial = () => {
   };
 
   const handleNewVenta = () => {
-    navigate('/ventas');
+    // Detectar si es pantalla grande (lg breakpoint = 1024px)
+    const isLargeScreen = window.innerWidth >= 1024;
+    navigate(isLargeScreen ? '/ventas-destock' : '/ventas');
   };
 
   const handleDeleteVenta = (venta, e) => {
@@ -550,8 +552,8 @@ const VentasHistorial = () => {
           </div>
 
           {loadingHistorial ? (
-            <div className="space-y-3">
-              {[...Array(VENTAS_POR_PAGINA)].map((_, index) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...Array(10)].map((_, index) => (
                 <SkeletonCard key={index} />
               ))}
             </div>
@@ -572,7 +574,7 @@ const VentasHistorial = () => {
             </div>
           ) : (
             <>
-              <div className="block space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {ventasHistorial.map((venta) => (
                 <div
                   key={venta.id}
@@ -653,7 +655,7 @@ const VentasHistorial = () => {
                       Página {loadingHistorial ? '...' : paginaActual}
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
-                      {ventasHistorial.length} ventas mostradas • {VENTAS_POR_PAGINA} por página
+                      {ventasHistorial.length} ventas mostradas • 10 por página
                     </div>
                   </div>
                 </div>

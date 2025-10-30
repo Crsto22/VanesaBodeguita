@@ -28,7 +28,7 @@ export const VentasProvider = ({ children }) => {
   const { obtenerProductoPorIdDirecto } = productsContext || {};
 
   // Configuración de paginación
-  const VENTAS_POR_PAGINA = 5;
+  const VENTAS_POR_PAGINA = 10;
 
   // Referencia a la colección de ventas
   const ventasCollection = collection(db, 'ventas');
