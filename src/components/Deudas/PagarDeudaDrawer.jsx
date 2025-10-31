@@ -6,9 +6,11 @@ import {
   Package, RefreshCw, Wallet, History, AlertCircle, Clock, Eye 
 } from 'lucide-react';
 import { useVentas } from '../../context/VentasContext';
+import { useAuth } from '../../context/AuthContext';
 
 const PagarDeudaDrawer = ({ isOpen, onClose, cliente, onPagarDeuda }) => {
   const { obtenerVentasPorCliente, registrarAbono, pagarVenta } = useVentas();
+  const { userData } = useAuth();
   const navigate = useNavigate();
   const [ventas, setVentas] = useState([]);
   const [selectedVentas, setSelectedVentas] = useState([]);
@@ -32,6 +34,36 @@ const PagarDeudaDrawer = ({ isOpen, onClose, cliente, onPagarDeuda }) => {
 
   // Calcular total de deuda
   const totalDeuda = ventas.reduce((sum, venta) => sum + (venta.monto_pendiente || 0), 0);
+
+  // Función para imprimir comprobante de pago
+  const imprimirComprobantePago = async (nombreCliente, montoAbono, deudaTotalAnterior, deudaTotalNueva) => {
+    try {
+      const cajero = userData?.nombre || 'Cajero';
+      
+      const response = await fetch('http://localhost:5000/api/imprimir-pago', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nombre_cliente: nombreCliente,
+          monto_abono: montoAbono,
+          cajero: cajero,
+          deuda_total_anterior: deudaTotalAnterior,
+          deuda_total_nueva: deudaTotalNueva
+        })
+      });
+
+      if (!response.ok) {
+        console.error('Error al imprimir comprobante:', response.statusText);
+      } else {
+        console.log('Comprobante de pago enviado a impresión');
+      }
+    } catch (error) {
+      console.error('Error al llamar a la API de impresión:', error);
+      // No mostramos error al usuario para no interrumpir el flujo de pago
+    }
+  };
 
   useEffect(() => {
     if (isOpen && cliente) {
@@ -103,6 +135,10 @@ const PagarDeudaDrawer = ({ isOpen, onClose, cliente, onPagarDeuda }) => {
     try {
       setLoading(true);
       
+      // Guardar deuda total anterior
+      const deudaTotalAnterior = totalDeuda;
+      let montoTotalPagado = 0;
+      
       if (modoAbono) {
         const monto = parseFloat(montoAbono);
         if (isNaN(monto)) {
@@ -110,6 +146,7 @@ const PagarDeudaDrawer = ({ isOpen, onClose, cliente, onPagarDeuda }) => {
           return;
         }
         
+        montoTotalPagado = monto;
         const result = await registrarAbono(cliente.id, monto, notas);
         onPagarDeuda(result);
       } else {
@@ -121,6 +158,9 @@ const PagarDeudaDrawer = ({ isOpen, onClose, cliente, onPagarDeuda }) => {
         const ventasAPagar = pagarTodo ? ventas : ventas.filter(v => selectedVentas.includes(v.id));
         const results = [];
         
+        // Calcular el monto total que se está pagando
+        montoTotalPagado = ventasAPagar.reduce((sum, venta) => sum + (venta.monto_pendiente || 0), 0);
+        
         for (const venta of ventasAPagar) {
           const result = await pagarVenta(venta.id);
           results.push(result);
@@ -128,6 +168,17 @@ const PagarDeudaDrawer = ({ isOpen, onClose, cliente, onPagarDeuda }) => {
         
         onPagarDeuda(results);
       }
+      
+      // Calcular deuda total nueva
+      const deudaTotalNueva = deudaTotalAnterior - montoTotalPagado;
+      
+      // Imprimir comprobante de pago
+      await imprimirComprobantePago(
+        cliente.nombre,
+        montoTotalPagado,
+        deudaTotalAnterior,
+        deudaTotalNueva
+      );
       
       onClose();
     } catch (err) {

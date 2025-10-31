@@ -22,6 +22,7 @@ import NotaEstadoCuenta from './page/NotaEstadoCuenta';
 import Compras from './page/Compras';
 import ComprasHistorial from './page/ComprasHistorial';
 import VentasDestock from './page/VentasDestock';
+import DeudasDestock from './page/DeudasDestock';
 
 function App() {
   return (
@@ -112,6 +113,22 @@ function App() {
                         element={
                           <ProtectedRoute>
                             <Deudas />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="deudas-desktop"
+                        element={
+                          <ProtectedRoute>
+                            <DeudasDestock />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="deudas-desktop/:clienteId"
+                        element={
+                          <ProtectedRoute>
+                            <DeudasDestock />
                           </ProtectedRoute>
                         }
                       />

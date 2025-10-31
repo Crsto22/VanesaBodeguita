@@ -92,10 +92,13 @@ const Dashboard = () => {
   }, []);
 
   const handleOptionClick = (path) => {
-    // Si es el path de ventas, redirigir según el tamaño de pantalla
+    // Redirigir según el tamaño de pantalla para ventas y deudas
     if (path === '/ventas') {
       const isMobile = window.innerWidth < 768; // md breakpoint
       navigate(isMobile ? '/ventas' : '/ventas-destock');
+    } else if (path === '/deudas') {
+      const isLargeScreen = window.innerWidth >= 1024; // lg breakpoint
+      navigate(isLargeScreen ? '/deudas-desktop' : '/deudas');
     } else {
       navigate(path);
     }
