@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { 
   ShoppingCart, CreditCard, Users, Barcode, Package, Search, 
   AlertCircle, Milk, DollarSign, CheckSquare, ChevronDown, 
-  Calendar, Clock, Eye, ListOrdered, RefreshCw, Wallet, History, X, Plus, Minus, Printer
+  Calendar, Clock, Eye, ListOrdered, RefreshCw, Wallet, History, X, Plus, Minus, Printer, BookOpen, Grid3x3
 } from 'lucide-react';
 import Logo from '../assets/Logo.svg';
 import Sidebar from '../components/Sidebar';
@@ -30,6 +30,7 @@ const DeudasDestock = () => {
   // Estados para el cliente seleccionado
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [activeTab, setActiveTab] = useState('deudas');
+  const [vistaMode, setVistaMode] = useState('cuaderno'); // 'ventas' o 'cuaderno'
   
   // Estados para gestión de pagos
   const [ventas, setVentas] = useState([]);
@@ -47,6 +48,9 @@ const DeudasDestock = () => {
   const [cantidadesBotellas, setCantidadesBotellas] = useState({});
   const [loadingBotellas, setLoadingBotellas] = useState(false);
   const [productDetailsCache, setProductDetailsCache] = useState({});
+  
+  // Estado para modal de confirmación de impresión
+  const [mostrarModalImprimir, setMostrarModalImprimir] = useState(false);
 
   const quickAccessOptions = [
     { id: 'ventas', title: 'Ventas', icon: <ShoppingCart className="h-6 w-6" />, color: 'bg-emerald-500', description: 'Registrar ventas y ver historial', path: '/ventas' },
@@ -286,6 +290,82 @@ const DeudasDestock = () => {
       else console.log('Comprobante de pago enviado a impresión');
     } catch (error) {
       console.error('Error al llamar a la API de impresión:', error);
+    }
+  };
+
+  const handleImprimirEstadoCuenta = async () => {
+    try {
+      if (!clienteSeleccionado || ventas.length === 0) {
+        setError('No hay ventas pendientes para imprimir.');
+        return;
+      }
+
+      // Formatear fecha actual
+      const fechaActual = new Date().toLocaleDateString('es-PE', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+
+      // Construir array de ventas en el formato requerido
+      const ventasFormateadas = ventas.map(venta => {
+        const esParcial = venta.monto_pendiente < venta.total;
+        const { date, time } = formatDateTime(venta.fecha_creacion);
+        const fechaHora = `${date}, ${time}`;
+
+        if (esParcial) {
+          // Venta parcial: enviar solo nombres de productos y montos
+          return {
+            tipo: 'parcial',
+            fecha_hora: fechaHora,
+            productos_nombres: venta.productos.map(p => p.nombre),
+            total: parseFloat(venta.total.toFixed(2)),
+            pagado: parseFloat((venta.total - venta.monto_pendiente).toFixed(2)),
+            pendiente: parseFloat(venta.monto_pendiente.toFixed(2))
+          };
+        } else {
+          // Venta pendiente completa: enviar productos detallados
+          return {
+            tipo: 'pendiente',
+            fecha_hora: fechaHora,
+            productos: venta.productos.map(producto => ({
+              nombre: producto.nombre,
+              cantidad: producto.cantidad,
+              precio_unitario: parseFloat(producto.precio_unitario.toFixed(2)),
+              subtotal: parseFloat(producto.subtotal.toFixed(2))
+            }))
+          };
+        }
+      });
+
+      // Construir objeto completo para enviar
+      const datosImpresion = {
+        cliente: clienteSeleccionado.nombre,
+        fecha: fechaActual,
+        ventas: ventasFormateadas,
+        deuda_total: parseFloat(totalDeuda.toFixed(2))
+      };
+
+      console.log('Enviando a impresión:', datosImpresion);
+
+      // Enviar a la API de impresión
+      const response = await fetch('http://localhost:5001/api/imprimir-estado-cuenta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(datosImpresion)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error al imprimir estado de cuenta:', errorText);
+        setError('Error al enviar a impresión. Verifica que el servidor de impresión esté activo.');
+      } else {
+        console.log('Estado de cuenta enviado a impresión correctamente');
+        // Opcional: mostrar mensaje de éxito
+      }
+    } catch (error) {
+      console.error('Error al imprimir estado de cuenta:', error);
+      setError('Error al conectar con el servidor de impresión.');
     }
   };
 
@@ -614,11 +694,13 @@ const DeudasDestock = () => {
                           <span>Historial</span>
                         </button>
                         <button
-                          onClick={() => {
-                            // TODO: Implementar función de impresión de todas las ventas pendientes
-                            console.log('Imprimir ventas pendientes del cliente:', clienteId);
-                          }}
-                          className="flex items-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold shadow-lg hover:shadow-xl transition-all active:scale-95"
+                          onClick={() => setMostrarModalImprimir(true)}
+                          disabled={loadingPago || ventas.length === 0}
+                          className={`flex items-center gap-2 px-4 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all active:scale-95 ${
+                            loadingPago || ventas.length === 0
+                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white'
+                          }`}
                           title="Imprimir todas las ventas pendientes"
                         >
                           <Printer className="h-5 w-5" />
@@ -628,7 +710,7 @@ const DeudasDestock = () => {
                     </div>
 
                     {/* Tabs */}
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 mb-3">
                       <button
                         onClick={() => setActiveTab('deudas')}
                         className={`flex-1 py-3 px-4 rounded-lg font-semibold text-sm transition-all ${
@@ -656,6 +738,38 @@ const DeudasDestock = () => {
                         </div>
                       </button>
                     </div>
+
+                    {/* Botones de cambio de vista - Solo visible en tab de deudas */}
+                    {activeTab === 'deudas' && (
+                      <div className="flex gap-2 bg-gray-50 p-2 rounded-lg border border-gray-200">
+                        <button
+                          onClick={() => setVistaMode('cuaderno')}
+                          className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
+                            vistaMode === 'cuaderno'
+                              ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
+                              : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            <BookOpen className="h-4 w-4" />
+                            <span>Vista Cuaderno</span>
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => setVistaMode('ventas')}
+                          className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
+                            vistaMode === 'ventas'
+                              ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
+                              : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            <Grid3x3 className="h-4 w-4" />
+                            <span>Vista por Ventas</span>
+                          </div>
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Contenido según tab activo */}
@@ -700,8 +814,11 @@ const DeudasDestock = () => {
                           </div>
                         ) : (
                           <>
-                            {/* Opciones de pago en grid */}
-                            <div className="grid grid-cols-2 gap-4">
+                            {/* VISTA TIPO CUADERNO */}
+                            {vistaMode === 'cuaderno' && (
+                              <>
+                                {/* Opciones de pago en grid */}
+                                <div className="grid grid-cols-2 gap-4">
                               {/* Modo abono */}
                               <div className={`bg-white rounded-2xl shadow-md border-2 transition-all hover:shadow-lg ${
                                 modoAbono ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-orange-200'
@@ -771,106 +888,406 @@ const DeudasDestock = () => {
                                     <p className="text-2xl font-bold text-green-600">{formatCurrency(calcularMontoTotal())}</p>
                                   </div>
                                 </label>
-                              </div>
-                            </div>
+                                </div>
+                                </div>
 
-                            {/* Lista de ventas */}
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between mb-2">
-                                <h3 className="text-base font-bold text-gray-800">Ventas Pendientes</h3>
-                                <span className="text-xs text-gray-500">{ventas.length} {ventas.length === 1 ? 'venta' : 'ventas'}</span>
-                              </div>
-                              <div className="grid grid-cols-2 gap-3">
-                                {ventas.map((venta, index) => (
-                                  <div key={venta.id} className={`rounded-xl shadow-sm border-2 transition-all hover:shadow-md ${
-                                    selectedVentas.includes(venta.id) || pagarTodo ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300'
-                                  } ${modoAbono ? 'opacity-50' : ''}`}>
-                                    <div className="p-3">
-                                      <div className="flex items-start gap-3">
-                                        <label className="flex items-start gap-2 cursor-pointer flex-1">
-                                          <input
-                                            type="checkbox"
-                                            checked={selectedVentas.includes(venta.id) || pagarTodo}
-                                            onChange={() => handleSelectVenta(venta.id)}
-                                            disabled={modoAbono || pagarTodo}
-                                            className="checkbox checkbox-primary mt-1"
-                                          />
-                                          <div className="flex-1 space-y-2">
-                                            {/* Header */}
-                                            <div className="flex items-center justify-between">
-                                              <p className="text-sm font-bold text-gray-900">Compra #{index + 1}</p>
-                                              <button 
-                                                onClick={(e) => {
-                                                  e.preventDefault();
-                                                  navigate(`/ventas/${venta.id}`);
-                                                }} 
-                                                className="p-1.5 rounded-lg bg-green-100 hover:bg-green-200 border border-green-200 transition-all"
-                                                title="Ver nota"
-                                              >
-                                                <Eye className="h-4 w-4 text-green-700" />
-                                              </button>
-                                            </div>
-                                            
-                                            {/* Fecha y hora */}
-                                            <div className="flex items-center gap-2 text-xs text-gray-600">
-                                              <Calendar className="h-3 w-3 text-blue-600" />
-                                              <span>{formatDateTime(venta.fecha_creacion).date}</span>
-                                              <Clock className="h-3 w-3 text-purple-600 ml-1" />
-                                              <span className="text-gray-500">{formatDateTime(venta.fecha_creacion).time}</span>
-                                            </div>
-                                            
-                                            {/* Montos */}
-                                            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-200">
-                                              <div>
-                                                <p className="text-xs text-gray-500">Total</p>
-                                                <p className="text-sm font-bold text-gray-700">{formatCurrency(venta.total)}</p>
-                                              </div>
-                                              <div className="text-right">
-                                                <p className="text-xs text-gray-500">Pendiente</p>
-                                                <p className="text-sm font-bold text-red-600">{formatCurrency(venta.monto_pendiente)}</p>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </label>
-                                      </div>
+                                {/* Vista tipo cuaderno - Lista de productos */}
+                                <div className="bg-white rounded-2xl shadow-sm border-2 border-gray-200 overflow-hidden">
+                                  {/* Header estilo cuaderno */}
+                                  <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-b-2 border-amber-200 p-4">
+                                    <div className="flex items-center gap-3 mb-2">
+                                      <BookOpen className="h-6 w-6 text-amber-700" />
+                                      <h3 className="text-lg font-bold text-amber-900">Productos Pendientes de Pago</h3>
                                     </div>
-                                  <button onClick={() => toggleExpandVenta(venta.id)} className="w-full px-4 py-3 border-t border-gray-200 flex items-center justify-between text-sm text-gray-600 hover:bg-gray-50">
-                                    <div className="flex items-center gap-2">
-                                      <ListOrdered className="h-4 w-4 text-purple-600" />
-                                      <span className="font-medium">Ver productos comprados</span>
-                                    </div>
-                                    <ChevronDown className={`h-4 w-4 transition-transform ${expandedVentas[venta.id] ? 'rotate-180' : ''}`} />
-                                  </button>
-                                  {expandedVentas[venta.id] && (
-                                    <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
-                                      <div className="space-y-2">
-                                        {venta.productos.map((producto, pIndex) => (
-                                          <div key={pIndex} className="flex justify-between items-center p-3 bg-white rounded-lg border border-gray-100">
-                                            <div className="flex-1">
-                                              <p className="font-semibold text-gray-800 mb-1">{producto.nombre}</p>
-                                              <p className="text-sm text-gray-500 flex items-center gap-2">
-                                                <Package className="h-3 w-3" />
-                                                {producto.cantidad} × {formatCurrency(producto.precio_unitario)}
-                                              </p>
-                                            </div>
-                                            <div className="text-right">
-                                              <p className="font-bold text-base" style={{ color: colors.primary }}>{formatCurrency(producto.subtotal)}</p>
-                                              {producto.retornable && (
-                                                <div className="flex items-center gap-1 mt-1">
-                                                  <RefreshCw className="h-3 w-3" style={{ color: colors.secondary }} />
-                                                  <p className="text-xs font-medium" style={{ color: colors.secondary }}>{producto.cantidad_retornable} retornables</p>
-                                                </div>
-                                              )}
-                                            </div>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
+                                    <p className="text-sm text-amber-700">Lista completa de productos que debe el cliente</p>
                                   </div>
-                                ))}
-                              </div>
-                            </div>
+
+                                  {/* Tabla estilo cuaderno */}
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full">
+                                      <thead className="bg-gray-50 border-b-2 border-gray-200">
+                                        <tr>
+                                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-12">
+                                            #
+                                          </th>
+                                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                            Fecha
+                                          </th>
+                                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                            Producto
+                                          </th>
+                                          <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider w-24">
+                                            Cant.
+                                          </th>
+                                          <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider w-32">
+                                            Precio Unit.
+                                          </th>
+                                          <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider w-32">
+                                            Subtotal
+                                          </th>
+                                          <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider w-20">
+                                            Ver
+                                          </th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="bg-white divide-y divide-gray-200">
+                                        {ventas.map((venta, ventaIndex) => {
+                                          // Verificar si es una venta parcial (monto_pendiente < total)
+                                          const esParcial = venta.monto_pendiente < venta.total;
+                                          
+                                          if (esParcial) {
+                                            // Para ventas parciales, mostrar una sola fila con todos los productos
+                                            const nombresProductos = venta.productos.map(p => p.nombre).join(', ');
+                                            const montoPagado = venta.total - venta.monto_pendiente;
+                                            return (
+                                              <tr 
+                                                key={venta.id}
+                                                className={`hover:bg-amber-50/50 transition-colors ${
+                                                  (selectedVentas.includes(venta.id) || pagarTodo) && !modoAbono
+                                                    ? 'bg-blue-50 border-l-4 border-blue-500'
+                                                    : ''
+                                                }`}
+                                              >
+                                                <td className="px-4 py-3 text-sm text-gray-600 font-medium">
+                                                  {ventaIndex + 1}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                  <div className="flex flex-col">
+                                                    <span className="text-sm font-medium text-gray-900">
+                                                      {formatDateTime(venta.fecha_creacion).date}
+                                                    </span>
+                                                    <span className="text-xs text-gray-500">
+                                                      {formatDateTime(venta.fecha_creacion).time}
+                                                    </span>
+                                                  </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                  <div className="flex flex-col gap-1">
+                                                    <span className="text-sm font-bold text-orange-700">
+                                                      PARCIAL
+                                                    </span>
+                                                    <span className="text-xs text-gray-600 italic">
+                                                      {nombresProductos}
+                                                    </span>
+                                                    <div className="flex items-center gap-2 mt-1 text-xs">
+                                                      <span className="text-gray-500">
+                                                        Total: <span className="font-semibold text-gray-700">{formatCurrency(venta.total)}</span>
+                                                      </span>
+                                                      <span className="text-gray-400">|</span>
+                                                      <span className="text-green-600">
+                                                        Pagado: <span className="font-semibold">{formatCurrency(montoPagado)}</span>
+                                                      </span>
+                                                    </div>
+                                                  </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                  <span className="text-xs text-gray-500">-</span>
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                  <span className="text-xs text-gray-500">-</span>
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                  <div className="flex flex-col items-end">
+                                                    <span className="text-xs text-gray-500 mb-1">Pendiente:</span>
+                                                    <span className="text-base font-bold text-orange-600">
+                                                      {formatCurrency(venta.monto_pendiente)}
+                                                    </span>
+                                                  </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                  <button 
+                                                    onClick={() => navigate(`/ventas/${venta.id}`)}
+                                                    className="p-2 rounded-lg bg-green-100 hover:bg-green-200 border border-green-200 transition-all inline-flex items-center justify-center"
+                                                    title="Ver nota de venta"
+                                                  >
+                                                    <Eye className="h-4 w-4 text-green-700" />
+                                                  </button>
+                                                </td>
+                                              </tr>
+                                            );
+                                          } else {
+                                            // Para ventas completas, mostrar cada producto
+                                            return venta.productos.map((producto, productoIndex) => (
+                                              <tr 
+                                                key={`${venta.id}-${productoIndex}`}
+                                                className={`hover:bg-amber-50/50 transition-colors ${
+                                                  (selectedVentas.includes(venta.id) || pagarTodo) && !modoAbono
+                                                    ? 'bg-blue-50 border-l-4 border-blue-500'
+                                                    : ''
+                                                }`}
+                                              >
+                                                <td className="px-4 py-3 text-sm text-gray-600 font-medium">
+                                                  {ventaIndex + 1}.{productoIndex + 1}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                  <div className="flex flex-col">
+                                                    <span className="text-sm font-medium text-gray-900">
+                                                      {formatDateTime(venta.fecha_creacion).date}
+                                                    </span>
+                                                    <span className="text-xs text-gray-500">
+                                                      {formatDateTime(venta.fecha_creacion).time}
+                                                    </span>
+                                                  </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                  <div className="flex flex-col">
+                                                    <span className="text-sm font-semibold text-gray-900">
+                                                      {producto.nombre}
+                                                    </span>
+                                                    {producto.retornable && producto.cantidad_retornable > 0 && (
+                                                      <div className="flex items-center gap-1 mt-1">
+                                                        <RefreshCw className="h-3 w-3 text-orange-600" />
+                                                        <span className="text-xs font-medium text-orange-600">
+                                                          {producto.cantidad_retornable} retornables
+                                                        </span>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                  <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold bg-gray-100 text-gray-800">
+                                                    {producto.cantidad}
+                                                  </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                  <span className="text-sm font-medium text-gray-700">
+                                                    {formatCurrency(producto.precio_unitario)}
+                                                  </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                  <span className="text-base font-bold" style={{ color: colors.primary }}>
+                                                    {formatCurrency(producto.subtotal)}
+                                                  </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                  {productoIndex === 0 && (
+                                                    <button 
+                                                      onClick={() => navigate(`/ventas/${venta.id}`)}
+                                                      className="p-2 rounded-lg bg-green-100 hover:bg-green-200 border border-green-200 transition-all inline-flex items-center justify-center"
+                                                      title="Ver nota de venta"
+                                                    >
+                                                      <Eye className="h-4 w-4 text-green-700" />
+                                                    </button>
+                                                  )}
+                                                </td>
+                                              </tr>
+                                            ));
+                                          }
+                                        })}
+                                      </tbody>
+                                      <tfoot className="bg-gray-50 border-t-2 border-gray-300">
+                                        <tr>
+                                          <td colSpan="5" className="px-4 py-4 text-right">
+                                            <span className="text-base font-bold text-gray-900">TOTAL PENDIENTE:</span>
+                                          </td>
+                                          <td className="px-4 py-4 text-right">
+                                            <span className="text-xl font-bold text-red-600">
+                                              {formatCurrency(totalDeuda)}
+                                            </span>
+                                          </td>
+                                          <td></td>
+                                        </tr>
+                                      </tfoot>
+                                    </table>
+                                  </div>
+
+                                  {/* Resumen de ventas */}
+                                  <div className="bg-amber-50 border-t-2 border-amber-200 p-4">
+                                    <div className="flex items-center justify-between text-sm">
+                                      <div className="flex items-center gap-2">
+                                        <ListOrdered className="h-4 w-4 text-amber-700" />
+                                        <span className="font-semibold text-amber-900">
+                                          Total de ventas: {ventas.length}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Package className="h-4 w-4 text-amber-700" />
+                                        <span className="font-semibold text-amber-900">
+                                          Total de productos: {ventas.reduce((sum, v) => sum + v.productos.length, 0)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </>
+                            )}
+
+                            {/* VISTA POR VENTAS */}
+                            {vistaMode === 'ventas' && (
+                              <>
+                                {/* Opciones de pago en grid */}
+                                <div className="grid grid-cols-2 gap-4">
+                                  {/* Modo abono */}
+                                  <div className={`bg-white rounded-2xl shadow-md border-2 transition-all hover:shadow-lg ${
+                                    modoAbono ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-orange-200'
+                                  }`}>
+                                    <label className="flex flex-col p-5 cursor-pointer h-full">
+                                      <div className="flex items-center gap-3 mb-3">
+                                        <input
+                                          type="checkbox"
+                                          checked={modoAbono}
+                                          onChange={() => {
+                                            setModoAbono(!modoAbono);
+                                            setSelectedVentas([]);
+                                            setPagarTodo(false);
+                                          }}
+                                          className="checkbox checkbox-warning checkbox-lg"
+                                        />
+                                        <div className="flex items-center gap-2">
+                                          <DollarSign className="h-6 w-6 text-orange-600" />
+                                          <span className="text-lg font-bold text-gray-800">Abono</span>
+                                        </div>
+                                      </div>
+                                      <p className="text-sm text-gray-600 mb-3">Pago parcial flexible</p>
+                                      {modoAbono && (
+                                        <div className="mt-auto">
+                                          <label className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+                                            <Wallet className="h-3.5 w-3.5" />
+                                            Monto del abono
+                                          </label>
+                                          <div className="relative">
+                                            <input
+                                              type="number"
+                                              value={montoAbono}
+                                              onChange={(e) => setMontoAbono(e.target.value)}
+                                              placeholder="0.00"
+                                              step="0.01"
+                                              min="0"
+                                              className="w-full pl-9 pr-3 py-2.5 text-lg font-bold border-2 border-orange-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-white"
+                                            />
+                                            <span className="absolute left-3 top-2.5 text-base font-semibold text-gray-600">S/</span>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </label>
+                                  </div>
+
+                                  {/* Pagar todo */}
+                                  <div className={`rounded-2xl shadow-md border-2 transition-all hover:shadow-lg ${
+                                    pagarTodo ? 'border-green-400 bg-green-50' : 'border-gray-200 hover:border-green-200'
+                                  } ${modoAbono ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`} onClick={!modoAbono ? handlePagarTodo : undefined}>
+                                    <label className="flex flex-col p-5 cursor-pointer h-full">
+                                      <div className="flex items-center gap-3 mb-3">
+                                        <input 
+                                          type="checkbox" 
+                                          checked={pagarTodo} 
+                                          onChange={handlePagarTodo} 
+                                          disabled={modoAbono} 
+                                          className="checkbox checkbox-success checkbox-lg"
+                                        />
+                                        <div className="flex items-center gap-2">
+                                          <CreditCard className="h-6 w-6 text-green-600" />
+                                          <span className="text-lg font-bold text-gray-800">Pagar Todo</span>
+                                        </div>
+                                      </div>
+                                      <p className="text-sm text-gray-600 mb-3">Liquidar todas las deudas</p>
+                                      <div className="mt-auto">
+                                        <p className="text-xs text-gray-500 mb-1">Monto total</p>
+                                        <p className="text-2xl font-bold text-green-600">{formatCurrency(calcularMontoTotal())}</p>
+                                      </div>
+                                    </label>
+                                  </div>
+                                </div>
+
+                                {/* Lista de ventas */}
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <h3 className="text-base font-bold text-gray-800">Ventas Pendientes</h3>
+                                    <span className="text-xs text-gray-500">{ventas.length} {ventas.length === 1 ? 'venta' : 'ventas'}</span>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-3">
+                                    {ventas.map((venta, index) => (
+                                      <div key={venta.id} className={`rounded-xl shadow-sm border-2 transition-all hover:shadow-md ${
+                                        selectedVentas.includes(venta.id) || pagarTodo ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300'
+                                      } ${modoAbono ? 'opacity-50' : ''}`}>
+                                        <div className="p-3">
+                                          <div className="flex items-start gap-3">
+                                            <label className="flex items-start gap-2 cursor-pointer flex-1">
+                                              <input
+                                                type="checkbox"
+                                                checked={selectedVentas.includes(venta.id) || pagarTodo}
+                                                onChange={() => handleSelectVenta(venta.id)}
+                                                disabled={modoAbono || pagarTodo}
+                                                className="checkbox checkbox-primary mt-1"
+                                              />
+                                              <div className="flex-1 space-y-2">
+                                                {/* Header */}
+                                                <div className="flex items-center justify-between">
+                                                  <p className="text-sm font-bold text-gray-900">Compra #{index + 1}</p>
+                                                  <button 
+                                                    onClick={(e) => {
+                                                      e.preventDefault();
+                                                      navigate(`/ventas/${venta.id}`);
+                                                    }} 
+                                                    className="p-1.5 rounded-lg bg-green-100 hover:bg-green-200 border border-green-200 transition-all"
+                                                    title="Ver nota"
+                                                  >
+                                                    <Eye className="h-4 w-4 text-green-700" />
+                                                  </button>
+                                                </div>
+                                                
+                                                {/* Fecha y hora */}
+                                                <div className="flex items-center gap-2 text-xs text-gray-600">
+                                                  <Calendar className="h-3 w-3 text-blue-600" />
+                                                  <span>{formatDateTime(venta.fecha_creacion).date}</span>
+                                                  <Clock className="h-3 w-3 text-purple-600 ml-1" />
+                                                  <span className="text-gray-500">{formatDateTime(venta.fecha_creacion).time}</span>
+                                                </div>
+                                                
+                                                {/* Montos */}
+                                                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-200">
+                                                  <div>
+                                                    <p className="text-xs text-gray-500">Total</p>
+                                                    <p className="text-sm font-bold text-gray-700">{formatCurrency(venta.total)}</p>
+                                                  </div>
+                                                  <div className="text-right">
+                                                    <p className="text-xs text-gray-500">Pendiente</p>
+                                                    <p className="text-sm font-bold text-red-600">{formatCurrency(venta.monto_pendiente)}</p>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </label>
+                                          </div>
+                                        </div>
+                                      <button onClick={() => toggleExpandVenta(venta.id)} className="w-full px-4 py-3 border-t border-gray-200 flex items-center justify-between text-sm text-gray-600 hover:bg-gray-50">
+                                        <div className="flex items-center gap-2">
+                                          <ListOrdered className="h-4 w-4 text-purple-600" />
+                                          <span className="font-medium">Ver productos comprados</span>
+                                        </div>
+                                        <ChevronDown className={`h-4 w-4 transition-transform ${expandedVentas[venta.id] ? 'rotate-180' : ''}`} />
+                                      </button>
+                                      {expandedVentas[venta.id] && (
+                                        <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
+                                          <div className="space-y-2">
+                                            {venta.productos.map((producto, pIndex) => (
+                                              <div key={pIndex} className="flex justify-between items-center p-3 bg-white rounded-lg border border-gray-100">
+                                                <div className="flex-1">
+                                                  <p className="font-semibold text-gray-800 mb-1">{producto.nombre}</p>
+                                                  <p className="text-sm text-gray-500 flex items-center gap-2">
+                                                    <Package className="h-3 w-3" />
+                                                    {producto.cantidad} × {formatCurrency(producto.precio_unitario)}
+                                                  </p>
+                                                </div>
+                                                <div className="text-right">
+                                                  <p className="font-bold text-base" style={{ color: colors.primary }}>{formatCurrency(producto.subtotal)}</p>
+                                                  {producto.retornable && (
+                                                    <div className="flex items-center gap-1 mt-1">
+                                                      <RefreshCw className="h-3 w-3" style={{ color: colors.secondary }} />
+                                                      <p className="text-xs font-medium" style={{ color: colors.secondary }}>{producto.cantidad_retornable} retornables</p>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </>
+                            )}
                           </>
                         )}
                       </div>
@@ -1148,6 +1565,68 @@ const DeudasDestock = () => {
           </div>
         </div>
       </main>
+
+      {/* Modal de confirmación de impresión */}
+      {mostrarModalImprimir && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full animate-fade-in">
+            {/* Header del modal */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                  <Printer className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Confirmar Impresión</h3>
+                  <p className="text-sm text-blue-100">Estado de cuenta del cliente</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Contenido del modal */}
+            <div className="p-6">
+              <div className="mb-6">
+                <p className="text-gray-700 text-base mb-4">
+                  ¿Está seguro que desea imprimir el estado de cuenta de <span className="font-bold text-gray-900">{clienteSeleccionado?.nombre}</span>?
+                </p>
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm text-blue-900 font-semibold mb-1">
+                        Se imprimirán {ventas.length} {ventas.length === 1 ? 'venta' : 'ventas'} pendiente{ventas.length === 1 ? '' : 's'}
+                      </p>
+                      <p className="text-sm text-blue-700">
+                        Deuda total: <span className="font-bold">{formatCurrency(totalDeuda)}</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botones */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setMostrarModalImprimir(false)}
+                  className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-all active:scale-95"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    setMostrarModalImprimir(false);
+                    handleImprimirEstadoCuenta();
+                  }}
+                  className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold shadow-lg hover:shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <Printer className="h-5 w-5" />
+                  <span>Imprimir</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

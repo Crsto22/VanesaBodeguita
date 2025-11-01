@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Search, User, Mail, Phone, Plus } from 'lucide-react';
+import { X, Search, User, Mail, Phone, Plus, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useClientes } from '../../context/ClientesContext';
 import { useVentas } from '../../context/VentasContext';
 import CrearClienteDrawer from './CrearClienteDrawer';
 
 const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
+    const navigate = useNavigate();
     const { clientes, loading: clientesLoading, obtenerClientePorId } = useClientes();
     const { obtenerDeudaTotalPorCliente } = useVentas();
     const [searchTerm, setSearchTerm] = useState('');
@@ -259,10 +261,21 @@ const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
                                                     )}
                                                 </div>
                                                 {deudaTotal > 0 && (
-                                                    <div className="mt-2">
+                                                    <div className="mt-2 flex items-center gap-2">
                                                         <span className="inline-block px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full">
                                                             Deuda: S/{deudaTotal.toFixed(2)}
                                                         </span>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                navigate(`/deudas-desktop/${cliente.id}`);
+                                                                onClose();
+                                                            }}
+                                                            className="p-1.5 rounded-lg bg-blue-100 hover:bg-blue-200 border border-blue-200 transition-all"
+                                                            title="Ver cuenta del cliente"
+                                                        >
+                                                            <Eye size={14} className="text-blue-700" />
+                                                        </button>
                                                     </div>
                                                 )}
                                             </div>
