@@ -42,6 +42,10 @@ const DeudasDestock = () => {
   const [error, setError] = useState('');
   const [loadingPago, setLoadingPago] = useState(false);
   const [expandedVentas, setExpandedVentas] = useState({});
+  const [resumido, setResumido] = useState(() => {
+    const saved = localStorage.getItem('deudasDestock_resumido');
+    return saved ? JSON.parse(saved) : false;
+  });
   
   // Estados para gestión de botellas
   const [ventasConRetornables, setVentasConRetornables] = useState([]);
@@ -206,6 +210,31 @@ const DeudasDestock = () => {
 
   // Calcular total de deuda del cliente seleccionado
   const totalDeuda = ventas.reduce((sum, venta) => sum + (venta.monto_pendiente || 0), 0);
+
+  // Obtiene la fecha más reciente (ISO) dentro de todos los historial_pagos de las ventas
+  const getLatestPaymentDateAcrossVentas = (ventasList) => {
+    let latest = null;
+    ventasList.forEach((v) => {
+      if (v.historial_pagos && Array.isArray(v.historial_pagos)) {
+        v.historial_pagos.forEach((p) => {
+          if (p && p.fecha) {
+            const d = new Date(p.fecha);
+            if (!isNaN(d)) {
+              if (!latest || d > latest) latest = d;
+            }
+          }
+        });
+      }
+    });
+    // Retornamos el objeto Date (o null) para comparar con fecha_creacion de las ventas
+    return latest || null;
+  };
+
+  // Función para manejar cambio de estado resumido con localStorage
+  const handleResumidoChange = (value) => {
+    setResumido(value);
+    localStorage.setItem('deudasDestock_resumido', JSON.stringify(value));
+  };
 
   // Función para actualizar lista de clientes sin recargar la página
   const actualizarListaClientes = async () => {
@@ -741,33 +770,48 @@ const DeudasDestock = () => {
 
                     {/* Botones de cambio de vista - Solo visible en tab de deudas */}
                     {activeTab === 'deudas' && (
-                      <div className="flex gap-2 bg-gray-50 p-2 rounded-lg border border-gray-200">
-                        <button
-                          onClick={() => setVistaMode('cuaderno')}
-                          className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
-                            vistaMode === 'cuaderno'
-                              ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
-                              : 'text-gray-600 hover:text-gray-900'
-                          }`}
-                        >
-                          <div className="flex items-center justify-center gap-2">
-                            <BookOpen className="h-4 w-4" />
-                            <span>Vista Cuaderno</span>
+                      <div className="flex gap-2">
+                        <div className="flex gap-2 bg-gray-50 p-2 rounded-lg border border-gray-200 flex-1">
+                          <button
+                            onClick={() => setVistaMode('cuaderno')}
+                            className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
+                              vistaMode === 'cuaderno'
+                                ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
+                                : 'text-gray-600 hover:text-gray-900'
+                            }`}
+                          >
+                            <div className="flex items-center justify-center gap-2">
+                              <BookOpen className="h-4 w-4" />
+                              <span>Vista Cuaderno</span>
+                            </div>
+                          </button>
+                          <button
+                            onClick={() => setVistaMode('ventas')}
+                            className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
+                              vistaMode === 'ventas'
+                                ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
+                                : 'text-gray-600 hover:text-gray-900'
+                            }`}
+                          >
+                            <div className="flex items-center justify-center gap-2">
+                              <Grid3x3 className="h-4 w-4" />
+                              <span>Vista por Ventas</span>
+                            </div>
+                          </button>
+                        </div>
+                        {vistaMode === 'cuaderno' && (
+                          <div className="form-control">
+                            <label className="label cursor-pointer gap-2">
+                              <span className="label-text text-xs font-medium">Resumido</span>
+                              <input
+                                type="checkbox"
+                                className="checkbox checkbox-success checkbox-sm"
+                                checked={resumido}
+                                onChange={(e) => handleResumidoChange(e.target.checked)}
+                              />
+                            </label>
                           </div>
-                        </button>
-                        <button
-                          onClick={() => setVistaMode('ventas')}
-                          className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
-                            vistaMode === 'ventas'
-                              ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
-                              : 'text-gray-600 hover:text-gray-900'
-                          }`}
-                        >
-                          <div className="flex items-center justify-center gap-2">
-                            <Grid3x3 className="h-4 w-4" />
-                            <span>Vista por Ventas</span>
-                          </div>
-                        </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -931,9 +975,11 @@ const DeudasDestock = () => {
                                         </tr>
                                       </thead>
                                       <tbody className="bg-white divide-y divide-gray-200">
-                                        {ventas.map((venta, ventaIndex) => {
-                                          // Verificar si es una venta parcial (monto_pendiente < total)
-                                          const esParcial = venta.monto_pendiente < venta.total;
+                                        {(() => {
+                                          if (!resumido) {
+                                            return ventas.map((venta, ventaIndex) => {
+                                              // Verificar si es una venta parcial (monto_pendiente < total)
+                                              const esParcial = venta.monto_pendiente < venta.total;
                                           
                                           if (esParcial) {
                                             // Para ventas parciales, mostrar una sola fila con todos los productos
@@ -969,14 +1015,11 @@ const DeudasDestock = () => {
                                                     <span className="text-xs text-gray-600 italic">
                                                       {nombresProductos}
                                                     </span>
-                                                    <div className="flex items-center gap-2 mt-1 text-xs">
-                                                      <span className="text-gray-500">
-                                                        Total: <span className="font-semibold text-gray-700">{formatCurrency(venta.total)}</span>
-                                                      </span>
-                                                      <span className="text-gray-400">|</span>
-                                                      <span className="text-green-600">
-                                                        Pagado: <span className="font-semibold">{formatCurrency(montoPagado)}</span>
-                                                      </span>
+                                                    <div className="bg-gray-50 rounded-lg p-2 mt-2">
+                                                      <div className="text-xs flex items-center justify-between">
+                                                        <span className="text-gray-600">Total: <span className="font-semibold text-gray-800">{formatCurrency(venta.total)}</span></span>
+                                                        <span className="text-green-600">Pagado: <span className="font-semibold text-green-600">{formatCurrency(montoPagado)}</span></span>
+                                                      </div>
                                                     </div>
                                                   </div>
                                                 </td>
@@ -1073,7 +1116,204 @@ const DeudasDestock = () => {
                                               </tr>
                                             ));
                                           }
-                                        })}
+                                        });
+                                      }
+
+                                      // Lógica resumida: buscar fecha de pago más reciente y agrupar
+                                      const latestPaymentDate = getLatestPaymentDateAcrossVentas(ventas);
+                                      if (!latestPaymentDate) {
+                                        // Si no hay pagos, mostrar todo normal
+                                        return ventas.map((venta, ventaIndex) => {
+                                          const esParcial = venta.monto_pendiente < venta.total;
+                                          
+                                          if (esParcial) {
+                                            const nombresProductos = venta.productos.map(p => p.nombre).join(', ');
+                                            const montoPagado = venta.total - venta.monto_pendiente;
+                                            return (
+                                              <tr key={venta.id} className="hover:bg-amber-50/50 transition-colors">
+                                                <td className="px-4 py-3 text-sm text-gray-600 font-medium">{ventaIndex + 1}</td>
+                                                <td className="px-4 py-3">
+                                                  <div className="flex flex-col">
+                                                    <span className="text-sm font-medium text-gray-900">{formatDateTime(venta.fecha_creacion).date}</span>
+                                                    <span className="text-xs text-gray-500">{formatDateTime(venta.fecha_creacion).time}</span>
+                                                  </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                  <div className="flex flex-col gap-1">
+                                                    <span className="text-sm font-bold text-orange-700">PARCIAL</span>
+                                                    <span className="text-xs text-gray-600 italic">{nombresProductos}</span>
+                                                    <div className="bg-gray-50 rounded-lg p-2 mt-2 text-xs flex items-center justify-between">
+                                                      <span className="text-gray-600">Total de la venta: <span className="font-semibold text-gray-800">{formatCurrency(venta.total)}</span></span>
+                                                      <span className="text-green-600">Ya pagado: <span className="font-semibold text-green-600">{formatCurrency(montoPagado)}</span></span>
+                                                    </div>
+                                                  </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-center"><span className="text-xs text-gray-500">-</span></td>
+                                                <td className="px-4 py-3 text-right"><span className="text-xs text-gray-500">-</span></td>
+                                                <td className="px-4 py-3 text-right">
+                                                  <div className="flex flex-col items-end">
+                                                    <span className="text-xs text-gray-500 mb-1">Pendiente:</span>
+                                                    <span className="text-base font-bold text-orange-600">
+                                                      {formatCurrency(venta.monto_pendiente)}
+                                                    </span>
+                                                  </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                  <button onClick={() => navigate(`/ventas/${venta.id}`)} className="p-2 rounded-lg bg-green-100 hover:bg-green-200 border border-green-200 transition-all">
+                                                    <Eye className="h-4 w-4 text-green-700" />
+                                                  </button>
+                                                </td>
+                                              </tr>
+                                            );
+                                          } else {
+                                            return venta.productos.map((producto, productoIndex) => (
+                                              <tr key={`${venta.id}-${productoIndex}`} className="hover:bg-amber-50/50 transition-colors">
+                                                <td className="px-4 py-3 text-sm text-gray-600 font-medium">{ventaIndex + 1}.{productoIndex + 1}</td>
+                                                <td className="px-4 py-3">
+                                                  <div className="flex flex-col">
+                                                    <span className="text-sm font-medium text-gray-900">{formatDateTime(venta.fecha_creacion).date}</span>
+                                                    <span className="text-xs text-gray-500">{formatDateTime(venta.fecha_creacion).time}</span>
+                                                  </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                  <span className="text-sm font-semibold text-gray-900">{producto.nombre}</span>
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                  <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold bg-gray-100 text-gray-800">{producto.cantidad}</span>
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                  <span className="text-sm font-medium text-gray-700">{formatCurrency(producto.precio_unitario)}</span>
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                  <span className="text-base font-bold" style={{ color: colors.primary }}>{formatCurrency(producto.subtotal)}</span>
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                  {productoIndex === 0 && (
+                                                    <button onClick={() => navigate(`/ventas/${venta.id}`)} className="p-2 rounded-lg bg-green-100 hover:bg-green-200 border border-green-200 transition-all">
+                                                      <Eye className="h-4 w-4 text-green-700" />
+                                                    </button>
+                                                  )}
+                                                </td>
+                                              </tr>
+                                            ));
+                                          }
+                                        });
+                                      }
+
+                                      // Particionar ventas por fecha_creacion vs latestPaymentDate
+                                      const ventasAnteriores = ventas.filter((v) => {
+                                        const fc = v.fecha_creacion ? new Date(v.fecha_creacion) : null;
+                                        return fc && fc < latestPaymentDate;
+                                      });
+
+                                      const ventasPosteriores = ventas.filter((v) => {
+                                        const fc = v.fecha_creacion ? new Date(v.fecha_creacion) : null;
+                                        return !fc || fc >= latestPaymentDate;
+                                      });
+
+                                      const sumaDeudaRestante = ventasAnteriores.reduce((acc, v) => acc + (Number(v.monto_pendiente) || 0), 0);
+
+                                      return (
+                                        <>
+                                          {/* Bloque DEUDA RESTANTE */}
+                                          {ventasAnteriores.length > 0 && (
+                                            <tr className="bg-red-50 border-l-4 border-red-500">
+                                              <td className="px-4 py-3 text-sm text-red-700 font-bold">-</td>
+                                              <td className="px-4 py-3">
+                                                <span className="text-sm font-medium text-red-700">HASTA: {formatDateTime(latestPaymentDate.toISOString()).date}</span>
+                                              </td>
+                                              <td className="px-4 py-3">
+                                                <span className="text-sm font-bold text-red-800">DEUDA RESTANTE</span>
+                                                <div className="text-xs text-red-600 mt-1">Suma de deudas anteriores</div>
+                                              </td>
+                                              <td className="px-4 py-3 text-center"><span className="text-xs text-gray-500">-</span></td>
+                                              <td className="px-4 py-3 text-right"><span className="text-xs text-gray-500">-</span></td>
+                                              <td className="px-4 py-3 text-right">
+                                                <span className="text-base font-bold text-red-600">{formatCurrency(sumaDeudaRestante)}</span>
+                                              </td>
+                                              <td className="px-4 py-3 text-center"><span className="text-xs text-gray-500">-</span></td>
+                                            </tr>
+                                          )}
+
+                                          {/* Mostrar ventas posteriores normalmente */}
+                                          {ventasPosteriores.map((venta, ventaIndex) => {
+                                            const esParcial = venta.monto_pendiente < venta.total;
+                                            
+                                            if (esParcial) {
+                                              const nombresProductos = venta.productos.map(p => p.nombre).join(', ');
+                                              const montoPagado = venta.total - venta.monto_pendiente;
+                                              return (
+                                                <tr key={venta.id} className="hover:bg-amber-50/50 transition-colors">
+                                                  <td className="px-4 py-3 text-sm text-gray-600 font-medium">{ventaIndex + 1}</td>
+                                                  <td className="px-4 py-3">
+                                                    <div className="flex flex-col">
+                                                      <span className="text-sm font-medium text-gray-900">{formatDateTime(venta.fecha_creacion).date}</span>
+                                                      <span className="text-xs text-gray-500">{formatDateTime(venta.fecha_creacion).time}</span>
+                                                    </div>
+                                                  </td>
+                                                  <td className="px-4 py-3">
+                                                    <div className="flex flex-col gap-1">
+                                                      <span className="text-sm font-bold text-orange-700">PARCIAL</span>
+                                                      <span className="text-xs text-gray-600 italic">{nombresProductos}</span>
+                                                      <div className="bg-gray-50 rounded-lg p-2 mt-2 text-xs flex items-center justify-between">
+                                                        <span className="text-gray-600">Total de la venta: <span className="font-semibold text-gray-800">{formatCurrency(venta.total)}</span></span>
+                                                        <span className="text-green-600">Ya pagado: <span className="font-semibold text-green-600">{formatCurrency(montoPagado)}</span></span>
+                                                      </div>
+                                                    </div>
+                                                  </td>
+                                                  <td className="px-4 py-3 text-center"><span className="text-xs text-gray-500">-</span></td>
+                                                  <td className="px-4 py-3 text-right"><span className="text-xs text-gray-500">-</span></td>
+                                                  <td className="px-4 py-3 text-right">
+                                                    <div className="flex flex-col items-end">
+                                                      <span className="text-xs text-gray-500 mb-1">Pendiente:</span>
+                                                      <span className="text-base font-bold text-orange-600">
+                                                        {formatCurrency(venta.monto_pendiente)}
+                                                      </span>
+                                                    </div>
+                                                  </td>
+                                                  <td className="px-4 py-3 text-center">
+                                                    <button onClick={() => navigate(`/ventas/${venta.id}`)} className="p-2 rounded-lg bg-green-100 hover:bg-green-200 border border-green-200 transition-all">
+                                                      <Eye className="h-4 w-4 text-green-700" />
+                                                    </button>
+                                                  </td>
+                                                </tr>
+                                              );
+                                            } else {
+                                              return venta.productos.map((producto, productoIndex) => (
+                                                <tr key={`${venta.id}-${productoIndex}`} className="hover:bg-amber-50/50 transition-colors">
+                                                  <td className="px-4 py-3 text-sm text-gray-600 font-medium">{ventaIndex + 1}.{productoIndex + 1}</td>
+                                                  <td className="px-4 py-3">
+                                                    <div className="flex flex-col">
+                                                      <span className="text-sm font-medium text-gray-900">{formatDateTime(venta.fecha_creacion).date}</span>
+                                                      <span className="text-xs text-gray-500">{formatDateTime(venta.fecha_creacion).time}</span>
+                                                    </div>
+                                                  </td>
+                                                  <td className="px-4 py-3">
+                                                    <span className="text-sm font-semibold text-gray-900">{producto.nombre}</span>
+                                                  </td>
+                                                  <td className="px-4 py-3 text-center">
+                                                    <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold bg-gray-100 text-gray-800">{producto.cantidad}</span>
+                                                  </td>
+                                                  <td className="px-4 py-3 text-right">
+                                                    <span className="text-sm font-medium text-gray-700">{formatCurrency(producto.precio_unitario)}</span>
+                                                  </td>
+                                                  <td className="px-4 py-3 text-right">
+                                                    <span className="text-base font-bold" style={{ color: colors.primary }}>{formatCurrency(producto.subtotal)}</span>
+                                                  </td>
+                                                  <td className="px-4 py-3 text-center">
+                                                    {productoIndex === 0 && (
+                                                      <button onClick={() => navigate(`/ventas/${venta.id}`)} className="p-2 rounded-lg bg-green-100 hover:bg-green-200 border border-green-200 transition-all">
+                                                        <Eye className="h-4 w-4 text-green-700" />
+                                                      </button>
+                                                    )}
+                                                  </td>
+                                                </tr>
+                                              ));
+                                            }
+                                          })}
+                                        </>
+                                      );
+                                    })()}
                                       </tbody>
                                       <tfoot className="bg-gray-50 border-t-2 border-gray-300">
                                         <tr>

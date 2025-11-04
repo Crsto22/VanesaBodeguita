@@ -16,8 +16,45 @@ const NotaEstadoCuenta = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
-  const [mostrarFechaHora, setMostrarFechaHora] = useState(false);
+  const [mostrarFechaHora, setMostrarFechaHora] = useState(() => {
+    const saved = localStorage.getItem('notaEstadoCuenta_mostrarFechaHora');
+    return saved ? JSON.parse(saved) : false;
+  });
+  const [resumido, setResumido] = useState(() => {
+    const saved = localStorage.getItem('notaEstadoCuenta_resumido');
+    return saved ? JSON.parse(saved) : false;
+  });
   const estadoCuentaRef = useRef(null);
+
+  // Obtiene la fecha más reciente (ISO) dentro de todos los historial_pagos de las ventas
+  const getLatestPaymentDateAcrossVentas = (ventasList) => {
+    let latest = null;
+    ventasList.forEach((v) => {
+      if (v.historial_pagos && Array.isArray(v.historial_pagos)) {
+        v.historial_pagos.forEach((p) => {
+          if (p && p.fecha) {
+            const d = new Date(p.fecha);
+            if (!isNaN(d)) {
+              if (!latest || d > latest) latest = d;
+            }
+          }
+        });
+      }
+    });
+    // Retornamos el objeto Date (o null) para comparar con fecha_creacion de las ventas
+    return latest || null;
+  };
+
+  // Funciones para manejar cambios de estado con localStorage
+  const handleMostrarFechaHoraChange = (value) => {
+    setMostrarFechaHora(value);
+    localStorage.setItem('notaEstadoCuenta_mostrarFechaHora', JSON.stringify(value));
+  };
+
+  const handleResumidoChange = (value) => {
+    setResumido(value);
+    localStorage.setItem('notaEstadoCuenta_resumido', JSON.stringify(value));
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -164,47 +201,160 @@ const NotaEstadoCuenta = () => {
         {ventas.length === 0 ? (
           <div className="text-center text-sm font-bold">NO HAY PAGOS PENDIENTES</div>
         ) : (
-          ventas.map((venta, index) => (
-            <div key={venta.id} className="mb-3">
-              {/* Mostrar fecha y hora arriba de TODA la venta */}
-              {mostrarFechaHora && (
-                <div className="text-xs text-gray-600 mb-1 font-bold">
-                  {formatDateTime(venta.fecha_creacion)}
+          (() => {
+            if (!resumido) {
+              return ventas.map((venta, index) => (
+                <div key={venta.id} className="mb-3">
+                  {/* Mostrar fecha y hora arriba de TODA la venta */}
+                  {mostrarFechaHora && (
+                    <div className="text-xs text-gray-600 mb-1 font-bold">
+                      {formatDateTime(venta.fecha_creacion)}
+                    </div>
+                  )}
+
+                  {/* SI ES PARCIAL: Solo mostrar el bloque PARCIAL */}
+                  {venta.monto_pagado > 0 ? (
+                    <div>
+                      <div className="text-sm font-black uppercase">PARCIAL:</div>
+                      <div className="text-xs mb-1">
+                        ({venta.productos.map(p => p.nombre.toUpperCase()).join(', ')})
+                      </div>
+                      <div className="flex justify-between text-xs font-bold">
+                        <span>TOTAL: S/{venta.total.toFixed(2)} PAGO: S/{venta.monto_pagado.toFixed(2)}</span>
+                        <span className="text-sm">S/{venta.monto_pendiente.toFixed(2)}</span>
+                      </div>
+                      <div className="border-b border-dotted border-gray-400 mt-1"></div>
+                    </div>
+                  ) : (
+                    /* SI ES COMPLETA: Mostrar productos individuales */
+                    venta.productos.map((producto, prodIndex) => (
+                      <div key={prodIndex} className="mb-2">
+                        <div className="text-sm font-black uppercase">{producto.nombre}</div>
+                        <div className="flex justify-between text-sm font-bold">
+                          <span>{producto.cantidad} X S/{producto.precio_unitario.toFixed(2)}</span>
+                          <span>S/{producto.subtotal.toFixed(2)}</span>
+                        </div>
+                        <div className="border-b border-dotted border-gray-400 mt-1"></div>
+                      </div>
+                    ))
+                  )}
+
+                  {index < ventas.length - 1 && (
+                    <div className="border-t-2 border-dashed border-gray-300 my-3"></div>
+                  )}
                 </div>
-              )}
-              
-              {/* SI ES PARCIAL: Solo mostrar el bloque PARCIAL */}
-              {venta.monto_pagado > 0 ? (
-                <div>
-                  <div className="text-sm font-black uppercase">PARCIAL:</div>
-                  <div className="text-xs mb-1">
-                    ({venta.productos.map(p => p.nombre.toUpperCase()).join(', ')})
-                  </div>
-                  <div className="flex justify-between text-xs font-bold">
-                    <span>TOTAL: S/{venta.total.toFixed(2)} PAGO: S/{venta.monto_pagado.toFixed(2)}</span>
-                    <span className="text-sm">S/{venta.monto_pendiente.toFixed(2)}</span>
-                  </div>
-                  <div className="border-b border-dotted border-gray-400 mt-1"></div>
+              ));
+            }
+
+            // Lógica resumida actualizada según especificación del usuario:
+            // - Buscar la fecha de pago más reciente (entre todos los historial_pagos)
+            // - Todas las ventas con fecha_creacion ANTERIOR a esa fecha se suman como 'DEUDA RESTANTE'
+            // - Las ventas con fecha_creacion >= esa fecha se listan normalmente
+            const latestPaymentDate = getLatestPaymentDateAcrossVentas(ventas);
+            if (!latestPaymentDate) {
+              // Si no hay pagos, mostrar todo igual que en modo normal
+              return ventas.map((venta, index) => (
+                <div key={venta.id} className="mb-3">
+                  {mostrarFechaHora && (
+                    <div className="text-xs text-gray-600 mb-1 font-bold">
+                      {formatDateTime(venta.fecha_creacion)}
+                    </div>
+                  )}
+                  {venta.monto_pagado > 0 ? (
+                    <div>
+                      <div className="text-sm font-black uppercase">PARCIAL:</div>
+                      <div className="text-xs mb-1">({venta.productos.map(p => p.nombre.toUpperCase()).join(', ')})</div>
+                      <div className="flex justify-between text-xs font-bold">
+                        <span>TOTAL: S/{venta.total.toFixed(2)} PAGO: S/{venta.monto_pagado.toFixed(2)}</span>
+                        <span className="text-sm">S/{venta.monto_pendiente.toFixed(2)}</span>
+                      </div>
+                      <div className="border-b border-dotted border-gray-400 mt-1"></div>
+                    </div>
+                  ) : (
+                    venta.productos.map((producto, prodIndex) => (
+                      <div key={prodIndex} className="mb-2">
+                        <div className="text-sm font-black uppercase">{producto.nombre}</div>
+                        <div className="flex justify-between text-sm font-bold">
+                          <span>{producto.cantidad} X S/{producto.precio_unitario.toFixed(2)}</span>
+                          <span>S/{producto.subtotal.toFixed(2)}</span>
+                        </div>
+                        <div className="border-b border-dotted border-gray-400 mt-1"></div>
+                      </div>
+                    ))
+                  )}
+                  {index < ventas.length - 1 && (
+                    <div className="border-t-2 border-dashed border-gray-300 my-3"></div>
+                  )}
                 </div>
-              ) : (
-                /* SI ES COMPLETA: Mostrar productos individuales */
-                venta.productos.map((producto, prodIndex) => (
-                  <div key={prodIndex} className="mb-2">
-                    <div className="text-sm font-black uppercase">{producto.nombre}</div>
+              ));
+            }
+
+            // Particionar ventas por fecha_creacion vs latestPaymentDate
+            const ventasAnteriores = ventas.filter((v) => {
+              const fc = v.fecha_creacion ? new Date(v.fecha_creacion) : null;
+              return fc && fc < latestPaymentDate;
+            });
+
+            const ventasPosteriores = ventas.filter((v) => {
+              const fc = v.fecha_creacion ? new Date(v.fecha_creacion) : null;
+              return !fc || fc >= latestPaymentDate;
+            });
+
+            const sumaDeudaRestante = ventasAnteriores.reduce((acc, v) => acc + (Number(v.monto_pendiente) || 0), 0);
+
+            return (
+              <div>
+                {/* Bloque DEUDA RESTANTE con suma de pendientes de ventas anteriores a la fecha más reciente */}
+                {ventasAnteriores.length > 0 && (
+                  <div className="mb-3">   
+                    <div className="text-xs mb-1">{formatDateTime(latestPaymentDate.toISOString())}</div>
                     <div className="flex justify-between text-sm font-bold">
-                      <span>{producto.cantidad} X S/{producto.precio_unitario.toFixed(2)}</span>
-                      <span>S/{producto.subtotal.toFixed(2)}</span>
+                      <span>DEUDA RESTANTE:</span>
+                      <span className="text-sm">S/{sumaDeudaRestante.toFixed(2)}</span>
                     </div>
                     <div className="border-b border-dotted border-gray-400 mt-1"></div>
                   </div>
-                ))
-              )}
+                )}
 
-              {index < ventas.length - 1 && (
-                <div className="border-t-2 border-dashed border-gray-300 my-3"></div>
-              )}
-            </div>
-          ))
+                {/* Mostrar luego las ventas con fecha >= latestPaymentDate normalmente */}
+                {ventasPosteriores.map((venta, index) => (
+                  <div key={venta.id} className="mb-3">
+                    {mostrarFechaHora && (
+                      <div className="text-xs text-gray-600 mb-1 font-bold">
+                        {formatDateTime(venta.fecha_creacion)}
+                      </div>
+                    )}
+                    {venta.monto_pagado > 0 ? (
+                      <div>
+                        <div className="text-sm font-black uppercase">PARCIAL:</div>
+                        <div className="text-xs mb-1">({venta.productos.map(p => p.nombre.toUpperCase()).join(', ')})</div>
+                        <div className="flex justify-between text-xs font-bold">
+                          <span>TOTAL: S/{venta.total.toFixed(2)} PAGO: S/{venta.monto_pagado.toFixed(2)}</span>
+                          <span className="text-sm">S/{venta.monto_pendiente.toFixed(2)}</span>
+                        </div>
+                        <div className="border-b border-dotted border-gray-400 mt-1"></div>
+                      </div>
+                    ) : (
+                      venta.productos.map((producto, prodIndex) => (
+                        <div key={prodIndex} className="mb-2">
+                          <div className="text-sm font-black uppercase">{producto.nombre}</div>
+                          <div className="flex justify-between text-sm font-bold">
+                            <span>{producto.cantidad} X S/{producto.precio_unitario.toFixed(2)}</span>
+                            <span>S/{producto.subtotal.toFixed(2)}</span>
+                          </div>
+                          <div className="border-b border-dotted border-gray-400 mt-1"></div>
+                        </div>
+                      ))
+                    )}
+
+                    {index < ventasPosteriores.length - 1 && (
+                      <div className="border-t-2 border-dashed border-gray-300 my-3"></div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            );
+          })()
         )}
       </div>
 
@@ -243,16 +393,29 @@ const NotaEstadoCuenta = () => {
             <span>Volver</span>
           </button>
           <div className="flex items-center gap-3">
-            <div className="form-control">
-              <label className="label cursor-pointer gap-2">
-                <span className="label-text text-xs font-medium">Mostrar fecha y hora</span>
-                <input
-                  type="checkbox"
-                  className="checkbox checkbox-success checkbox-sm"
-                  checked={mostrarFechaHora}
-                  onChange={(e) => setMostrarFechaHora(e.target.checked)}
-                />
-              </label>
+            <div className="flex items-center gap-3">
+              <div className="form-control">
+                <label className="label cursor-pointer gap-2">
+                  <span className="label-text text-xs font-medium">Mostrar fecha y hora</span>
+                  <input
+                    type="checkbox"
+                    className="checkbox checkbox-success checkbox-sm"
+                    checked={mostrarFechaHora}
+                    onChange={(e) => handleMostrarFechaHoraChange(e.target.checked)}
+                  />
+                </label>
+              </div>
+              <div className="form-control">
+                <label className="label cursor-pointer gap-2">
+                  <span className="label-text text-xs font-medium">Resumido</span>
+                  <input
+                    type="checkbox"
+                    className="checkbox checkbox-success checkbox-sm"
+                    checked={resumido}
+                    onChange={(e) => handleResumidoChange(e.target.checked)}
+                  />
+                </label>
+              </div>
             </div>
             <button
               onClick={handlePrint}
