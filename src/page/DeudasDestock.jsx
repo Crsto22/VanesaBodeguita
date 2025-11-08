@@ -977,7 +977,9 @@ const DeudasDestock = () => {
                                       <tbody className="bg-white divide-y divide-gray-200">
                                         {(() => {
                                           if (!resumido) {
-                                            return ventas.map((venta, ventaIndex) => {
+                                            // Ordenar ventas por fecha de creación (más recientes primero)
+                                            const ventasOrdenadas = [...ventas].sort((a, b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion));
+                                            return ventasOrdenadas.map((venta, ventaIndex) => {
                                               // Verificar si es una venta parcial (monto_pendiente < total)
                                               const esParcial = venta.monto_pendiente < venta.total;
                                           
@@ -1123,7 +1125,9 @@ const DeudasDestock = () => {
                                       const latestPaymentDate = getLatestPaymentDateAcrossVentas(ventas);
                                       if (!latestPaymentDate) {
                                         // Si no hay pagos, mostrar todo normal
-                                        return ventas.map((venta, ventaIndex) => {
+                                        // Ordenar ventas por fecha de creación (más recientes primero)
+                                        const ventasOrdenadas = [...ventas].sort((a, b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion));
+                                        return ventasOrdenadas.map((venta, ventaIndex) => {
                                           const esParcial = venta.monto_pendiente < venta.total;
                                           
                                           if (esParcial) {
@@ -1204,12 +1208,12 @@ const DeudasDestock = () => {
                                       const ventasAnteriores = ventas.filter((v) => {
                                         const fc = v.fecha_creacion ? new Date(v.fecha_creacion) : null;
                                         return fc && fc < latestPaymentDate;
-                                      });
+                                      }).sort((a, b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion));
 
                                       const ventasPosteriores = ventas.filter((v) => {
                                         const fc = v.fecha_creacion ? new Date(v.fecha_creacion) : null;
                                         return !fc || fc >= latestPaymentDate;
-                                      });
+                                      }).sort((a, b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion));
 
                                       const sumaDeudaRestante = ventasAnteriores.reduce((acc, v) => acc + (Number(v.monto_pendiente) || 0), 0);
 
@@ -1436,7 +1440,8 @@ const DeudasDestock = () => {
                                     <span className="text-xs text-gray-500">{ventas.length} {ventas.length === 1 ? 'venta' : 'ventas'}</span>
                                   </div>
                                   <div className="grid grid-cols-2 gap-3">
-                                    {ventas.map((venta, index) => (
+                                    {/* Ordenar ventas por fecha de creación (más recientes primero) */}
+                                    {[...ventas].sort((a, b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion)).map((venta, index) => (
                                       <div key={venta.id} className={`rounded-xl shadow-sm border-2 transition-all hover:shadow-md ${
                                         selectedVentas.includes(venta.id) || pagarTodo ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300'
                                       } ${modoAbono ? 'opacity-50' : ''}`}>
