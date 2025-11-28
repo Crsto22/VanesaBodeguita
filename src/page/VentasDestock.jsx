@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Lottie from 'lottie-react';
@@ -51,11 +51,11 @@ const VentasDestock = () => {
     const [cachedProducts, setCachedProducts] = useState([]);
     const [cacheTimestamp, setCacheTimestamp] = useState(null);
     const [cacheVersion, setCacheVersion] = useState(0);
-    
+
     // Keys para localStorage
     const STORAGE_KEY_CART = 'ventasDestock_carrito';
     const STORAGE_KEY_CLIENTE = 'ventasDestock_cliente';
-    
+
     // Función para cargar datos desde localStorage
     const loadFromLocalStorage = (key, defaultValue) => {
         try {
@@ -66,7 +66,7 @@ const VentasDestock = () => {
             return defaultValue;
         }
     };
-    
+
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [selectedProducts, setSelectedProducts] = useState(() => loadFromLocalStorage(STORAGE_KEY_CART, []));
@@ -74,10 +74,10 @@ const VentasDestock = () => {
     const [barcodeInput, setBarcodeInput] = useState('');
     const [productosVisibles, setProductosVisibles] = useState(10); // Controla cuántos productos se muestran
     const [productoAnimando, setProductoAnimando] = useState(null); // Para la animación de agregar
-    
+
     // Estado del escáner (ON por defecto, se controla automáticamente con el input de búsqueda)
     const [escanerActivo, setEscanerActivo] = useState(true); // Default: ON
-    
+
     const [drawerClientesOpen, setDrawerClientesOpen] = useState(false);
     const [drawerEditarPrecioOpen, setDrawerEditarPrecioOpen] = useState(false);
     const [drawerKilogramoOpen, setDrawerKilogramoOpen] = useState(false);
@@ -92,13 +92,16 @@ const VentasDestock = () => {
     const [isProcessingVenta, setIsProcessingVenta] = useState(false);
     const [isProcessingBarcode, setIsProcessingBarcode] = useState(false);
     const [barcodeNotification, setBarcodeNotification] = useState(null);
-    
+
     // Estado de carga de productos
     const [productosLoading, setProductosLoading] = useState(true);
-    
+
     // Estados para el sistema de alertas de venta
     const [ventaStatus, setVentaStatus] = useState('idle'); // 'idle', 'uploading', 'success'
     const [ventaAlertId, setVentaAlertId] = useState(null);
+
+    // Ref para el contenedor del carrito
+    const cartContainerRef = useRef(null);
 
     // Funciones de gestión del caché de productos
     const updateProductsCache = React.useCallback((products) => {
@@ -117,7 +120,7 @@ const VentasDestock = () => {
     const getProductsFromCache = React.useCallback(() => {
         const cacheAge = Date.now() - (cacheTimestamp || 0);
         const maxCacheAge = 5 * 60 * 1000; // 5 minutos
-        
+
         if (cachedProducts.length > 0 && cacheAge < maxCacheAge) {
             console.log('✅ Usando productos desde cache');
             return cachedProducts;
@@ -129,11 +132,11 @@ const VentasDestock = () => {
     React.useEffect(() => {
         if (todosLosProductos && todosLosProductos.length > 0) {
             const cachedFromMemory = getProductsFromCache();
-            
+
             // Si no hay caché o los productos han cambiado, actualizar
-            if (!cachedFromMemory || 
+            if (!cachedFromMemory ||
                 cachedProducts.length !== todosLosProductos.length ||
-                JSON.stringify(cachedProducts.map(p => p.id).sort()) !== 
+                JSON.stringify(cachedProducts.map(p => p.id).sort()) !==
                 JSON.stringify(todosLosProductos.map(p => p.id).sort())) {
                 updateProductsCache(todosLosProductos);
             }
@@ -146,13 +149,13 @@ const VentasDestock = () => {
         if (fromCache) {
             return fromCache;
         }
-        
+
         // Si no hay caché válido, usar los productos externos
         if (todosLosProductos && todosLosProductos.length > 0) {
             updateProductsCache(todosLosProductos);
             return todosLosProductos;
         }
-        
+
         return [];
     }, [todosLosProductos, getProductsFromCache, updateProductsCache, cacheVersion]);
 
@@ -194,14 +197,14 @@ const VentasDestock = () => {
                 if (productoCarrito.id.toString().startsWith('temp_')) {
                     return true;
                 }
-                
+
                 // Verificar si el producto aún existe en la base de datos
                 const productoExiste = productosOptimizados.find(p => p.id === productoCarrito.id);
-                
+
                 if (!productoExiste) {
                     console.warn('⚠️ Producto eliminado de la BD encontrado en carrito:', productoCarrito.nombre);
                 }
-                
+
                 return productoExiste !== undefined;
             });
 
@@ -212,6 +215,16 @@ const VentasDestock = () => {
             }
         }
     }, [productosOptimizados]); // Solo cuando los productos se cargan inicialmente
+
+    // Efecto para hacer scroll automático al final del carrito cuando se agregan productos
+    useEffect(() => {
+        if (cartContainerRef.current) {
+            // Usamos setTimeout para asegurar que el DOM se haya actualizado
+            setTimeout(() => {
+                cartContainerRef.current.scrollTop = cartContainerRef.current.scrollHeight;
+            }, 100);
+        }
+    }, [selectedProducts.length]); // Solo cuando cambia la cantidad de productos (agregados/eliminados)
 
     // Filtrar productos según categoría seleccionada y término de búsqueda
     const productosFiltrados = React.useMemo(() => {
@@ -252,12 +265,12 @@ const VentasDestock = () => {
     // Función para buscar producto por código de barras
     const buscarProductoPorCodigoBarras = (codigo) => {
         if (!codigo || !productosOptimizados) return null;
-        
+
         // Buscar producto que coincida exactamente con el código de barras
-        const producto = productosOptimizados.find(p => 
+        const producto = productosOptimizados.find(p =>
             p.codigo_barras && p.codigo_barras.trim() === codigo.trim()
         );
-        
+
         return producto;
     };
 
@@ -270,7 +283,7 @@ const VentasDestock = () => {
         if (activeElement && activeElement.matches('input, textarea, select, [contenteditable]')) {
             activeElement.blur();
         }
-        
+
         // Luego, enfocar el input invisible del escáner
         setTimeout(() => {
             const barcodeInput = document.querySelector('#scanner-input');
@@ -287,35 +300,35 @@ const VentasDestock = () => {
     // Función para procesar código de barras
     const procesarCodigoBarras = (codigo) => {
         if (!codigo || !codigo.trim()) return;
-        
+
         console.log('🔍 Procesando código de barras:', codigo);
         setIsProcessingBarcode(true);
-        
+
         // Simular un pequeño delay para mostrar el estado de carga
         setTimeout(() => {
             // Buscar el producto por código de barras
             const producto = buscarProductoPorCodigoBarras(codigo);
-            
+
             if (producto) {
                 console.log('✅ Producto encontrado:', producto.nombre);
-                
+
                 // Mostrar notificación de éxito
                 setBarcodeNotification({
                     type: 'success',
                     message: `Producto agregado`,
                     codigo: codigo
                 });
-                
+
                 // Agregar el producto al carrito
                 handleAddToCart(producto);
-                
+
                 // Animación visual
                 setProductoAnimando(producto.id);
                 setTimeout(() => setProductoAnimando(null), 1000);
-                
+
             } else {
                 console.log('❌ Producto no encontrado para código:', codigo);
-                
+
                 // Mostrar notificación de error
                 setBarcodeNotification({
                     type: 'error',
@@ -323,14 +336,14 @@ const VentasDestock = () => {
                     codigo: codigo
                 });
             }
-            
+
             setIsProcessingBarcode(false);
-            
+
             // Limpiar notificación después de 3 segundos
             setTimeout(() => {
                 setBarcodeNotification(null);
             }, 3000);
-            
+
         }, 200); // Delay reducido para mayor velocidad
     };
 
@@ -340,17 +353,17 @@ const VentasDestock = () => {
     // Efecto para mantener el focus en el input de código de barras SOLO cuando el escáner esté activo
     React.useEffect(() => {
         if (!escanerActivo) return; // No hacer nada si el escáner está desactivado
-        
+
         const focusBarcodeInputIfNeeded = () => {
             const barcodeInput = document.querySelector('#scanner-input');
             const activeElement = document.activeElement;
-            
+
             // Solo enfocar si:
             // 1. El input invisible existe
             // 2. No hay otro input activo (búsqueda, textareas, etc.)
             // 3. No hay modales o drawers abiertos
             // 4. El escáner está activo
-            if (barcodeInput && 
+            if (barcodeInput &&
                 !activeElement?.matches('input:not(#scanner-input), textarea, select, [contenteditable]') &&
                 !document.querySelector('[role="dialog"], .modal-open, .drawer-open')) {
                 barcodeInput.focus();
@@ -371,6 +384,7 @@ const VentasDestock = () => {
         // Si es un producto por kilogramo, abrir el drawer de kilogramos
         if (producto.tipo_unidad === 'kilogramo') {
             setProductoKilogramo(producto);
+            setProductoEditando(null);
             setDrawerKilogramoOpen(true);
             return;
         }
@@ -402,9 +416,9 @@ const VentasDestock = () => {
             if (existingIndex !== -1) {
                 return prev.map((p, index) =>
                     index === existingIndex
-                        ? { 
-                            ...p, 
-                            cantidad: p.cantidad + 1, 
+                        ? {
+                            ...p,
+                            cantidad: p.cantidad + 1,
                             subtotal: (p.cantidad + 1) * p.precio,
                             cantidad_retornable: p.retornable && p.tipo_unidad !== 'kilogramo' ? (p.cantidad_retornable || 0) + 1 : p.cantidad_retornable
                         }
@@ -421,9 +435,9 @@ const VentasDestock = () => {
         setSelectedProducts(prev =>
             prev.map(p =>
                 p.id === productoId
-                    ? { 
-                        ...p, 
-                        cantidad: p.cantidad + 1, 
+                    ? {
+                        ...p,
+                        cantidad: p.cantidad + 1,
                         subtotal: (p.cantidad + 1) * p.precio,
                         cantidad_retornable: p.retornable && p.tipo_unidad !== 'kilogramo' ? p.cantidad + 1 : (p.cantidad_retornable || 0)
                     }
@@ -437,9 +451,9 @@ const VentasDestock = () => {
         setSelectedProducts(prev =>
             prev.map(p =>
                 p.id === productoId && p.cantidad > 1
-                    ? { 
-                        ...p, 
-                        cantidad: p.cantidad - 1, 
+                    ? {
+                        ...p,
+                        cantidad: p.cantidad - 1,
                         subtotal: (p.cantidad - 1) * p.precio,
                         cantidad_retornable: p.retornable && p.tipo_unidad !== 'kilogramo' ? p.cantidad - 1 : Math.min(p.cantidad_retornable || 0, p.cantidad - 1)
                     }
@@ -460,13 +474,13 @@ const VentasDestock = () => {
                 if (p.id === productoId && p.retornable) {
                     let currentRetornables = p.cantidad_retornable || 0;
                     let newRetornables = currentRetornables;
-                    
+
                     if (action === 'increment' && newRetornables < p.cantidad) {
                         newRetornables += 1;
                     } else if (action === 'decrement' && newRetornables > 0) {
                         newRetornables -= 1;
                     }
-                    
+
                     return { ...p, cantidad_retornable: newRetornables };
                 }
                 return p;
@@ -517,7 +531,7 @@ const VentasDestock = () => {
         setSelectedProducts(prev => [...prev, productoCarrito]);
         setDrawerKilogramoOpen(false);
         setProductoKilogramo(null);
-        
+
         console.log('🚀 Producto por kilogramo agregado:', {
             id: productoCarrito.id,
             carritoId: productoCarrito.carritoId,
@@ -543,8 +557,8 @@ const VentasDestock = () => {
         };
 
         // Actualizar el producto en el carrito
-        setSelectedProducts(prev => 
-            prev.map(p => 
+        setSelectedProducts(prev =>
+            prev.map(p =>
                 p === productoEditando ? productoActualizado : p
             )
         );
@@ -552,24 +566,24 @@ const VentasDestock = () => {
         setDrawerKilogramoOpen(false);
         setProductoKilogramo(null);
         setProductoEditando(null);
-        
+
         console.log('Producto por kilogramo actualizado:', productoActualizado);
     };
 
     // Función para agregar producto con precio alternativo al carrito
     const handleAgregarPrecioAlternativo = (productoCarrito) => {
         setSelectedProducts(prev => {
-            const existingIndex = prev.findIndex(p => 
-                p.id === productoCarrito.id && 
+            const existingIndex = prev.findIndex(p =>
+                p.id === productoCarrito.id &&
                 p.precio_usado === productoCarrito.precio_usado
             );
-            
+
             if (existingIndex !== -1) {
                 return prev.map((p, index) =>
                     index === existingIndex
-                        ? { 
-                            ...p, 
-                            cantidad: p.cantidad + 1, 
+                        ? {
+                            ...p,
+                            cantidad: p.cantidad + 1,
                             subtotal: (p.cantidad + 1) * p.precio,
                             cantidad_retornable: p.retornable && p.tipo_unidad !== 'kilogramo' ? (p.cantidad_retornable || 0) + 1 : p.cantidad_retornable
                         }
@@ -579,10 +593,10 @@ const VentasDestock = () => {
                 return [...prev, productoCarrito];
             }
         });
-        
+
         setDrawerPrecioAlternativoOpen(false);
         setProductoPrecioAlternativo(null);
-        
+
         console.log('Producto con precio alternativo agregado:', productoCarrito);
     };
 
@@ -599,7 +613,7 @@ const VentasDestock = () => {
                     : p
             )
         );
-        
+
         setDrawerEditarPrecioOpen(false);
         setProductoParaEditar(null);
     };
@@ -613,7 +627,7 @@ const VentasDestock = () => {
 
         // Verificar si hay productos retornables que generan deuda de botellas
         const hasOwedRetornables = selectedProducts.some((p) => p.retornable && (p.cantidad_retornable || 0) < p.cantidad);
-        
+
         if (hasOwedRetornables && !clienteSeleccionado) {
             alert('Se requiere un cliente específico para productos retornables que generan deuda de botellas');
             return;
@@ -623,16 +637,16 @@ const VentasDestock = () => {
         if (!clienteSeleccionado) {
             try {
                 setVentaStatus('uploading'); // Mostrar alerta de carga
-                
+
                 const result = await handleConfirmarVenta({
                     estado: 'pagado',
                     montoPagado: calcularTotal(),
                     notas: ''
                 });
-                
+
                 setVentaAlertId(result);
                 setVentaStatus('success'); // Mostrar alerta de éxito
-                
+
                 // Auto-hide después de 5 segundos
                 setTimeout(() => {
                     setVentaStatus('idle');
@@ -640,7 +654,7 @@ const VentasDestock = () => {
                         setVentaAlertId(null);
                     }, 700);
                 }, 5000);
-                
+
             } catch (error) {
                 console.error('Error al procesar venta directa:', error);
                 setVentaStatus('idle'); // Ocultar alerta en caso de error
@@ -656,11 +670,11 @@ const VentasDestock = () => {
     const handleConfirmarVenta = async ({ estado, montoPagado, notas }) => {
         try {
             const total = calcularTotal();
-            
+
             // Calcular monto pendiente
-            const montoPendiente = estado === 'pendiente' ? total : 
-                                   estado === 'parcial' ? total - montoPagado : 0;
-            
+            const montoPendiente = estado === 'pendiente' ? total :
+                estado === 'parcial' ? total - montoPagado : 0;
+
             // Preparar datos de la venta usando la estructura del VentasContext
             const ventaData = {
                 cliente_ref: clienteSeleccionado ? clienteSeleccionado.id : null,
@@ -968,11 +982,10 @@ const VentasDestock = () => {
                                     setDrawerQuickAddOpen(true);
                                 }
                             }}
-                            className={`w-full p-4 text-left rounded-xl mb-4 transition-colors shadow-sm ${
-                                ventaStatus === 'uploading'
-                                    ? 'opacity-50 cursor-not-allowed'
-                                    : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-md hover:shadow-lg'
-                            }`}
+                            className={`w-full p-4 text-left rounded-xl mb-4 transition-colors shadow-sm ${ventaStatus === 'uploading'
+                                ? 'opacity-50 cursor-not-allowed'
+                                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-md hover:shadow-lg'
+                                }`}
                             variants={buttonVariants}
                             whileHover={ventaStatus !== 'uploading' ? "hover" : {}}
                             whileTap={ventaStatus !== 'uploading' ? "tap" : {}}
@@ -990,13 +1003,12 @@ const VentasDestock = () => {
                                     setSelectedCategory('all');
                                 }
                             }}
-                            className={`w-full p-4 text-left rounded-xl mb-3 transition-colors shadow-sm ${
-                                ventaStatus === 'uploading'
-                                    ? 'opacity-50 cursor-not-allowed'
-                                    : ''
-                            } ${selectedCategory === 'all'
-                                ? 'bg-[#ffa40c] text-white shadow-md'
-                                : 'bg-white hover:bg-gray-50 text-gray-700 hover:shadow-md border border-gray-100'
+                            className={`w-full p-4 text-left rounded-xl mb-3 transition-colors shadow-sm ${ventaStatus === 'uploading'
+                                ? 'opacity-50 cursor-not-allowed'
+                                : ''
+                                } ${selectedCategory === 'all'
+                                    ? 'bg-[#ffa40c] text-white shadow-md'
+                                    : 'bg-white hover:bg-gray-50 text-gray-700 hover:shadow-md border border-gray-100'
                                 }`}
                             variants={buttonVariants}
                             whileHover={ventaStatus !== 'uploading' ? "hover" : {}}
@@ -1025,13 +1037,12 @@ const VentasDestock = () => {
                                                 setSelectedCategory(categoria.id);
                                             }
                                         }}
-                                        className={`w-full p-4 text-left rounded-xl mb-3 transition-colors shadow-sm ${
-                                            ventaStatus === 'uploading'
-                                                ? 'opacity-50 cursor-not-allowed'
-                                                : ''
-                                        } ${selectedCategory === categoria.id
-                                            ? 'bg-[#ffa40c] text-white shadow-md'
-                                            : 'bg-white hover:bg-gray-50 text-gray-700 hover:shadow-md border border-gray-100'
+                                        className={`w-full p-4 text-left rounded-xl mb-3 transition-colors shadow-sm ${ventaStatus === 'uploading'
+                                            ? 'opacity-50 cursor-not-allowed'
+                                            : ''
+                                            } ${selectedCategory === categoria.id
+                                                ? 'bg-[#ffa40c] text-white shadow-md'
+                                                : 'bg-white hover:bg-gray-50 text-gray-700 hover:shadow-md border border-gray-100'
                                             }`}
                                         variants={buttonVariants}
                                         whileHover={ventaStatus !== 'uploading' ? "hover" : {}}
@@ -1117,112 +1128,111 @@ const VentasDestock = () => {
                                 <div className="space-y-4">
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                                         {productosParaMostrar.map((producto) => (
-                                        <div
-                                            key={producto.id}
-                                            className={`bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden relative ${
-                                                ventaStatus === 'uploading' 
-                                                    ? 'opacity-50 cursor-not-allowed' 
+                                            <div
+                                                key={producto.id}
+                                                className={`bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden relative ${ventaStatus === 'uploading'
+                                                    ? 'opacity-50 cursor-not-allowed'
                                                     : 'cursor-pointer'
-                                            }`}
-                                            onClick={() => {
-                                                if (ventaStatus !== 'uploading') {
-                                                    handleAddToCart(producto);
-                                                }
-                                            }}
-                                        >
-                                            {/* Header con precios */}
-                                            <div className="flex justify-start items-start p-4 pb-2 gap-2">
-                                                {/* Precio principal - Recuadro verde */}
-                                                <div className="bg-[#45923a] text-white px-3 py-2 rounded-full shadow-sm">
-                                                    <span className="font-bold text-sm">S/{parseFloat(producto.precio).toFixed(2)}</span>
-                                                    <span className="text-xs ml-1 opacity-90">
-                                                        {producto.tipo_unidad === 'kilogramo' ? '/kg' : '/ud'}
-                                                    </span>
-                                                </div>
-
-                                                {/* Precio alternativo (si lo tiene) - Recuadro azul */}
-                                                {producto.has_precio_alternativo && producto.precio_alternativo !== null && (
-                                                    <div className="bg-blue-500 text-white px-3 py-2 rounded-full shadow-sm">
-                                                        <span className="font-bold text-sm">S/{parseFloat(producto.precio_alternativo).toFixed(2)}</span>
+                                                    }`}
+                                                onClick={() => {
+                                                    if (ventaStatus !== 'uploading') {
+                                                        handleAddToCart(producto);
+                                                    }
+                                                }}
+                                            >
+                                                {/* Header con precios */}
+                                                <div className="flex justify-start items-start p-4 pb-2 gap-2">
+                                                    {/* Precio principal - Recuadro verde */}
+                                                    <div className="bg-[#45923a] text-white px-3 py-2 rounded-full shadow-sm">
+                                                        <span className="font-bold text-sm">S/{parseFloat(producto.precio).toFixed(2)}</span>
                                                         <span className="text-xs ml-1 opacity-90">
                                                             {producto.tipo_unidad === 'kilogramo' ? '/kg' : '/ud'}
                                                         </span>
                                                     </div>
-                                                )}
-                                            </div>
 
-                                            {/* Imagen del producto - Centrada */}
-                                            <div className="relative h-40  bg-white flex items-center justify-center mx-4 mb-4">
-                                                {producto.imagen ? (
-                                                    <img
-                                                        src={producto.imagen}
-                                                        alt={producto.nombre}
-                                                        className="w-full h-full  object-contain"
-                                                    />
-                                                ) : (
-                                                    <div className="w-full h-full bg-gray-50 rounded-lg flex items-center justify-center">
-                                                        <Package className="text-gray-300" size={48} />
-                                                    </div>
-                                                )}
-                                                
-                                                {/* Overlay cuando está en carrito */}
-                                                {getCantidadEnCarrito(producto.id) > 0 && (
-                                                    <div className="absolute inset-0 bg-green-500/10 backdrop-blur-[1px] flex items-center justify-center rounded-lg">
-                                                        <div className="bg-green-500 text-white rounded-full px-3 py-1 shadow-lg">
-                                                            <span className="font-bold text-sm flex items-center gap-1">
-                                                                <ShoppingCart size={14} />
-                                                                En carrito
+                                                    {/* Precio alternativo (si lo tiene) - Recuadro azul */}
+                                                    {producto.has_precio_alternativo && producto.precio_alternativo !== null && (
+                                                        <div className="bg-blue-500 text-white px-3 py-2 rounded-full shadow-sm">
+                                                            <span className="font-bold text-sm">S/{parseFloat(producto.precio_alternativo).toFixed(2)}</span>
+                                                            <span className="text-xs ml-1 opacity-90">
+                                                                {producto.tipo_unidad === 'kilogramo' ? '/kg' : '/ud'}
                                                             </span>
                                                         </div>
-                                                    </div>
-                                                )}
-                                                
-                                                {/* Badge de cantidad */}
-                                                {getCantidadEnCarrito(producto.id) > 0 && (
-                                                    <div className="absolute -top-2 -right-2 bg-green-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm shadow-lg border-2 border-white z-10">
-                                                        {getCantidadEnCarrito(producto.id)}
-                                                    </div>
-                                                )}
-                                            </div>
+                                                    )}
+                                                </div>
 
-                                            {/* Nombre del producto - Debajo de la imagen */}
-                                            <div className="px-4 mb-3">
-                                                <h4 className="font-bold text-gray-900 text-sm leading-tight text-center uppercase tracking-wide">
-                                                    {producto.nombre}
-                                                </h4>
-                                            </div>
+                                                {/* Imagen del producto - Centrada */}
+                                                <div className="relative h-40  bg-white flex items-center justify-center mx-4 mb-4">
+                                                    {producto.imagen ? (
+                                                        <img
+                                                            src={producto.imagen}
+                                                            alt={producto.nombre}
+                                                            className="w-full h-full  object-contain"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full bg-gray-50 rounded-lg flex items-center justify-center">
+                                                            <Package className="text-gray-300" size={48} />
+                                                        </div>
+                                                    )}
 
-                                            {/* Categoría y Stock - Badge bonito y colorido */}
-                                            <div className="px-4 pb-4">
-                                                <div className="text-center flex flex-wrap justify-center items-center gap-2">
-                                                    <span className="inline-flex items-center font-bold text-xs bg-gradient-to-r from-amber-500 to-yellow-600 px-4 py-2 rounded-full text-white shadow-md hover:shadow-lg transition-all duration-200 border border-amber-400">
-                                                        {obtenerCategoriaPorId(producto.categoria_ref)?.nombre || 'Sin categoría'}
-                                                    </span>
-                                                    <span className="inline-flex items-center font-bold text-xs bg-gray-100 text-gray-700 px-3 py-2 rounded-full shadow-sm">
-                                                        Stock: {producto.stock || 0}
-                                                    </span>
+                                                    {/* Overlay cuando está en carrito */}
+                                                    {getCantidadEnCarrito(producto.id) > 0 && (
+                                                        <div className="absolute inset-0 bg-green-500/10 backdrop-blur-[1px] flex items-center justify-center rounded-lg">
+                                                            <div className="bg-green-500 text-white rounded-full px-3 py-1 shadow-lg">
+                                                                <span className="font-bold text-sm flex items-center gap-1">
+                                                                    <ShoppingCart size={14} />
+                                                                    En carrito
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Badge de cantidad */}
+                                                    {getCantidadEnCarrito(producto.id) > 0 && (
+                                                        <div className="absolute -top-2 -right-2 bg-green-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm shadow-lg border-2 border-white z-10">
+                                                            {getCantidadEnCarrito(producto.id)}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Nombre del producto - Debajo de la imagen */}
+                                                <div className="px-4 mb-3">
+                                                    <h4 className="font-bold text-gray-900 text-sm leading-tight text-center uppercase tracking-wide">
+                                                        {producto.nombre}
+                                                    </h4>
+                                                </div>
+
+                                                {/* Categoría y Stock - Badge bonito y colorido */}
+                                                <div className="px-4 pb-4">
+                                                    <div className="text-center flex flex-wrap justify-center items-center gap-2">
+                                                        <span className="inline-flex items-center font-bold text-xs bg-gradient-to-r from-amber-500 to-yellow-600 px-4 py-2 rounded-full text-white shadow-md hover:shadow-lg transition-all duration-200 border border-amber-400">
+                                                            {obtenerCategoriaPorId(producto.categoria_ref)?.nombre || 'Sin categoría'}
+                                                        </span>
+                                                        <span className="inline-flex items-center font-bold text-xs bg-gray-100 text-gray-700 px-3 py-2 rounded-full shadow-sm">
+                                                            Stock: {producto.stock || 0}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* Botón Ver Más */}
-                                {productosVisibles < productosFiltrados.length && (
-                                    <div className="flex justify-center pt-6">
-                                        <motion.button
-                                            onClick={handleVerMas}
-                                            className="bg-[#45923a] hover:bg-[#3a7d30] text-white px-8 py-3 rounded-xl font-bold transition-colors flex items-center gap-2"
-                                            variants={buttonVariants}
-                                            whileHover="hover"
-                                            whileTap="tap"
-                                        >
-                                            <Eye size={20} />
-                                            Ver más productos ({Math.min(5, productosFiltrados.length - productosVisibles)} más)
-                                        </motion.button>
+                                        ))}
                                     </div>
-                                )}
-                            </div>
+
+                                    {/* Botón Ver Más */}
+                                    {productosVisibles < productosFiltrados.length && (
+                                        <div className="flex justify-center pt-6">
+                                            <motion.button
+                                                onClick={handleVerMas}
+                                                className="bg-[#45923a] hover:bg-[#3a7d30] text-white px-8 py-3 rounded-xl font-bold transition-colors flex items-center gap-2"
+                                                variants={buttonVariants}
+                                                whileHover="hover"
+                                                whileTap="tap"
+                                            >
+                                                <Eye size={20} />
+                                                Ver más productos ({Math.min(5, productosFiltrados.length - productosVisibles)} más)
+                                            </motion.button>
+                                        </div>
+                                    )}
+                                </div>
                             )}
                         </div>
                     </div>
@@ -1268,12 +1278,12 @@ const VentasDestock = () => {
                                 {/* Badge de envío por WhatsApp */}
                                 {clienteSeleccionado && clienteSeleccionado.enviar_whatsapp && (
                                     <span className="bg-green-500 backdrop-blur-sm text-white px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap flex items-center gap-1.5">
-                                        <svg 
-                                            className="h-3 w-3" 
-                                            fill="currentColor" 
+                                        <svg
+                                            className="h-3 w-3"
+                                            fill="currentColor"
                                             viewBox="0 0 24 24"
                                         >
-                                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
                                         </svg>
                                         Envío WhatsApp
                                     </span>
@@ -1288,7 +1298,7 @@ const VentasDestock = () => {
                                         {calcularTotalProductos()}
                                     </span>
                                 </div>
-                                
+
                                 {/* Contador de botellas adeudadas */}
                                 {calcularBotellasAdeudadas() > 0 && (
                                     <div className="flex items-center gap-1 bg-red-500/90 px-2 py-1 rounded-full">
@@ -1298,7 +1308,7 @@ const VentasDestock = () => {
                                         </span>
                                     </div>
                                 )}
-                                
+
                                 {/* Botón para vaciar carrito */}
                                 {selectedProducts.length > 0 && (
                                     <button
@@ -1307,7 +1317,7 @@ const VentasDestock = () => {
                                         title="Vaciar carrito"
                                         disabled={ventaStatus === 'uploading'}
                                     >
-                                        <Trash2 size={20}  className="text-white" />
+                                        <Trash2 size={20} className="text-white" />
                                     </button>
                                 )}
                             </div>
@@ -1336,7 +1346,7 @@ const VentasDestock = () => {
                                         </button>
                                     )}
                                 </button>
-                                
+
                                 {/* Badge de deuda */}
                                 {clienteSeleccionado && deudaTotalCliente > 0 && (
                                     <span className="bg-red-500 text-white px-3 py-2.5 rounded-full text-sm font-bold whitespace-nowrap flex items-center gap-1">
@@ -1349,16 +1359,18 @@ const VentasDestock = () => {
                     </div>
 
                     {/* Lista de productos en carrito */}
-                    <div className="flex-1 p-4 overflow-y-auto custom-scrollbar min-h-0">
+                    <div
+                        ref={cartContainerRef}
+                        className="flex-1 p-4 overflow-y-auto custom-scrollbar min-h-0"
+                    >
                         {/* Notificación de código de barras */}
                         <AnimatePresence>
                             {barcodeNotification && (
                                 <motion.div
-                                    className={`mb-4 rounded-lg shadow-lg p-4 ${
-                                        barcodeNotification.type === 'success' 
-                                            ? 'bg-green-500 text-white' 
-                                            : 'bg-red-500 text-white'
-                                    }`}
+                                    className={`mb-4 rounded-lg shadow-lg p-4 ${barcodeNotification.type === 'success'
+                                        ? 'bg-green-500 text-white'
+                                        : 'bg-red-500 text-white'
+                                        }`}
                                     initial={{ opacity: 0, y: -20, scale: 0.9 }}
                                     animate={{ opacity: 1, y: 0, scale: 1 }}
                                     exit={{ opacity: 0, y: -20, scale: 0.9 }}
@@ -1396,16 +1408,15 @@ const VentasDestock = () => {
                                 <img src={CarritoVacio} className="w-28 mb-4" alt="Carrito vacío" />
                                 <p className="font-medium mb-2">Carrito vacío</p>
                                 <p className="text-sm mb-4">Añade productos del catálogo</p>
-                                
+
                                 {/* Indicador de estado del escáner en carrito vacío */}
                                 <div className="flex items-center gap-3 bg-[#45923a] px-4 py-3 rounded-xl">
                                     <ScanBarcode className="w-5 h-5 text-white" />
                                     <span className="text-white font-medium text-sm">Estado del escáner:</span>
-                                    <span className={`text-sm font-medium px-2 py-1 rounded-full ${
-                                        escanerActivo 
-                                            ? 'bg-green-200 text-green-800' 
-                                            : 'bg-gray-200 text-gray-800'
-                                    }`}>
+                                    <span className={`text-sm font-medium px-2 py-1 rounded-full ${escanerActivo
+                                        ? 'bg-green-200 text-green-800'
+                                        : 'bg-gray-200 text-gray-800'
+                                        }`}>
                                         {escanerActivo ? 'ACTIVO' : 'INACTIVO'}
                                     </span>
                                 </div>
@@ -1418,147 +1429,143 @@ const VentasDestock = () => {
                                         className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 animate-fadeIn"
                                         style={{ animationDelay: `${index * 0.05}s` }}
                                     >
-                                            {/* Header del producto con nuevo diseño */}
-                                            <div className="flex items-start gap-3 mb-4">
-                                                {/* Imagen del producto - Izquierda */}
-                                                <div className="w-16 h-16 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl flex items-center justify-center overflow-hidden shadow-sm flex-shrink-0">
-                                                    {producto.imagen ? (
-                                                        <img src={producto.imagen} alt={producto.nombre} className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <Package size={24} className="text-gray-400" />
-                                                    )}
-                                                </div>
-                                                
-                                                {/* Información del producto - Centro */}
-                                                <div className="flex-1 min-w-0">
-                                                    {/* Nombre del producto */}
-                                                    <h4 className="font-bold text-gray-800 text-base leading-tight mb-2">{producto.nombre}</h4>
-                                                    
-                                                    {/* Precios en línea horizontal */}
-                                                    <div className="flex items-center justify-between">
-                                                        {/* Precio unitario - Izquierda */}
-                                                        <div className="flex flex-col">
-                                                            <span className="text-xs text-gray-500 uppercase font-bold tracking-wide">Precio Unidad</span>
-                                                            <span className="text-lg font-bold text-gray-800">S/{producto.precio.toFixed(2)}</span>
-                                                        </div>
-                                                        
-                                                        {/* Subtotal - Derecha */}
-                                                        <div className="flex flex-col text-right">
-                                                            <span className="text-xs text-gray-500 uppercase tracking-wide">Subtotal</span>
-                                                            <span className="text-xl font-extrabold text-[#45923a]">S/{producto.subtotal.toFixed(2)}</span>
-                                                        </div>
+                                        {/* Header del producto con nuevo diseño */}
+                                        <div className="flex items-start gap-3 mb-4">
+                                            {/* Imagen del producto - Izquierda */}
+                                            <div className="w-16 h-16 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl flex items-center justify-center overflow-hidden shadow-sm flex-shrink-0">
+                                                {producto.imagen ? (
+                                                    <img src={producto.imagen} alt={producto.nombre} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <Package size={24} className="text-gray-400" />
+                                                )}
+                                            </div>
+
+                                            {/* Información del producto - Centro */}
+                                            <div className="flex-1 min-w-0">
+                                                {/* Nombre del producto */}
+                                                <h4 className="font-bold text-gray-800 text-base leading-tight mb-2">{producto.nombre}</h4>
+
+                                                {/* Precios en línea horizontal */}
+                                                <div className="flex items-center justify-between">
+                                                    {/* Precio unitario - Izquierda */}
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs text-gray-500 uppercase font-bold tracking-wide">Precio Unidad</span>
+                                                        <span className="text-lg font-bold text-gray-800">S/{producto.precio.toFixed(2)}</span>
                                                     </div>
-                                                </div>
-                                                
-                                                {/* Botones de acción - Derecha */}
-                                                <div className="flex flex-col gap-2 flex-shrink-0">
-                                                    <button
-                                                        onClick={() => {
-                                                            if (ventaStatus !== 'uploading') {
-                                                                handleEditProduct(producto);
-                                                            }
-                                                        }}
-                                                        className={`p-2.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors active:scale-95 ${
-                                                            ventaStatus === 'uploading' 
-                                                                ? 'opacity-50 cursor-not-allowed' 
-                                                                : 'hover:shadow-md'
-                                                        }`}
-                                                        title="Editar producto"
-                                                        disabled={ventaStatus === 'uploading'}
-                                                    >
-                                                        <Edit3 size={16} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => {
-                                                            if (ventaStatus !== 'uploading') {
-                                                                handleRemoveFromCart(producto.carritoId || producto.id);
-                                                            }
-                                                        }}
-                                                        className={`p-2.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors active:scale-95 ${
-                                                            ventaStatus === 'uploading' 
-                                                                ? 'opacity-50 cursor-not-allowed' 
-                                                                : 'hover:shadow-md'
-                                                        }`}
-                                                        title="Eliminar producto"
-                                                        disabled={ventaStatus === 'uploading'}
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
+
+                                                    {/* Subtotal - Derecha */}
+                                                    <div className="flex flex-col text-right">
+                                                        <span className="text-xs text-gray-500 uppercase tracking-wide">Subtotal</span>
+                                                        <span className="text-xl font-extrabold text-[#45923a]">S/{producto.subtotal.toFixed(2)}</span>
+                                                    </div>
                                                 </div>
                                             </div>
 
-                                            {/* Controles de cantidad - No mostrar para productos por kilogramo */}
-                                            {producto.tipo_unidad !== 'kilogramo' && (
-                                                <div className="bg-gray-50 rounded-xl p-3">
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-sm font-medium text-gray-600">Cantidad:</span>
-                                                        <div className="flex items-center gap-3">
-                                                            <button
-                                                                onClick={() => handleDecreaseQuantity(producto.id)}
-                                                                className="w-8 h-8 bg-white border-2 border-gray-200 rounded-lg flex items-center justify-center transition-colors active:scale-95 disabled:opacity-50"
-                                                                disabled={producto.cantidad <= 1 || ventaStatus === 'uploading'}
-                                                            >
-                                                                <Minus size={16} className={producto.cantidad <= 1 || ventaStatus === 'uploading' ? 'text-gray-300' : 'text-gray-600'} />
-                                                            </button>
-                                                            <span className="min-w-[3rem] text-center font-bold text-lg text-gray-800">{producto.cantidad}</span>
-                                                            <button
-                                                                onClick={() => handleIncreaseQuantity(producto.id)}
-                                                                className="w-8 h-8 bg-white border-2 border-gray-200 rounded-lg flex items-center justify-center transition-colors active:scale-95 disabled:opacity-50"
-                                                                disabled={ventaStatus === 'uploading'}
-                                                            >
-                                                                <Plus size={16} className={ventaStatus === 'uploading' ? 'text-gray-300' : 'text-gray-600'} />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
+                                            {/* Botones de acción - Derecha */}
+                                            <div className="flex flex-col gap-2 flex-shrink-0">
+                                                <button
+                                                    onClick={() => {
+                                                        if (ventaStatus !== 'uploading') {
+                                                            handleEditProduct(producto);
+                                                        }
+                                                    }}
+                                                    className={`p-2.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors active:scale-95 ${ventaStatus === 'uploading'
+                                                        ? 'opacity-50 cursor-not-allowed'
+                                                        : 'hover:shadow-md'
+                                                        }`}
+                                                    title="Editar producto"
+                                                    disabled={ventaStatus === 'uploading'}
+                                                >
+                                                    <Edit3 size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        if (ventaStatus !== 'uploading') {
+                                                            handleRemoveFromCart(producto.carritoId || producto.id);
+                                                        }
+                                                    }}
+                                                    className={`p-2.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors active:scale-95 ${ventaStatus === 'uploading'
+                                                        ? 'opacity-50 cursor-not-allowed'
+                                                        : 'hover:shadow-md'
+                                                        }`}
+                                                    title="Eliminar producto"
+                                                    disabled={ventaStatus === 'uploading'}
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
 
-                                            {/* Controles de botellas retornables */}
-                                            {producto.retornable && (
-                                                <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-3 border border-blue-200 mt-3">
-                                                    <div className="flex items-center justify-between gap-3">
-                                                        <div className="flex items-center gap-2">
-                                                            <Milk size={16} className="text-blue-600" />
-                                                            <span className="text-sm font-medium text-blue-800">Debe botellas:</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-3">
-                                                            <button
-                                                                onClick={() => {
-                                                                    if (ventaStatus !== 'uploading') {
-                                                                        handleUpdateRetornables(producto.id, 'increment');
-                                                                    }
-                                                                }} 
-                                                                className={`w-8 h-8 bg-white border-2 border-blue-200 rounded-lg flex items-center justify-center transition-colors active:scale-95 disabled:opacity-50 ${
-                                                                    ventaStatus === 'uploading' 
-                                                                        ? 'cursor-not-allowed' 
-                                                                        : ''
-                                                                }`}
-                                                                disabled={(producto.cantidad_retornable || 0) >= producto.cantidad || ventaStatus === 'uploading'}
-                                                            >
-                                                                <Minus size={16} className={(producto.cantidad_retornable || 0) >= producto.cantidad || ventaStatus === 'uploading' ? 'text-gray-300' : 'text-blue-600'} />
-                                                            </button>
-                                                            <span className="min-w-[3rem] text-center font-bold text-lg text-blue-800">
-                                                                {producto.cantidad - (producto.cantidad_retornable || 0)}
-                                                            </span>
-                                                            <button
-                                                                onClick={() => {
-                                                                    if (ventaStatus !== 'uploading') {
-                                                                        handleUpdateRetornables(producto.id, 'decrement');
-                                                                    }
-                                                                }} 
-                                                                className={`w-8 h-8 bg-white border-2 border-blue-200 rounded-lg flex items-center justify-center transition-colors active:scale-95 disabled:opacity-50 ${
-                                                                    ventaStatus === 'uploading' 
-                                                                        ? 'cursor-not-allowed' 
-                                                                        : ''
-                                                                }`}
-                                                                disabled={(producto.cantidad_retornable || 0) <= 0 || ventaStatus === 'uploading'}
-                                                            >
-                                                                <Plus size={16} className={(producto.cantidad_retornable || 0) <= 0 || ventaStatus === 'uploading' ? 'text-gray-300' : 'text-blue-600'} />
-                                                            </button>
-                                                        </div>
+                                        {/* Controles de cantidad - No mostrar para productos por kilogramo */}
+                                        {producto.tipo_unidad !== 'kilogramo' && (
+                                            <div className="bg-gray-50 rounded-xl p-3">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm font-medium text-gray-600">Cantidad:</span>
+                                                    <div className="flex items-center gap-3">
+                                                        <button
+                                                            onClick={() => handleDecreaseQuantity(producto.id)}
+                                                            className="w-8 h-8 bg-white border-2 border-gray-200 rounded-lg flex items-center justify-center transition-colors active:scale-95 disabled:opacity-50"
+                                                            disabled={producto.cantidad <= 1 || ventaStatus === 'uploading'}
+                                                        >
+                                                            <Minus size={16} className={producto.cantidad <= 1 || ventaStatus === 'uploading' ? 'text-gray-300' : 'text-gray-600'} />
+                                                        </button>
+                                                        <span className="min-w-[3rem] text-center font-bold text-lg text-gray-800">{producto.cantidad}</span>
+                                                        <button
+                                                            onClick={() => handleIncreaseQuantity(producto.id)}
+                                                            className="w-8 h-8 bg-white border-2 border-gray-200 rounded-lg flex items-center justify-center transition-colors active:scale-95 disabled:opacity-50"
+                                                            disabled={ventaStatus === 'uploading'}
+                                                        >
+                                                            <Plus size={16} className={ventaStatus === 'uploading' ? 'text-gray-300' : 'text-gray-600'} />
+                                                        </button>
                                                     </div>
                                                 </div>
-                                            )}
+                                            </div>
+                                        )}
+
+                                        {/* Controles de botellas retornables */}
+                                        {producto.retornable && (
+                                            <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-3 border border-blue-200 mt-3">
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <Milk size={16} className="text-blue-600" />
+                                                        <span className="text-sm font-medium text-blue-800">Debe botellas:</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <button
+                                                            onClick={() => {
+                                                                if (ventaStatus !== 'uploading') {
+                                                                    handleUpdateRetornables(producto.id, 'increment');
+                                                                }
+                                                            }}
+                                                            className={`w-8 h-8 bg-white border-2 border-blue-200 rounded-lg flex items-center justify-center transition-colors active:scale-95 disabled:opacity-50 ${ventaStatus === 'uploading'
+                                                                ? 'cursor-not-allowed'
+                                                                : ''
+                                                                }`}
+                                                            disabled={(producto.cantidad_retornable || 0) >= producto.cantidad || ventaStatus === 'uploading'}
+                                                        >
+                                                            <Minus size={16} className={(producto.cantidad_retornable || 0) >= producto.cantidad || ventaStatus === 'uploading' ? 'text-gray-300' : 'text-blue-600'} />
+                                                        </button>
+                                                        <span className="min-w-[3rem] text-center font-bold text-lg text-blue-800">
+                                                            {producto.cantidad - (producto.cantidad_retornable || 0)}
+                                                        </span>
+                                                        <button
+                                                            onClick={() => {
+                                                                if (ventaStatus !== 'uploading') {
+                                                                    handleUpdateRetornables(producto.id, 'decrement');
+                                                                }
+                                                            }}
+                                                            className={`w-8 h-8 bg-white border-2 border-blue-200 rounded-lg flex items-center justify-center transition-colors active:scale-95 disabled:opacity-50 ${ventaStatus === 'uploading'
+                                                                ? 'cursor-not-allowed'
+                                                                : ''
+                                                                }`}
+                                                            disabled={(producto.cantidad_retornable || 0) <= 0 || ventaStatus === 'uploading'}
+                                                        >
+                                                            <Plus size={16} className={(producto.cantidad_retornable || 0) <= 0 || ventaStatus === 'uploading' ? 'text-gray-300' : 'text-blue-600'} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -1587,11 +1594,10 @@ const VentasDestock = () => {
                                 )}
 
                                 <motion.button
-                                    className={`w-full p-4 rounded-lg font-bold text-lg transition-colors flex items-center justify-center gap-3 ${
-                                        ventaStatus === 'uploading' 
-                                            ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
-                                            : 'bg-[#45923a] text-white'
-                                    }`}
+                                    className={`w-full p-4 rounded-lg font-bold text-lg transition-colors flex items-center justify-center gap-3 ${ventaStatus === 'uploading'
+                                        ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                        : 'bg-[#45923a] text-white'
+                                        }`}
                                     onClick={handleProcesarPago}
                                     disabled={ventaStatus === 'uploading'}
                                 >
@@ -1667,120 +1673,120 @@ const VentasDestock = () => {
 
                     {/* Notificaciones */}
                     <AnimatePresence>
-                    {/* Alerta de venta principal */}
-                    {(ventaStatus === 'uploading' || ventaStatus === 'success') && (
-                        <motion.div 
-                            key="venta-notification-main"
-                            className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[70] w-full max-w-xl  px-4"
-                            initial={{ opacity: 0, y: -80, scale: 0.9 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ 
-                                opacity: 0, 
-                                y: -80, 
-                                scale: 0.9,
-                                transition: { duration: 0.6, ease: "easeInOut" }
-                            }}
-                            transition={{ 
-                                type: "spring", 
-                                stiffness: 300, 
-                                damping: 20,
-                                duration: 0.5
-                            }}
-                        >
-                            <div role="alert" className="alert alert-vertical sm:alert-horizontal bg-white shadow-2xl border border-gray-200 rounded-xl p-5">
-                                {ventaStatus === 'uploading' ? (
-                                    <motion.svg 
-                                        xmlns="http://www.w3.org/2000/svg" 
-                                        fill="none" 
-                                        viewBox="0 0 24 24" 
-                                        className="h-12 w-12 shrink-0"
-                                        animate={{ rotate: 360 }}
-                                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                                    >
-                                        <circle 
-                                            className="opacity-25" 
-                                            cx="12" 
-                                            cy="12" 
-                                            r="10" 
-                                            stroke="#2cda94" 
-                                            strokeWidth="2"
+                        {/* Alerta de venta principal */}
+                        {(ventaStatus === 'uploading' || ventaStatus === 'success') && (
+                            <motion.div
+                                key="venta-notification-main"
+                                className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[70] w-full max-w-xl  px-4"
+                                initial={{ opacity: 0, y: -80, scale: 0.9 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{
+                                    opacity: 0,
+                                    y: -80,
+                                    scale: 0.9,
+                                    transition: { duration: 0.6, ease: "easeInOut" }
+                                }}
+                                transition={{
+                                    type: "spring",
+                                    stiffness: 300,
+                                    damping: 20,
+                                    duration: 0.5
+                                }}
+                            >
+                                <div role="alert" className="alert alert-vertical sm:alert-horizontal bg-white shadow-2xl border border-gray-200 rounded-xl p-5">
+                                    {ventaStatus === 'uploading' ? (
+                                        <motion.svg
+                                            xmlns="http://www.w3.org/2000/svg"
                                             fill="none"
-                                        />
-                                        <path 
-                                            className="opacity-75" 
-                                            fill="#2cda94" 
-                                            d="m12 2a10 10 0 0 1 10 10h-2a8 8 0 0 0-8-8z"
-                                        />
-                                    </motion.svg>
-                                ) : (
-                                    <motion.div 
-                                        className="w-12 h-12 shrink-0 flex items-center justify-center"
-                                        initial={{ scale: 0, rotate: -180 }}
-                                        animate={{ scale: 1, rotate: 0 }}
-                                        transition={{ 
-                                            type: "spring", 
-                                            stiffness: 500, 
-                                            damping: 20,
-                                            delay: 0.1
-                                        }}
+                                            viewBox="0 0 24 24"
+                                            className="h-12 w-12 shrink-0"
+                                            animate={{ rotate: 360 }}
+                                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                        >
+                                            <circle
+                                                className="opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="#2cda94"
+                                                strokeWidth="2"
+                                                fill="none"
+                                            />
+                                            <path
+                                                className="opacity-75"
+                                                fill="#2cda94"
+                                                d="m12 2a10 10 0 0 1 10 10h-2a8 8 0 0 0-8-8z"
+                                            />
+                                        </motion.svg>
+                                    ) : (
+                                        <motion.div
+                                            className="w-12 h-12 shrink-0 flex items-center justify-center"
+                                            initial={{ scale: 0, rotate: -180 }}
+                                            animate={{ scale: 1, rotate: 0 }}
+                                            transition={{
+                                                type: "spring",
+                                                stiffness: 500,
+                                                damping: 20,
+                                                delay: 0.1
+                                            }}
+                                        >
+                                            <Lottie
+                                                animationData={successAnimation}
+                                                autoplay={true}
+                                                loop={false}
+                                                style={{ width: '100%', height: '100%' }}
+                                            />
+                                        </motion.div>
+                                    )}
+
+                                    <motion.div
+                                        initial={ventaStatus === 'success' ? { opacity: 0, x: -20 } : false}
+                                        animate={ventaStatus === 'success' ? { opacity: 1, x: 0 } : {}}
+                                        transition={{ delay: 0.3, duration: 0.4 }}
                                     >
-                                        <Lottie 
-                                            animationData={successAnimation} 
-                                            autoplay={true}
-                                            loop={false}
-                                            style={{ width: '100%', height: '100%' }}
-                                        />
+                                        <motion.h3
+                                            className="font-bold text-base"
+                                            initial={ventaStatus === 'success' ? { opacity: 0 } : false}
+                                            animate={ventaStatus === 'success' ? { opacity: 1 } : {}}
+                                            transition={{ delay: 0.4, duration: 0.3 }}
+                                        >
+                                            {ventaStatus === 'uploading' ? 'Subiendo la venta' : '¡Venta completada!'}
+                                        </motion.h3>
+                                        <motion.div
+                                            className="text-sm"
+                                            initial={ventaStatus === 'success' ? { opacity: 0 } : false}
+                                            animate={ventaStatus === 'success' ? { opacity: 1 } : {}}
+                                            transition={{ delay: 0.5, duration: 0.3 }}
+                                        >
+                                            {ventaStatus === 'uploading'
+                                                ? 'La venta se está procesando...'
+                                                : 'La venta se ha registrado exitosamente'
+                                            }
+                                        </motion.div>
                                     </motion.div>
-                                )}
-                                
-                                <motion.div
-                                    initial={ventaStatus === 'success' ? { opacity: 0, x: -20 } : false}
-                                    animate={ventaStatus === 'success' ? { opacity: 1, x: 0 } : {}}
-                                    transition={{ delay: 0.3, duration: 0.4 }}
-                                >
-                                    <motion.h3 
-                                        className="font-bold text-base"
-                                        initial={ventaStatus === 'success' ? { opacity: 0 } : false}
-                                        animate={ventaStatus === 'success' ? { opacity: 1 } : {}}
-                                        transition={{ delay: 0.4, duration: 0.3 }}
-                                    >
-                                        {ventaStatus === 'uploading' ? 'Subiendo la venta' : '¡Venta completada!'}
-                                    </motion.h3>
-                                    <motion.div 
-                                        className="text-sm"
-                                        initial={ventaStatus === 'success' ? { opacity: 0 } : false}
-                                        animate={ventaStatus === 'success' ? { opacity: 1 } : {}}
-                                        transition={{ delay: 0.5, duration: 0.3 }}
-                                    >
-                                        {ventaStatus === 'uploading' 
-                                            ? 'La venta se está procesando...' 
-                                            : 'La venta se ha registrado exitosamente'
-                                        }
-                                    </motion.div>
-                                </motion.div>
-                                
-                                {ventaStatus === 'success' && (
-                                    <motion.button 
-                                        className="btn bg-[#45923a] hover:bg-[#3a7d30] text-white border-none"
-                                        onClick={handleViewTicketFromAlert}
-                                        initial={{ opacity: 0, x: 30, scale: 0.8 }}
-                                        animate={{ opacity: 1, x: 0, scale: 1 }}
-                                        transition={{ 
-                                            delay: 0.6, 
-                                            duration: 0.4,
-                                            type: "spring",
-                                            stiffness: 200,
-                                            damping: 15
-                                        }}
-                                        whileHover={{ scale: 1.05 }}
-                                        whileTap={{ scale: 0.95 }}
-                                    >
-                                        Imprimir Ticket
-                                    </motion.button>
-                                )}
-                            </div>
-                        </motion.div>
-                    )}
+
+                                    {ventaStatus === 'success' && (
+                                        <motion.button
+                                            className="btn bg-[#45923a] hover:bg-[#3a7d30] text-white border-none"
+                                            onClick={handleViewTicketFromAlert}
+                                            initial={{ opacity: 0, x: 30, scale: 0.8 }}
+                                            animate={{ opacity: 1, x: 0, scale: 1 }}
+                                            transition={{
+                                                delay: 0.6,
+                                                duration: 0.4,
+                                                type: "spring",
+                                                stiffness: 200,
+                                                damping: 15
+                                            }}
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                        >
+                                            Imprimir Ticket
+                                        </motion.button>
+                                    )}
+                                </div>
+                            </motion.div>
+                        )}
                     </AnimatePresence>
                 </motion.div>
             </div>

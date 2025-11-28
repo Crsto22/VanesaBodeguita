@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { X, DollarSign, Check, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -109,7 +110,7 @@ const EditarPrecioDrawer = ({ isOpen, onClose, producto, onUpdatePrecio }) => {
   return (
     <AnimatePresence>
       {isVisible && (
-        <motion.div 
+        <motion.div
           className="absolute inset-0 bg-white z-10 flex flex-col"
           variants={drawerVariants}
           initial="hidden"
@@ -117,7 +118,7 @@ const EditarPrecioDrawer = ({ isOpen, onClose, producto, onUpdatePrecio }) => {
           exit="exit"
         >
           {/* Header */}
-          <motion.div 
+          <motion.div
             className="p-4 bg-gradient-to-r from-[#45923a] to-[#3a7d30] flex-shrink-0"
             variants={contentVariants}
             initial="hidden"
@@ -138,7 +139,7 @@ const EditarPrecioDrawer = ({ isOpen, onClose, producto, onUpdatePrecio }) => {
           </motion.div>
 
           {/* Content */}
-          <motion.div 
+          <motion.div
             className="flex-1 p-3 flex flex-col"
             variants={contentVariants}
             initial="hidden"
@@ -146,14 +147,14 @@ const EditarPrecioDrawer = ({ isOpen, onClose, producto, onUpdatePrecio }) => {
           >
             <div className="flex flex-col h-full space-y-3">
               {/* Producto Info */}
-              <div className="bg-gray-50 rounded-lg p-3">
+              <div className="bg-gray-50 rounded-lg p-3 mb-40">
                 <div className="flex items-center gap-2">
                   <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center overflow-hidden shadow-sm">
                     {producto?.imagen ? (
-                      <img 
-                        src={producto.imagen} 
-                        alt={producto.nombre || 'Producto'} 
-                        className="w-full h-full object-cover" 
+                      <img
+                        src={producto.imagen}
+                        alt={producto.nombre || 'Producto'}
+                        className="w-full h-full object-cover"
                       />
                     ) : (
                       <DollarSign size={16} className="text-gray-400" />
@@ -185,13 +186,16 @@ const EditarPrecioDrawer = ({ isOpen, onClose, producto, onUpdatePrecio }) => {
               </div>
 
               {/* Teclado Numérico */}
-              <div className="grid grid-cols-3 gap-3 flex-1">
+              <div
+                className="grid grid-cols-3 gap-1 flex-1"
+                style={{ minHeight: '200px' }}
+              >
                 {/* Fila 1 */}
                 {['1', '2', '3'].map((num) => (
                   <button
                     key={num}
                     onClick={() => handleNumberClick(num)}
-                    className="bg-white border-2 border-gray-300 rounded-lg flex items-center justify-center text-2xl font-bold text-gray-800 hover:bg-gray-50 hover:border-[#45923a] transition-colors shadow-md h-16"
+                    className="bg-white border border-gray-200 rounded-full flex items-center justify-center text-3xl font-extrabold text-gray-800 hover:bg-gray-50 hover:border-[#45923a] transition-colors shadow-sm min-h-[2.5rem]"
                   >
                     {num}
                   </button>
@@ -202,7 +206,7 @@ const EditarPrecioDrawer = ({ isOpen, onClose, producto, onUpdatePrecio }) => {
                   <button
                     key={num}
                     onClick={() => handleNumberClick(num)}
-                    className="bg-white border-2 border-gray-300 rounded-lg flex items-center justify-center text-2xl font-bold text-gray-800 hover:bg-gray-50 hover:border-[#45923a] transition-colors shadow-md h-16"
+                    className="bg-white border border-gray-200 rounded-full flex items-center justify-center text-3xl font-extrabold text-gray-800 hover:bg-gray-50 hover:border-[#45923a] transition-colors shadow-sm min-h-[2.5rem]"
                   >
                     {num}
                   </button>
@@ -213,7 +217,7 @@ const EditarPrecioDrawer = ({ isOpen, onClose, producto, onUpdatePrecio }) => {
                   <button
                     key={num}
                     onClick={() => handleNumberClick(num)}
-                    className="bg-white border-2 border-gray-300 rounded-lg flex items-center justify-center text-2xl font-bold text-gray-800 hover:bg-gray-50 hover:border-[#45923a] transition-colors shadow-md h-16"
+                    className="bg-white border border-gray-200 rounded-full flex items-center justify-center text-3xl font-extrabold text-gray-800 hover:bg-gray-50 hover:border-[#45923a] transition-colors shadow-sm min-h-[2.5rem]"
                   >
                     {num}
                   </button>
@@ -222,21 +226,21 @@ const EditarPrecioDrawer = ({ isOpen, onClose, producto, onUpdatePrecio }) => {
                 {/* Fila 4 */}
                 <button
                   onClick={handleClearClick}
-                  className="bg-red-500 text-white border-2 border-red-600 rounded-lg flex items-center justify-center text-lg font-bold hover:bg-red-600 transition-colors shadow-md h-16"
+                  className="bg-red-500 text-white border border-red-600 rounded-full flex items-center justify-center text-base font-extrabold hover:bg-red-600 transition-colors shadow-sm min-h-[2.5rem]"
                 >
                   C
                 </button>
 
                 <button
                   onClick={() => handleNumberClick('0')}
-                  className="bg-white border-2 border-gray-300 rounded-lg flex items-center justify-center text-2xl font-bold text-gray-800 hover:bg-gray-50 hover:border-[#45923a] transition-colors shadow-md h-16"
+                  className="bg-white border border-gray-200 rounded-full flex items-center justify-center text-3xl font-extrabold text-gray-800 hover:bg-gray-50 hover:border-[#45923a] transition-colors shadow-sm min-h-[2.5rem]"
                 >
                   0
                 </button>
 
                 <button
                   onClick={handleDecimalClick}
-                  className="bg-white border-2 border-gray-300 rounded-lg flex items-center justify-center text-xl font-bold text-gray-800 hover:bg-gray-50 hover:border-[#45923a] transition-colors shadow-md h-16"
+                  className="bg-white border border-gray-200 rounded-full flex items-center justify-center text-lg font-extrabold text-gray-800 hover:bg-gray-50 hover:border-[#45923a] transition-colors shadow-sm min-h-[2.5rem]"
                 >
                   .
                 </button>

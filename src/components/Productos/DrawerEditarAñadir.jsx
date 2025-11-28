@@ -13,6 +13,7 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
     stock: '',
     tipo_unidad: 'unidad',
     codigo_barras: '',
+
     marca: '',
     fecha_vencimiento: '',
     imagen: '',
@@ -20,6 +21,8 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
     has_precio_alternativo: false,
     precio_alternativo: '',
     motivo_precio_alternativo: '',
+    mostrar_precio_web: false,
+    tipo_producto_kg: 'ninguno',
   });
   const [imagenFile, setImagenFile] = useState(null);
   const [errors, setErrors] = useState({});
@@ -44,6 +47,8 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
         has_precio_alternativo: !!initialData.precio_alternativo || !!initialData.motivo_precio_alternativo,
         precio_alternativo: initialData.precio_alternativo || '',
         motivo_precio_alternativo: initialData.motivo_precio_alternativo || '',
+        mostrar_precio_web: initialData.mostrar_precio_web || false,
+        tipo_producto_kg: initialData.tipo_producto_kg || 'ninguno',
       });
       setShowAdditionalFields(!!initialData.marca || !!initialData.fecha_vencimiento);
     }
@@ -126,7 +131,7 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
         precio_alternativo: formData.has_precio_alternativo ? formData.precio_alternativo : '',
         motivo_precio_alternativo: formData.has_precio_alternativo ? formData.motivo_precio_alternativo : ''
       };
-      
+
       await onSubmit(dataToSubmit, imagenFile);
       setImagenFile(null);
       setUploadProgress(0);
@@ -149,9 +154,8 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40" onClick={onClose} />
       )}
       <div
-        className={`fixed inset-0 bg-white shadow-2xl z-50 transform transition-all duration-300 ease-out ${
-          isOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
-        }`}
+        className={`fixed inset-0 bg-white shadow-2xl z-50 transform transition-all duration-300 ease-out ${isOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
+          }`}
         style={{
           height: '100vh',
           width: '100vw',
@@ -165,8 +169,8 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
               <div className="w-1 h-6 sm:h-8 rounded-full" style={{ backgroundColor: colors.primary }}></div>
               <h2 className="text-lg sm:text-xl font-bold text-gray-900">{isEditMode ? 'Editar Producto' : 'Nuevo Producto'}</h2>
             </div>
-            <button 
-              onClick={onClose} 
+            <button
+              onClick={onClose}
               disabled={isSubmitting}
               className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors duration-200"
             >
@@ -187,11 +191,10 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                 name="nombre"
                 value={formData.nombre}
                 onChange={handleChange}
-                className={`w-full rounded-lg sm:rounded-xl border-2 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 ${
-                  errors.nombre 
-                    ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200' 
-                    : 'border-gray-200 bg-gray-50 focus:border-blue-400 focus:bg-white hover:border-gray-300'
-                } focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-opacity-20`}
+                className={`w-full rounded-lg sm:rounded-xl border-2 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 ${errors.nombre
+                  ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                  : 'border-gray-200 bg-gray-50 focus:border-blue-400 focus:bg-white hover:border-gray-300'
+                  } focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-opacity-20`}
                 placeholder="SUPER GLU"
                 disabled={isSubmitting}
               />
@@ -207,11 +210,10 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                 name="categoria_ref"
                 value={formData.categoria_ref}
                 onChange={handleChange}
-                className={`w-full rounded-lg sm:rounded-xl border-2 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 ${
-                  errors.categoria_ref 
-                    ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200' 
-                    : 'border-gray-200 bg-gray-50 focus:border-blue-400 focus:bg-white hover:border-gray-300'
-                } focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-opacity-20`}
+                className={`w-full rounded-lg sm:rounded-xl border-2 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 ${errors.categoria_ref
+                  ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                  : 'border-gray-200 bg-gray-50 focus:border-blue-400 focus:bg-white hover:border-gray-300'
+                  } focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-opacity-20`}
                 disabled={isSubmitting}
               >
                 {categorias.length === 0 ? (
@@ -257,11 +259,10 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                   name="precio"
                   value={formData.precio}
                   onChange={handleChange}
-                  className={`w-full rounded-lg sm:rounded-xl border-2 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 ${
-                    errors.precio 
-                      ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200' 
-                      : 'border-gray-200 bg-gray-50 focus:border-blue-400 focus:bg-white hover:border-gray-300'
-                  } focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-opacity-20`}
+                  className={`w-full rounded-lg sm:rounded-xl border-2 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 ${errors.precio
+                    ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                    : 'border-gray-200 bg-gray-50 focus:border-blue-400 focus:bg-white hover:border-gray-300'
+                    } focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-opacity-20`}
                   placeholder={formData.tipo_unidad === 'kilogramo' ? '15.99' : '0.60'}
                   step="0.01"
                   disabled={isSubmitting}
@@ -269,6 +270,27 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                 {errors.precio && <p className="text-xs text-red-600 font-medium">{errors.precio}</p>}
               </div>
             </div>
+
+            {formData.tipo_unidad === 'kilogramo' && (
+              <div className="space-y-1 sm:space-y-2">
+                <label htmlFor="tipo_producto_kg" className="block text-xs sm:text-sm font-semibold text-gray-800">
+                  Tipo de Producto KG
+                </label>
+                <select
+                  id="tipo_producto_kg"
+                  name="tipo_producto_kg"
+                  value={formData.tipo_producto_kg}
+                  onChange={handleChange}
+                  className="w-full rounded-lg sm:rounded-xl border-2 border-gray-200 bg-gray-50 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-blue-200 focus:ring-opacity-20 hover:border-gray-300"
+                  disabled={isSubmitting}
+                >
+                  <option value="ninguno">Ninguno</option>
+                  <option value="granel">Granel</option>
+                  <option value="pieza">Pieza</option>
+                  <option value="peso_fijo">Peso Fijo</option>
+                </select>
+              </div>
+            )}
 
             {formData.tipo_unidad === 'unidad' && (
               <div className="space-y-3 sm:space-y-4 p-3 sm:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg sm:rounded-xl border border-blue-100">
@@ -299,11 +321,10 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                         name="precio_alternativo"
                         value={formData.precio_alternativo}
                         onChange={handleChange}
-                        className={`w-full rounded-lg sm:rounded-xl border-2 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 ${
-                          errors.precio_alternativo 
-                            ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200' 
-                            : 'border-gray-200 bg-white focus:border-blue-400 hover:border-gray-300'
-                        } focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-opacity-20`}
+                        className={`w-full rounded-lg sm:rounded-xl border-2 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 ${errors.precio_alternativo
+                          ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                          : 'border-gray-200 bg-white focus:border-blue-400 hover:border-gray-300'
+                          } focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-opacity-20`}
                         placeholder="0.80"
                         step="0.01"
                         disabled={isSubmitting}
@@ -342,11 +363,10 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                     name="stock"
                     value={formData.stock}
                     onChange={handleChange}
-                    className={`w-full rounded-lg sm:rounded-xl border-2 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 ${
-                      errors.stock 
-                        ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200' 
-                        : 'border-gray-200 bg-gray-50 focus:border-blue-400 focus:bg-white hover:border-gray-300'
-                    } focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-opacity-20`}
+                    className={`w-full rounded-lg sm:rounded-xl border-2 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 ${errors.stock
+                      ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200'
+                      : 'border-gray-200 bg-gray-50 focus:border-blue-400 focus:bg-white hover:border-gray-300'
+                      } focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-opacity-20`}
                     placeholder={stockPlaceholder}
                     step={formData.tipo_unidad === 'kilogramo' ? '0.1' : '1'}
                     disabled={isSubmitting}
@@ -395,6 +415,21 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
               <label htmlFor="retornable" className="text-xs sm:text-sm font-semibold text-gray-800">
                 ¿Producto Retornable?
               </label>
+            </div>
+
+            <div className="flex items-center justify-between p-3 sm:p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg sm:rounded-xl border border-green-100">
+              <label htmlFor="mostrar_precio_web" className="text-xs sm:text-sm font-semibold text-gray-800">
+                Mostrar precio en tienda virtual
+              </label>
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, mostrar_precio_web: !prev.mostrar_precio_web }))}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${formData.mostrar_precio_web ? 'bg-green-600' : 'bg-gray-200'}`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.mostrar_precio_web ? 'translate-x-6' : 'translate-x-1'}`}
+                />
+              </button>
             </div>
 
             <div className="space-y-1 sm:space-y-2">
@@ -467,7 +502,7 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                   </>
                 )}
               </button>
-              
+
               {showAdditionalFields && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4 p-3 sm:p-4 bg-gray-50 rounded-lg sm:rounded-xl border border-gray-200">
                   <div className="space-y-1 sm:space-y-2">
@@ -515,7 +550,7 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
               <button
                 type="submit"
                 className="rounded-lg sm:rounded-xl px-4 py-2 sm:px-6 sm:py-3 text-xs sm:text-sm font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ 
+                style={{
                   backgroundColor: isSubmitting ? '#6b7280' : colors.primary,
                   boxShadow: isSubmitting ? 'none' : `0 4px 14px 0 ${colors.primary}30`
                 }}

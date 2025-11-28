@@ -57,6 +57,8 @@ const Productos = () => {
     has_precio_alternativo: false,
     precio_alternativo: '',
     motivo_precio_alternativo: '',
+    mostrar_precio_web: false,
+    tipo_producto_kg: 'ninguno',
   });
   const [showDeleteProductDrawer, setShowDeleteProductDrawer] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
@@ -118,6 +120,8 @@ const Productos = () => {
       has_precio_alternativo: false,
       precio_alternativo: '',
       motivo_precio_alternativo: '',
+      mostrar_precio_web: false,
+      tipo_producto_kg: 'ninguno',
     });
     setShowProductDrawer(true);
   };
@@ -140,6 +144,8 @@ const Productos = () => {
         has_precio_alternativo: !!product.precio_alternativo || !!product.motivo_precio_alternativo,
         precio_alternativo: product.precio_alternativo ? product.precio_alternativo.toString() : '',
         motivo_precio_alternativo: product.motivo_precio_alternativo || '',
+        mostrar_precio_web: product.mostrar_precio_web || false,
+        tipo_producto_kg: product.tipo_producto_kg || 'ninguno',
       });
       setShowProductDrawer(true);
     }
@@ -193,6 +199,8 @@ const Productos = () => {
         has_precio_alternativo: false,
         precio_alternativo: '',
         motivo_precio_alternativo: '',
+        mostrar_precio_web: false,
+        tipo_producto_kg: 'ninguno',
       });
       await recargarProductos();
     } catch (error) {
@@ -567,11 +575,10 @@ const Productos = () => {
                   <button
                     onClick={cargarPaginaAnterior}
                     disabled={paginaActual === 1 || productosLoading}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                      paginaActual === 1 || productosLoading
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${paginaActual === 1 || productosLoading
                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         : 'bg-[#45923a] text-white hover:bg-[#34722c]'
-                    }`}
+                      }`}
                   >
                     <ChevronLeft className="h-5 w-5" />
                     Anterior
@@ -582,11 +589,10 @@ const Productos = () => {
                   <button
                     onClick={cargarSiguientePagina}
                     disabled={!hayMasPaginas || productosLoading}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                      !hayMasPaginas || productosLoading
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${!hayMasPaginas || productosLoading
                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         : 'bg-[#45923a] text-white hover:bg-[#34722c]'
-                    }`}
+                      }`}
                   >
                     Siguiente
                     <ChevronRight className="h-5 w-5" />
