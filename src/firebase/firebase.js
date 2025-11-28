@@ -4,7 +4,7 @@ import { getAnalytics } from 'firebase/analytics';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-import { getMessaging } from 'firebase/messaging';
+
 
 // Configuración de Firebase para el proyecto bodeguitavanesa
 const firebaseConfig = {
@@ -12,7 +12,7 @@ const firebaseConfig = {
   authDomain: 'bodeguitavanesa.firebaseapp.com',
   projectId: 'bodeguitavanesa',
   storageBucket: 'bodeguitavanesa.firebasestorage.app',
-  messagingSenderId: '734082784317',
+
   appId: '1:734082784317:web:c196d30c1d8538a14ede54',
   measurementId: 'G-169FNDEJ8N',
 };
@@ -25,6 +25,6 @@ const analytics = getAnalytics(app);
 const auth = getAuth(app);
 const db = getFirestore(app, 'negociovanesa'); // Especificar la base de datos negociovanesa
 const storage = getStorage(app);
-const messaging = getMessaging(app);
 
-export { auth, db, storage, analytics, messaging };
+
+export { auth, db, storage, analytics };
