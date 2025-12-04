@@ -11,6 +11,7 @@ import { ProductProvider } from './context/ProductContext';
 import { VentasProvider } from './context/VentasContext';
 import { ProveedoresProvider } from './context/ProveedoresContext';
 import { ComprasProvider } from './context/ComprasContext';
+import { ConfigProvider } from './context/ConfigContext';
 import ProtectedRoute from './context/ProtectedRoute';
 import Productos from './page/Productos';
 import EscanerCodigoBarras from './page/EscanerCodigoBarras';
@@ -23,17 +24,19 @@ import Compras from './page/Compras';
 import ComprasHistorial from './page/ComprasHistorial';
 import VentasDestock from './page/VentasDestock';
 import DeudasDestock from './page/DeudasDestock';
+import Configuracion from './page/Configuracion';
 
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <ClientesProvider>
-          <ProveedoresProvider>
-            <ProductProvider>
-              <VentasProvider>
-                <ComprasProvider>
-                  <Routes>
+      <ConfigProvider>
+        <BrowserRouter>
+          <ClientesProvider>
+            <ProveedoresProvider>
+              <ProductProvider>
+                <VentasProvider>
+                  <ComprasProvider>
+                    <Routes>
                     <Route path="/">
                       <Route index element={<Login />} />
                       <Route
@@ -156,6 +159,14 @@ function App() {
                           </ProtectedRoute>
                         }
                       />
+                      <Route
+                        path="configuracion"
+                        element={
+                          <ProtectedRoute>
+                            <Configuracion />
+                          </ProtectedRoute>
+                        }
+                      />
                       <Route path="*" element={<h1>404 - Página no encontrada</h1>} />
                     </Route>
                   </Routes>
@@ -164,7 +175,8 @@ function App() {
             </ProductProvider>
           </ProveedoresProvider>
         </ClientesProvider>
-      </BrowserRouter>
+        </BrowserRouter>
+      </ConfigProvider>
     </AuthProvider>
   );
 }

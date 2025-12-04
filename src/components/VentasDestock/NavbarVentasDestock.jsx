@@ -12,10 +12,16 @@ import {
   ScanBarcode,
   Sun,
   Moon,
-  History
+  History,
+  Store,
+  ShoppingBag,
+  X,
+  AlertCircle
 } from 'lucide-react';
 import Logo from '../../assets/Logo.svg';
 import { useAuth } from '../../context/AuthContext';
+import { useConfig } from '../../context/ConfigContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const NavbarVentasDestock = ({ 
   searchTerm, 
@@ -37,6 +43,15 @@ const NavbarVentasDestock = ({
   const [isSearchDisabledByTimeout, setIsSearchDisabledByTimeout] = useState(false);
   const [searchTimeoutId, setSearchTimeoutId] = useState(null);
 
+  // Estado para el dropdown de configuración
+  const [configDropdownOpen, setConfigDropdownOpen] = useState(false);
+  const { configuracion, configLoaded, saving: savingConfig, toggleConfig } = useConfig();
+  const [configToast, setConfigToast] = useState({
+    visible: false,
+    message: '',
+    type: 'success'
+  });
+
   // Actualizar la hora cada segundo
   useEffect(() => {
     const timer = setInterval(() => {
@@ -45,6 +60,29 @@ const NavbarVentasDestock = ({
 
     return () => clearInterval(timer);
   }, []);
+
+  // Funciones para manejar el toast de configuración
+  const showConfigToast = (message, type = 'success') => {
+    setConfigToast({ visible: true, message, type });
+    setTimeout(() => {
+      setConfigToast({ visible: false, message: '', type: 'success' });
+    }, 3000);
+  };
+
+  const closeConfigToast = () => {
+    setConfigToast({ visible: false, message: '', type: 'success' });
+  };
+
+  // Función para manejar cambios en la configuración
+  const handleConfigToggle = async (campo) => {
+    const result = await toggleConfig(campo);
+    
+    if (result.success) {
+      showConfigToast('Configuración guardada correctamente', 'success');
+    } else {
+      showConfigToast('Error al guardar la configuración', 'error');
+    }
+  };
 
   // Formatear la fecha y hora
   const formatWeekday = (date) => {
@@ -138,8 +176,66 @@ const NavbarVentasDestock = ({
   const displayName = userData?.nombre || currentUser?.email;
 
   return (
-    <nav className="bg-white shadow-lg border-b border-gray-200 h-16 flex items-center px-6">
-      <div className="flex items-center gap-6 flex-1">
+    <>
+      {/* Toast de configuración */}
+      <AnimatePresence>
+        {configToast.visible && (
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            variants={{
+              hidden: { y: -100, opacity: 0, transition: { duration: 0.3, ease: "easeInOut" } },
+              visible: { y: 0, opacity: 1, transition: { duration: 0.3, ease: "easeInOut" } }
+            }}
+            className="fixed top-0 left-0 right-0 w-full z-[100] rounded-b-xl overflow-hidden"
+          >
+            <div
+              className={`w-full shadow-lg ${configToast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}
+              role="alert"
+              tabIndex="-1"
+            >
+              <div className="flex items-center justify-between p-5 max-w-3xl mx-auto">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <svg
+                      className="w-5 h-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      fill="currentColor"
+                      viewBox="0 0 16 16"
+                    >
+                      {configToast.type === 'success' ? (
+                        <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z" />
+                      ) : (
+                        <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z" />
+                      )}
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-white font-medium">
+                      {configToast.message}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeConfigToast}
+                  className="text-white hover:text-gray-200 focus:outline-none transition-colors"
+                  aria-label="Cerrar notificación"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+
+
+      <nav className="bg-white shadow-lg border-b border-gray-200 h-16 flex items-center px-6">
+        <div className="flex items-center gap-6 flex-1">
         {/* Botón de regreso */}
         <button
           onClick={onBack}
@@ -267,6 +363,52 @@ const NavbarVentasDestock = ({
         
         {/* Controles del usuario */}
         <div className="flex items-center justify-end gap-3 ml-auto">
+          {/* Alerta de Tienda Cerrada */}
+          {configLoaded && !configuracion.tienda_abierta && (
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="flex items-center gap-3 bg-red-500 px-4 py-2 rounded-full shadow-lg"
+            >
+              <AlertCircle className="w-5 h-5 text-white animate-pulse" />
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-white uppercase tracking-wide">Tienda Cerrada</span>
+                <span className="text-[10px] text-white/90">Pedidos deshabilitados</span>
+              </div>
+              <button
+                onClick={() => handleConfigToggle('tienda_abierta')}
+                disabled={savingConfig}
+                className="ml-2 bg-white hover:bg-gray-100 text-red-600 text-xs font-bold px-3 py-1.5 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Habilitar Ahora
+              </button>
+            </motion.div>
+          )}
+          
+          {/* Alerta de Pedidos Deshabilitados (tienda abierta pero pedidos off) */}
+          {configLoaded && configuracion.tienda_abierta && !configuracion.hacer_pedidos && (
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="flex items-center gap-3 bg-orange-500 px-4 py-2 rounded-full shadow-lg"
+            >
+              <AlertCircle className="w-5 h-5 text-white animate-pulse" />
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-white uppercase tracking-wide">Pedidos Deshabilitados</span>
+                <span className="text-[10px] text-white/90">Tienda abierta</span>
+              </div>
+              <button
+                onClick={() => handleConfigToggle('hacer_pedidos')}
+                disabled={savingConfig}
+                className="ml-2 bg-white hover:bg-gray-100 text-orange-600 text-xs font-bold px-3 py-1.5 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Habilitar Ahora
+              </button>
+            </motion.div>
+          )}
+
           {/* Reloj y Fecha */}
           <div className="flex items-center bg-[#093a4b] px-4 py-1.5 rounded-full text-white shadow-lg">
             <div className="flex items-center gap-3">
@@ -302,9 +444,118 @@ const NavbarVentasDestock = ({
           </button>
           
           {/* Configuraciones */}
-          <button className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-            <Settings size={20} className="text-gray-600" />
-          </button>
+          <div className="relative">
+            <button 
+              onClick={() => setConfigDropdownOpen(!configDropdownOpen)}
+              className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+            >
+              <Settings size={20} className="text-gray-600" />
+            </button>
+
+            {/* Dropdown Menu de Configuración */}
+            <AnimatePresence>
+              {configDropdownOpen && (
+                <>
+                  {/* Backdrop para cerrar el dropdown */}
+                  <div 
+                    className="fixed inset-0 z-[50]" 
+                    onClick={() => setConfigDropdownOpen(false)}
+                  />
+                  
+                  {/* Dropdown */}
+                  <motion.div
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 z-[60] overflow-hidden"
+                  >
+                    {/* Header del dropdown */}
+                    <div className="bg-gradient-to-br from-[#45923a] to-[#3d8033] px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Settings className="h-5 w-5 text-white" />
+                        <div>
+                          <h3 className="text-sm font-bold text-white">Configuración</h3>
+                          <p className="text-xs text-white/80">Ajustes del sistema</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Opciones de configuración */}
+                    <div className="p-3 space-y-2">
+                      {/* Tienda Abierta */}
+                      <div className="bg-gray-50 rounded-xl p-3 hover:bg-gray-100 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className={`p-1.5 rounded-lg ${configuracion.tienda_abierta ? 'bg-green-100' : 'bg-gray-200'}`}>
+                              <Store className={`h-4 w-4 ${configuracion.tienda_abierta ? 'text-green-600' : 'text-gray-400'}`} />
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-semibold text-gray-900">Tienda Abierta</h4>
+                              <p className="text-[10px] text-gray-500">
+                                {configuracion.tienda_abierta ? 'Abierta' : 'Cerrada'}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          {/* Toggle Switch */}
+                          <button
+                            onClick={() => handleConfigToggle('tienda_abierta')}
+                            disabled={savingConfig}
+                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none ${
+                              configuracion.tienda_abierta 
+                                ? 'bg-green-500' 
+                                : 'bg-gray-300'
+                            } ${savingConfig ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                          >
+                            <span
+                              className={`inline-block h-3 w-3 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${
+                                configuracion.tienda_abierta ? 'translate-x-5' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Hacer Pedidos */}
+                      <div className="bg-gray-50 rounded-xl p-3 hover:bg-gray-100 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className={`p-1.5 rounded-lg ${configuracion.hacer_pedidos ? 'bg-blue-100' : 'bg-gray-200'}`}>
+                              <ShoppingBag className={`h-4 w-4 ${configuracion.hacer_pedidos ? 'text-blue-600' : 'text-gray-400'}`} />
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-semibold text-gray-900">Hacer Pedidos</h4>
+                              <p className="text-[10px] text-gray-500">
+                                {configuracion.hacer_pedidos ? 'Habilitado' : 'Deshabilitado'}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          {/* Toggle Switch */}
+                          <button
+                            onClick={() => handleConfigToggle('hacer_pedidos')}
+                            disabled={savingConfig}
+                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none ${
+                              configuracion.hacer_pedidos 
+                                ? 'bg-blue-500' 
+                                : 'bg-gray-300'
+                            } ${savingConfig ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                          >
+                            <span
+                              className={`inline-block h-3 w-3 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${
+                                configuracion.hacer_pedidos ? 'translate-x-5' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
           
           {/* Separador */}
           <div className="w-px h-6 bg-gray-200"></div>
@@ -327,6 +578,7 @@ const NavbarVentasDestock = ({
         </div>
       </div>
     </nav>
+    </>
   );
 };
 

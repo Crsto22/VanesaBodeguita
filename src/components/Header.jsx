@@ -1,11 +1,14 @@
 import React from 'react';
-import { Bell, Menu, X, Home, ShoppingCart } from 'lucide-react';
+import { Bell, Menu, X, Home, ShoppingCart, AlertCircle } from 'lucide-react';
 import Logo from '../assets/Logo.svg';
 import { useAuth } from '../context/AuthContext';
+import { useConfig } from '../context/ConfigContext';
 import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const Header = ({ menuOpen, setMenuOpen, notifications }) => {
   const { currentUser, userData } = useAuth();
+  const { configuracion, configLoaded, saving, enableTienda } = useConfig();
   
   // Get user initial for avatar
   const userInitial = (userData?.nombre?.charAt(0) || currentUser?.email?.charAt(0))?.toUpperCase();
@@ -14,7 +17,7 @@ const Header = ({ menuOpen, setMenuOpen, notifications }) => {
   return (
     <header className="sticky top-0 z-10 bg-white backdrop-blur-sm bg-opacity-90 border-b border-gray-200">
       <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-4">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             className="rounded-lg p-2 text-gray-500 transition-all hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200"
@@ -22,7 +25,63 @@ const Header = ({ menuOpen, setMenuOpen, notifications }) => {
           >
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
-          <img src={Logo} alt="Logo" className="h-8 w-auto" />
+          
+          {/* Logo - Oculto en móvil cuando hay alertas */}
+          <img 
+            src={Logo} 
+            alt="Logo" 
+            className={`h-8 w-auto transition-all duration-300 ${
+              configLoaded && (!configuracion.tienda_abierta || !configuracion.hacer_pedidos)
+                ? 'hidden sm:block' 
+                : 'block'
+            }`} 
+          />
+          
+          {/* Alerta de Tienda Cerrada */}
+          <AnimatePresence>
+            {configLoaded && !configuracion.tienda_abierta && (
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="flex items-center gap-1.5 sm:gap-2 bg-red-500 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full shadow-lg"
+              >
+                <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 text-white animate-pulse flex-shrink-0" />
+                <div className="flex flex-col">
+                  <span className="text-[9px] sm:text-[10px] font-bold text-white uppercase tracking-wide whitespace-nowrap">Tienda Cerrada</span>
+                </div>
+                <button
+                  onClick={enableTienda}
+                  disabled={saving}
+                  className="bg-white hover:bg-gray-100 text-red-600 text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                  Habilitar
+                </button>
+              </motion.div>
+            )}
+            
+            {/* Alerta de Pedidos Deshabilitados (tienda abierta pero pedidos off) */}
+            {configLoaded && configuracion.tienda_abierta && !configuracion.hacer_pedidos && (
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="flex items-center gap-1.5 sm:gap-2 bg-orange-500 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full shadow-lg"
+              >
+                <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 text-white animate-pulse flex-shrink-0" />
+                <div className="flex flex-col">
+                  <span className="text-[9px] sm:text-[10px] font-bold text-white uppercase tracking-wide whitespace-nowrap">Pedidos Deshabilitados</span>
+                </div>
+                <button
+                  onClick={() => enableTienda()}
+                  disabled={saving}
+                  className="bg-white hover:bg-gray-100 text-orange-600 text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                  Habilitar
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <div className="flex items-center gap-3">

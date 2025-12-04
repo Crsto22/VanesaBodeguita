@@ -12,7 +12,8 @@ import {
   Search,
   ArrowRight,
   ShoppingBag,
-  Truck
+  Truck,
+  Settings
 } from 'lucide-react';
 import Logo from '../assets/Logo.svg';
 import Sidebar from '../components/Sidebar';
@@ -84,6 +85,14 @@ const Dashboard = () => {
       color: 'bg-rose-500',
       description: 'Inventario y catálogo',
       path: '/productos'
+    },
+    {
+      id: 'configuracion',
+      title: 'Configuración',
+      icon: <Settings className="h-6 w-6" />,
+      color: 'bg-gray-500',
+      description: 'Ajustes del sistema',
+      path: '/configuracion'
     },
   ];
 
