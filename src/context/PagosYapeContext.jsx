@@ -156,6 +156,19 @@ export const PagosYapeProvider = ({ children }) => {
     }
   };
 
+  // Función para eliminar un pago
+  const eliminarPago = async (pagoId) => {
+    try {
+      const { doc, deleteDoc } = await import('firebase/firestore');
+      const pagoRef = doc(yapeDb, 'pagos', pagoId);
+      await deleteDoc(pagoRef);
+      return { success: true };
+    } catch (error) {
+      console.error('Error al eliminar pago:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
   const value = {
     pagos,
     loading,
@@ -167,7 +180,8 @@ export const PagosYapeProvider = ({ children }) => {
     obtenerUltimosCincoPagos,
     hayNuevosNoLeidos,
     marcarComoLeido,
-    nuevoPago
+    nuevoPago,
+    eliminarPago
   };
 
   return (

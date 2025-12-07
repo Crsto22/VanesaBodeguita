@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CreditCard, Search, Calendar, User, DollarSign, Hash, RefreshCw, ArrowLeft } from 'lucide-react';
+import { CreditCard, Search, Calendar, User, Hash, RefreshCw, ArrowLeft, Trash2 } from 'lucide-react';
 import Logo from '../assets/Logo.svg';
 import YapeLogo from '../assets/yape-logo.png';
 import Sidebar from '../components/Sidebar';
@@ -13,9 +13,11 @@ const PagosYape = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifications] = useState(3);
   const [searchTerm, setSearchTerm] = useState('');
+  const [pagoAEliminar, setPagoAEliminar] = useState(null);
+  const [eliminando, setEliminando] = useState(false);
 
   // Usar el contexto de pagos
-  const { pagos, loading, formatDate, formatCurrency, filtrarPagos } = usePagosYape();
+  const { pagos, loading, formatDate, formatCurrency, filtrarPagos, eliminarPago } = usePagosYape();
 
   const quickAccessOptions = [
     { id: 'ventas', title: 'Ventas', icon: <CreditCard className="h-6 w-6" />, color: 'bg-emerald-500', description: 'Registrar ventas', path: '/ventas' },
@@ -33,6 +35,20 @@ const PagosYape = () => {
   const handleOptionClick = (path) => {
     navigate(path);
     setMenuOpen(false);
+  };
+
+  const handleEliminarPago = async () => {
+    if (!pagoAEliminar) return;
+
+    setEliminando(true);
+    const result = await eliminarPago(pagoAEliminar.id);
+    setEliminando(false);
+
+    if (result.success) {
+      setPagoAEliminar(null);
+    } else {
+      alert('Error al eliminar el pago. Intenta nuevamente.');
+    }
   };
 
   const SkeletonCard = () => (
@@ -138,11 +154,19 @@ const PagosYape = () => {
                           <span>{formatDate(pago.timestamp, pago.fecha)}</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 px-3 py-1.5 bg-purple-50 border border-purple-100 rounded-full">
-                        <DollarSign className="h-3 w-3 text-purple-600" />
-                        <span className="text-xs font-medium text-purple-700">
-                          {formatCurrency(pago.monto)}
-                        </span>
+                      <div className="flex items-center gap-2">
+                        <div className="px-3 py-1.5 bg-purple-50 border border-purple-100 rounded-full">
+                          <span className="text-xs font-medium text-purple-700">
+                            {formatCurrency(pago.monto)}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => setPagoAEliminar(pago)}
+                          className="p-1.5 hover:bg-red-50 rounded-lg transition-colors group"
+                          title="Eliminar pago"
+                        >
+                          <Trash2 className="h-4 w-4 text-gray-400 group-hover:text-red-500" />
+                        </button>
                       </div>
                     </div>
 
@@ -167,6 +191,61 @@ const PagosYape = () => {
           </div>
         </div>
       </main>
+
+      {/* Modal de confirmación de eliminación */}
+      {pagoAEliminar && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <Trash2 className="h-6 w-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Eliminar Pago</h3>
+                <p className="text-sm text-gray-500">Esta acción no se puede deshacer</p>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 rounded-xl p-4 mb-6">
+              <div className="flex justify-between items-start mb-2">
+                <span className="text-sm font-medium text-gray-700">{pagoAEliminar.nombre || 'Sin nombre'}</span>
+                <span className="text-sm font-bold text-purple-600">{formatCurrency(pagoAEliminar.monto)}</span>
+              </div>
+              <p className="text-xs text-gray-500">{formatDate(pagoAEliminar.timestamp, pagoAEliminar.fecha)}</p>
+              {pagoAEliminar.mensaje && (
+                <p className="text-xs text-gray-600 mt-2 line-clamp-2">{pagoAEliminar.mensaje}</p>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setPagoAEliminar(null)}
+                disabled={eliminando}
+                className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleEliminarPago}
+                disabled={eliminando}
+                className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {eliminando ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    Eliminando...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Eliminar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
