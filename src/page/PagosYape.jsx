@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CreditCard, Search, Calendar, User, Hash, RefreshCw, ArrowLeft, Trash2 } from 'lucide-react';
+import { CreditCard, Search, Calendar, User, Hash, RefreshCw, ArrowLeft, Trash2, Filter } from 'lucide-react';
 import Logo from '../assets/Logo.svg';
 import YapeLogo from '../assets/yape-logo.png';
 import Sidebar from '../components/Sidebar';
@@ -15,6 +15,9 @@ const PagosYape = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [pagoAEliminar, setPagoAEliminar] = useState(null);
   const [eliminando, setEliminando] = useState(false);
+  const [filtroFecha, setFiltroFecha] = useState('hoy');
+  const [showFilters, setShowFilters] = useState(false);
+  const [fechaPersonalizada, setFechaPersonalizada] = useState('');
 
   // Usar el contexto de pagos
   const { pagos, loading, formatDate, formatCurrency, filtrarPagos, eliminarPago } = usePagosYape();
@@ -29,8 +32,63 @@ const PagosYape = () => {
     setAppear(true);
   }, []);
 
-  // Filtrar pagos usando el contexto
-  const pagosFiltrados = filtrarPagos(searchTerm);
+  // Función para filtrar por fecha
+  const filtrarPorFecha = (pagos) => {
+    const ahora = new Date();
+    const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+    hoy.setHours(0, 0, 0, 0);
+    
+    return pagos.filter(pago => {
+      const fechaPago = new Date(pago.timestamp);
+      
+      switch (filtroFecha) {
+        case 'hoy':
+          const inicioHoy = new Date(hoy);
+          const finHoy = new Date(hoy);
+          finHoy.setHours(23, 59, 59, 999);
+          return fechaPago >= inicioHoy && fechaPago <= finHoy;
+          
+        case 'ayer':
+          const inicioAyer = new Date(hoy);
+          inicioAyer.setDate(hoy.getDate() - 1);
+          const finAyer = new Date(inicioAyer);
+          finAyer.setHours(23, 59, 59, 999);
+          return fechaPago >= inicioAyer && fechaPago <= finAyer;
+          
+        case 'semana':
+          const inicioSemana = new Date(hoy);
+          inicioSemana.setDate(hoy.getDate() - 7);
+          const finSemana = new Date(ahora);
+          finSemana.setHours(23, 59, 59, 999);
+          return fechaPago >= inicioSemana && fechaPago <= finSemana;
+          
+        case 'mes':
+          const inicioMes = new Date(hoy);
+          inicioMes.setDate(hoy.getDate() - 30);
+          const finMes = new Date(ahora);
+          finMes.setHours(23, 59, 59, 999);
+          return fechaPago >= inicioMes && fechaPago <= finMes;
+          
+        case 'personalizada':
+          if (!fechaPersonalizada) return true;
+          const fechaSeleccionada = new Date(fechaPersonalizada);
+          fechaSeleccionada.setHours(0, 0, 0, 0);
+          const finFecha = new Date(fechaSeleccionada);
+          finFecha.setHours(23, 59, 59, 999);
+          return fechaPago >= fechaSeleccionada && fechaPago <= finFecha;
+          
+        case 'todos':
+          return true;
+          
+        default:
+          return true;
+      }
+    });
+  };
+
+  // Filtrar pagos usando el contexto y luego por fecha
+  const pagosPorTexto = filtrarPagos(searchTerm);
+  const pagosFiltrados = filtrarPorFecha(pagosPorTexto);
 
   const handleOptionClick = (path) => {
     navigate(path);
@@ -108,6 +166,62 @@ const PagosYape = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 bg-white"
               />
+            </div>
+          </div>
+
+          {/* Filtros de fecha */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold text-gray-800">Filtros</h2>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-sm border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 min-h-[44px]"
+              >
+                <Filter className="w-4 h-4" />
+                <span className="hidden xs:inline">Filtrar</span>
+              </button>
+            </div>
+            <div className={`transition-all duration-300 ${showFilters ? 'max-h-80 opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
+              <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+                  {[
+                    { value: 'hoy', label: 'Hoy' },
+                    { value: 'ayer', label: 'Ayer' },
+                    { value: 'semana', label: '7 días' },
+                    { value: 'mes', label: '30 días' },
+                    { value: 'personalizada', label: 'Fecha específica' },
+                    { value: 'todos', label: 'Todos' }
+                  ].map((opcion) => (
+                    <button
+                      key={opcion.value}
+                      onClick={() => setFiltroFecha(opcion.value)}
+                      className={`px-3 py-3 rounded-lg text-xs font-medium transition-colors min-h-[44px] active:scale-95 ${
+                        filtroFecha === opcion.value
+                          ? 'bg-purple-600 text-white shadow-md'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {opcion.label}
+                    </button>
+                  ))}
+                </div>
+                {filtroFecha === 'personalizada' && (
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Seleccionar fecha:
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                      <input
+                        type="date"
+                        value={fechaPersonalizada}
+                        onChange={(e) => setFechaPersonalizada(e.target.value)}
+                        className="flex-1 px-3 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent min-h-[44px]"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
