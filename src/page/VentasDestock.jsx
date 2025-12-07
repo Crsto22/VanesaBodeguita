@@ -39,6 +39,7 @@ import KilogramoDrawer from '../components/VentasDestock/KilogramoDrawer';
 import PrecioAlternativoDrawer from '../components/VentasDestock/PrecioAlternativoDrawer';
 import ConfirmarVentaDrawer from '../components/VentasDestock/ConfirmarVentaDrawer';
 import QuickAddProductDrawer from '../components/VentasDestock/QuickAddProductDrawer';
+import YapeToast from '../components/YapeToast';
 
 const VentasDestock = () => {
     const navigate = useNavigate();
@@ -912,6 +913,9 @@ const VentasDestock = () => {
             animate="visible"
             variants={containerVariants}
         >
+            {/* Toast de notificaciones Yape */}
+            <YapeToast />
+
             {/* Estilos personalizados para scrollbar y animaciones */}
             <style>{`
         .custom-scrollbar::-webkit-scrollbar {

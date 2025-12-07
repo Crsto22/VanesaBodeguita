@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase } from 'firebase/database';
+import { getFirestore } from 'firebase/firestore';
 
 // Configuración del segundo Firebase para configuración
 const firebaseConfigSettings = {
@@ -13,8 +14,25 @@ const firebaseConfigSettings = {
   databaseURL: "https://vanesa-e39df-default-rtdb.firebaseio.com"
 };
 
+// Configuración de Firebase para visualizar pagos de Yape
+const firebaseYapeConfig = {
+  apiKey: "AIzaSyAH0RuHMdA5nKrL9ROqQd92MiDDg5-4-YQ",
+  authDomain: "yapebodeguitavanesa.firebaseapp.com",
+  projectId: "yapebodeguitavanesa",
+  storageBucket: "yapebodeguitavanesa.firebasestorage.app",
+  messagingSenderId: "754800371432",
+  appId: "1:754800371432:web:2a9fe90fb28f001fcf4b5d",
+  measurementId: "G-TGYW1RDF8W"
+};
+
 // Inicializar la segunda app de Firebase con un nombre único
 const configApp = initializeApp(firebaseConfigSettings, 'configApp');
 
+// Inicializar la tercera app de Firebase para Yape
+const yapeApp = initializeApp(firebaseYapeConfig, 'yapeApp');
+
 // Obtener referencia a Realtime Database
 export const configDatabase = getDatabase(configApp);
+
+// Obtener referencia a Firestore de Yape
+export const yapeDb = getFirestore(yapeApp);

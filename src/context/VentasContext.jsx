@@ -201,6 +201,12 @@ export const VentasProvider = ({ children }) => {
       const montoPendiente = formatToTwoDecimals(ventaData.monto_pendiente);
       const montoPagado = formatToTwoDecimals(ventaData.monto_pagado + montoPendiente);
 
+      // Obtener cliente
+      const cliente = obtenerClientePorId(ventaData.cliente_ref);
+      
+      // Calcular deuda total del cliente antes del pago
+      const deudaAnterior = await obtenerDeudaTotalPorCliente(ventaData.cliente_ref);
+
       const pago = {
         monto: montoPendiente,
         fecha: new Date().toISOString(),
@@ -208,11 +214,35 @@ export const VentasProvider = ({ children }) => {
         notas: '',
       };
 
-      await updateDoc(ventaRef, {
-        estado: 'pagado',
-        monto_pagado: montoPagado,
-        monto_pendiente: 0,
-        historial_pagos: [...(ventaData.historial_pagos || []), pago],
+      // Ejecutar transacción para actualizar venta y crear documento de abono
+      await runTransaction(db, async (transaction) => {
+        // Actualizar venta
+        transaction.update(ventaRef, {
+          estado: 'pagado',
+          monto_pagado: montoPagado,
+          monto_pendiente: 0,
+          historial_pagos: [...(ventaData.historial_pagos || []), pago],
+        });
+
+        // Crear documento de abono
+        const abonoRef = doc(collection(db, 'abonos'));
+        transaction.set(abonoRef, {
+          monto: montoPendiente,
+          fecha: new Date().toISOString(),
+          
+          cliente_ref: ventaData.cliente_ref,
+          cliente_nombre: cliente?.nombre || 'Cliente',
+          
+          cajero_ref: currentUser.uid,
+          cajero_nombre: currentUser.displayName || currentUser.email,
+          
+          deuda_anterior: deudaAnterior,
+          deuda_nueva: formatToTwoDecimals(deudaAnterior - montoPendiente),
+          
+          ventas_pagadas: [ventaId],
+          
+          estado: 'activo'
+        });
       });
 
       return { ventaId, montoPagado };
@@ -228,7 +258,9 @@ export const VentasProvider = ({ children }) => {
       if (!currentUser) throw new Error('Usuario no autenticado');
       const montoAbonoFormatted = formatToTwoDecimals(Number(montoAbono));
       if (montoAbonoFormatted <= 0) throw new Error('El monto del abono debe ser mayor a 0');
-      if (!obtenerClientePorId(clienteId)) throw new Error('Cliente no encontrado');
+      
+      const cliente = obtenerClientePorId(clienteId);
+      if (!cliente) throw new Error('Cliente no encontrado');
 
       const ventasQuery = query(
         ventasCollection,
@@ -247,6 +279,8 @@ export const VentasProvider = ({ children }) => {
       }
 
       const updates = [];
+      const ventasPagadas = [];
+      
       snapshot.docs
         .sort((a, b) => a.data().fecha_creacion.localeCompare(b.data().fecha_creacion))
         .forEach(doc => {
@@ -275,13 +309,37 @@ export const VentasProvider = ({ children }) => {
               historial_pagos: [...(ventaData.historial_pagos || []), abono],
             },
           });
+          
+          // Guardar solo el ID de la venta
+          ventasPagadas.push(doc.id);
 
           montoRestante = formatToTwoDecimals(montoRestante - montoAPagar);
         });
 
       await runTransaction(db, async (transaction) => {
+        // Actualizar ventas
         updates.forEach(({ ventaRef, data }) => {
           transaction.update(ventaRef, data);
+        });
+        
+        // Crear documento de abono
+        const abonoRef = doc(collection(db, 'abonos'));
+        transaction.set(abonoRef, {
+          monto: montoAbonoFormatted,
+          fecha: new Date().toISOString(),
+          
+          cliente_ref: clienteId,
+          cliente_nombre: cliente.nombre,
+          
+          cajero_ref: currentUser.uid,
+          cajero_nombre: currentUser.displayName || currentUser.email,
+          
+          deuda_anterior: deudaTotal,
+          deuda_nueva: formatToTwoDecimals(deudaTotal - montoAbonoFormatted),
+          
+          ventas_pagadas: ventasPagadas,
+          
+          estado: 'activo'
         });
       });
 

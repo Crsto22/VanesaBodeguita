@@ -12,6 +12,7 @@ import { VentasProvider } from './context/VentasContext';
 import { ProveedoresProvider } from './context/ProveedoresContext';
 import { ComprasProvider } from './context/ComprasContext';
 import { ConfigProvider } from './context/ConfigContext';
+import { PagosYapeProvider } from './context/PagosYapeContext';
 import ProtectedRoute from './context/ProtectedRoute';
 import Productos from './page/Productos';
 import EscanerCodigoBarras from './page/EscanerCodigoBarras';
@@ -25,17 +26,19 @@ import ComprasHistorial from './page/ComprasHistorial';
 import VentasDestock from './page/VentasDestock';
 import DeudasDestock from './page/DeudasDestock';
 import Configuracion from './page/Configuracion';
+import PagosYape from './page/PagosYape';
 
 function App() {
   return (
     <AuthProvider>
       <ConfigProvider>
-        <BrowserRouter>
-          <ClientesProvider>
-            <ProveedoresProvider>
-              <ProductProvider>
-                <VentasProvider>
-                  <ComprasProvider>
+        <PagosYapeProvider>
+          <BrowserRouter>
+            <ClientesProvider>
+              <ProveedoresProvider>
+                <ProductProvider>
+                  <VentasProvider>
+                    <ComprasProvider>
                     <Routes>
                     <Route path="/">
                       <Route index element={<Login />} />
@@ -167,15 +170,24 @@ function App() {
                           </ProtectedRoute>
                         }
                       />
+                      <Route
+                        path="pagos-yape"
+                        element={
+                          <ProtectedRoute>
+                            <PagosYape />
+                          </ProtectedRoute>
+                        }
+                      />
                       <Route path="*" element={<h1>404 - Página no encontrada</h1>} />
                     </Route>
                   </Routes>
-                </ComprasProvider>
-              </VentasProvider>
-            </ProductProvider>
-          </ProveedoresProvider>
-        </ClientesProvider>
-        </BrowserRouter>
+                  </ComprasProvider>
+                </VentasProvider>
+              </ProductProvider>
+            </ProveedoresProvider>
+          </ClientesProvider>
+          </BrowserRouter>
+        </PagosYapeProvider>
       </ConfigProvider>
     </AuthProvider>
   );

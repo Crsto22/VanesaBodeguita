@@ -94,6 +94,14 @@ const Dashboard = () => {
       description: 'Ajustes del sistema',
       path: '/configuracion'
     },
+    {
+      id: 'pagos-yape',
+      title: 'Pagos Yape',
+      icon: <CreditCard className="h-6 w-6" />,
+      color: 'bg-purple-600',
+      description: 'Visualizar pagos de Yape',
+      path: '/pagos-yape'
+    },
   ];
 
   useEffect(() => {

@@ -21,7 +21,9 @@ import {
 import Logo from '../../assets/Logo.svg';
 import { useAuth } from '../../context/AuthContext';
 import { useConfig } from '../../context/ConfigContext';
+import { usePagosYape } from '../../context/PagosYapeContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import YapeLogo from '../../assets/yape-logo.png';
 
 const NavbarVentasDestock = ({ 
   searchTerm, 
@@ -51,6 +53,9 @@ const NavbarVentasDestock = ({
     message: '',
     type: 'success'
   });
+
+  // Estado para el dropdown de notificaciones Yape
+  const [notificacionesOpen, setNotificacionesOpen] = useState(false);
 
   // Actualizar la hora cada segundo
   useEffect(() => {
@@ -171,9 +176,20 @@ const NavbarVentasDestock = ({
   // Importar useAuth para obtener datos del usuario
   const { currentUser, userData } = useAuth();
   
+  // Importar usePagosYape para las notificaciones
+  const { obtenerUltimosCincoPagos, hayNuevosNoLeidos, marcarComoLeido } = usePagosYape();
+  
   // Get user initial for avatar
   const userInitial = (userData?.nombre?.charAt(0) || currentUser?.email?.charAt(0))?.toUpperCase();
   const displayName = userData?.nombre || currentUser?.email;
+
+  // Manejar apertura de notificaciones
+  const handleNotificacionesClick = () => {
+    if (!notificacionesOpen) {
+      marcarComoLeido();
+    }
+    setNotificacionesOpen(!notificacionesOpen);
+  };
 
   return (
     <>
@@ -435,13 +451,94 @@ const NavbarVentasDestock = ({
             </div>
           </div>
 
-          {/* Notificaciones */}
-          <button className="relative p-2 hover:bg-gray-100 rounded-xl transition-colors">
-            <Bell size={20} className="text-gray-600" />
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#45923a] rounded-full flex items-center justify-center">
-              <span className="text-xs text-white font-bold">3</span>
-            </span>
-          </button>
+          {/* Notificaciones Yape */}
+          <div className="relative">
+            <button 
+              onClick={handleNotificacionesClick}
+              className="relative p-2 hover:bg-gray-100 rounded-xl transition-colors"
+            >
+              <Bell size={20} className="text-gray-600" />
+              {hayNuevosNoLeidos && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-purple-600 rounded-full animate-pulse" />
+              )}
+            </button>
+
+            {/* Dropdown de Notificaciones */}
+            <AnimatePresence>
+              {notificacionesOpen && (
+                <>
+                  {/* Backdrop */}
+                  <div 
+                    className="fixed inset-0 z-[50]" 
+                    onClick={() => setNotificacionesOpen(false)}
+                  />
+                  
+                  {/* Dropdown */}
+                  <motion.div
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute right-0 top-full mt-2 w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 z-[60] overflow-hidden"
+                  >
+                    {/* Header del dropdown */}
+                    <div className="bg-gradient-to-br from-purple-600 to-purple-800 px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div>
+                          <h3 className="text-sm font-bold text-white">Pagos Yape</h3>
+                          <p className="text-xs text-white/80">Últimos 5 pagos recibidos</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Lista de notificaciones */}
+                    <div className="max-h-96 overflow-y-auto">
+                      {obtenerUltimosCincoPagos().length === 0 ? (
+                        <div className="p-8 text-center">
+                          <Bell className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                          <p className="text-sm text-gray-500">No hay pagos recientes</p>
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-gray-100">
+                          {obtenerUltimosCincoPagos().map((pago) => (
+                            <div
+                              key={pago.id}
+                              className="p-3 hover:bg-purple-50 transition-colors cursor-pointer"
+                              onClick={() => navigate('/pagos-yape')}
+                            >
+                              <div className="flex items-center gap-3">
+                                <img src={YapeLogo} alt="Yape" className="h-8 w-8 flex-shrink-0 rounded-xl" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm text-gray-900 line-clamp-2">
+                                    {pago.mensaje || 'Pago recibido'}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Footer */}
+                    {obtenerUltimosCincoPagos().length > 0 && (
+                      <div className="border-t border-gray-100 p-3">
+                        <button
+                          onClick={() => {
+                            setNotificacionesOpen(false);
+                            navigate('/pagos-yape');
+                          }}
+                          className="w-full text-center text-sm text-purple-600 hover:text-purple-700 font-medium py-2 hover:bg-purple-50 rounded-lg transition-colors"
+                        >
+                          Ver todos los pagos →
+                        </button>
+                      </div>
+                    )}
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
           
           {/* Configuraciones */}
           <div className="relative">
