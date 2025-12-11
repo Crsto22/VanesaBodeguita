@@ -441,6 +441,7 @@ export const ProductProvider = ({ children }) => {
         precio_alternativo: productoData.has_precio_alternativo && productoData.precio_alternativo ? parseFloat(productoData.precio_alternativo) : null,
         motivo_precio_alternativo: productoData.has_precio_alternativo ? productoData.motivo_precio_alternativo || null : null,
         mostrar_precio_web: !!productoData.mostrar_precio_web,
+        publicado: !!productoData.publicado,
         tipo_producto_kg: productoData.tipo_unidad === 'kilogramo' ? productoData.tipo_producto_kg || 'ninguno' : 'ninguno',
       };
       
@@ -475,6 +476,7 @@ export const ProductProvider = ({ children }) => {
         precio_alternativo: productoData.has_precio_alternativo && productoData.precio_alternativo ? parseFloat(productoData.precio_alternativo) : null,
         motivo_precio_alternativo: productoData.has_precio_alternativo ? productoData.motivo_precio_alternativo || null : null,
         mostrar_precio_web: !!productoData.mostrar_precio_web,
+        publicado: !!productoData.publicado,
         tipo_producto_kg: productoData.tipo_unidad === 'kilogramo' ? productoData.tipo_producto_kg || 'ninguno' : 'ninguno',
       };      await updateDoc(productoRef, updatedProducto);
       await recargarProductos();

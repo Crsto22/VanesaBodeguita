@@ -22,6 +22,7 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
     precio_alternativo: '',
     motivo_precio_alternativo: '',
     mostrar_precio_web: false,
+    publicado: false,
     tipo_producto_kg: 'ninguno',
   });
   const [imagenFile, setImagenFile] = useState(null);
@@ -47,7 +48,8 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
         has_precio_alternativo: !!initialData.precio_alternativo || !!initialData.motivo_precio_alternativo,
         precio_alternativo: initialData.precio_alternativo || '',
         motivo_precio_alternativo: initialData.motivo_precio_alternativo || '',
-        mostrar_precio_web: initialData.mostrar_precio_web || false,
+        mostrar_precio_web: initialData.mostrar_precio_web === true,
+        publicado: initialData.publicado === true,
         tipo_producto_kg: initialData.tipo_producto_kg || 'ninguno',
       });
       setShowAdditionalFields(!!initialData.marca || !!initialData.fecha_vencimiento);
@@ -288,6 +290,7 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                   <option value="granel">Granel</option>
                   <option value="pieza">Pieza</option>
                   <option value="peso_fijo">Peso Fijo</option>
+                  <option value="precio_directo">Precio Directo</option>
                 </select>
               </div>
             )}
@@ -416,7 +419,6 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
                 ¿Producto Retornable?
               </label>
             </div>
-
             <div className="flex items-center justify-between p-3 sm:p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg sm:rounded-xl border border-green-100">
               <label htmlFor="mostrar_precio_web" className="text-xs sm:text-sm font-semibold text-gray-800">
                 Mostrar precio en tienda virtual
@@ -428,6 +430,21 @@ const DrawerEditarAñadirProducto = ({ isOpen, onClose, isEditMode, initialData,
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.mostrar_precio_web ? 'translate-x-6' : 'translate-x-1'}`}
+                />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between p-3 sm:p-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg sm:rounded-xl border border-blue-100">
+              <label htmlFor="publicado" className="text-xs sm:text-sm font-semibold text-gray-800">
+                Publicar en tienda virtual
+              </label>
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, publicado: !prev.publicado }))}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${formData.publicado ? 'bg-blue-600' : 'bg-gray-200'}`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.publicado ? 'translate-x-6' : 'translate-x-1'}`}
                 />
               </button>
             </div>

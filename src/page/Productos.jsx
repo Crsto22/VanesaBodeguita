@@ -58,6 +58,7 @@ const Productos = () => {
     precio_alternativo: '',
     motivo_precio_alternativo: '',
     mostrar_precio_web: false,
+    publicado: false,
     tipo_producto_kg: 'ninguno',
   });
   const [showDeleteProductDrawer, setShowDeleteProductDrawer] = useState(false);
@@ -144,7 +145,8 @@ const Productos = () => {
         has_precio_alternativo: !!product.precio_alternativo || !!product.motivo_precio_alternativo,
         precio_alternativo: product.precio_alternativo ? product.precio_alternativo.toString() : '',
         motivo_precio_alternativo: product.motivo_precio_alternativo || '',
-        mostrar_precio_web: product.mostrar_precio_web || false,
+        mostrar_precio_web: product.mostrar_precio_web === true,
+        publicado: product.publicado === true,
         tipo_producto_kg: product.tipo_producto_kg || 'ninguno',
       });
       setShowProductDrawer(true);
@@ -200,6 +202,7 @@ const Productos = () => {
         precio_alternativo: '',
         motivo_precio_alternativo: '',
         mostrar_precio_web: false,
+        publicado: false,
         tipo_producto_kg: 'ninguno',
       });
       await recargarProductos();
