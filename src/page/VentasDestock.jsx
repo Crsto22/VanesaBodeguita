@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Lottie from 'lottie-react';
 import CarritoVacio from "../assets/Ventas/CarritoVacio.svg";
@@ -43,6 +43,7 @@ import YapeToast from '../components/YapeToast';
 
 const VentasDestock = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { currentUser } = useAuth();
     const { clientes, obtenerClientePorId } = useClientes();
     const { obtenerDeudaTotalPorCliente, crearVenta } = useVentas();
@@ -168,6 +169,54 @@ const VentasDestock = () => {
             setProductosLoading(true);
         }
     }, [productosOptimizados, todosLosProductos]);
+
+    // Efecto para replicar venta desde el historial
+    useEffect(() => {
+        if (location.state?.replicateVenta && productosOptimizados.length > 0) {
+            const { replicateVenta } = location.state;
+            console.log("♻️ Replicando venta:", replicateVenta);
+
+            const nuevosProductos = [];
+
+            replicateVenta.productos.forEach(prodVenta => {
+                // Buscar el producto original en el catálogo actual
+                // Nota: prodVenta.producto_ref es el ID del producto
+                const productoCatalogo = productosOptimizados.find(p => p.id === prodVenta.producto_ref);
+
+                if (productoCatalogo) {
+                    // Crear objeto de carrito basado en datos actuales pero con cantidades de la venta
+                    const cantidad = prodVenta.cantidad || 1;
+                    const precio = parseFloat(productoCatalogo.precio);
+
+                    const productoCarrito = {
+                        id: productoCatalogo.id,
+                        carritoId: `${productoCatalogo.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                        nombre: productoCatalogo.nombre,
+                        precio: precio,
+                        cantidad: cantidad,
+                        subtotal: cantidad * precio,
+                        imagen: productoCatalogo.imagen,
+                        categoria_ref: productoCatalogo.categoria_ref,
+                        tipo_unidad: productoCatalogo.tipo_unidad || 'unidad',
+                        retornable: productoCatalogo.retornable || false,
+                        cantidad_retornable: prodVenta.cantidad_retornable !== undefined
+                            ? prodVenta.cantidad_retornable
+                            : (productoCatalogo.retornable && productoCatalogo.tipo_unidad !== 'kilogramo' ? cantidad : 0),
+                        // Si era por peso, intentamos mantener el peso si existe en la venta original (aunque usualmente venta guarda cantidad 1 para peso)
+                        peso_kg: prodVenta.peso_kg || null
+                    };
+
+                    nuevosProductos.push(productoCarrito);
+                }
+            });
+
+            if (nuevosProductos.length > 0) {
+                setSelectedProducts(nuevosProductos);
+                // Limpiar el state usando navigate para que react-router se entere del cambio
+                navigate(location.pathname, { replace: true, state: {} });
+            }
+        }
+    }, [location.state, productosOptimizados, location.pathname, navigate]);
 
     // Efecto para guardar el carrito en localStorage cada vez que cambie
     React.useEffect(() => {
@@ -752,7 +801,7 @@ const VentasDestock = () => {
             setVentaStatus('idle');
             setTimeout(() => {
                 setVentaAlertId(null);
-                navigate(`/ventas/${ventaAlertId}?print=true`);
+                navigate(`/ventas/${ventaAlertId}`);
             }, 100);
         }
     };
@@ -960,6 +1009,7 @@ const VentasDestock = () => {
                 setEscanerActivo={setEscanerActivo}
                 onBack={() => navigate('/dashboard')}
                 isDisabled={ventaStatus === 'uploading'}
+                products={todosLosProductos}
             />
 
             <div className="flex h-[calc(100vh-64px)] overflow-hidden">
@@ -1785,7 +1835,7 @@ const VentasDestock = () => {
                                             whileHover={{ scale: 1.05 }}
                                             whileTap={{ scale: 0.95 }}
                                         >
-                                            Imprimir Ticket
+                                            Ver Ticket
                                         </motion.button>
                                     )}
                                 </div>

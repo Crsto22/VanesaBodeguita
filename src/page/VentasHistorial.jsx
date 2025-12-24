@@ -19,6 +19,8 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  Printer,
+  Repeat,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Logo from '../assets/Logo.svg';
@@ -65,7 +67,7 @@ const SkeletonCard = () => (
 const VentasHistorial = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { 
+  const {
     ventasHistorial,
     loadingHistorial,
     paginaActual,
@@ -75,9 +77,9 @@ const VentasHistorial = () => {
     cargarSiguientePaginaHistorial,
     cargarPaginaAnteriorHistorial,
     reiniciarPaginacionHistorial,
-    eliminarVenta 
+    eliminarVenta
   } = useVentas();
-  
+
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [appear, setAppear] = useState(false);
@@ -90,6 +92,11 @@ const VentasHistorial = () => {
   const [selectedVenta, setSelectedVenta] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [filtrosActivos, setFiltrosActivos] = useState({});
+
+  // Estados para el modal de reimpresión
+  const [reprintModalOpen, setReprintModalOpen] = useState(false);
+  const [selectedReprintVenta, setSelectedReprintVenta] = useState(null);
+  const [reprintLoading, setReprintLoading] = useState(false);
 
   // Opciones del menú principal - Accesos rápidos
   const quickAccessOptions = [
@@ -280,6 +287,14 @@ const VentasHistorial = () => {
     navigate(isLargeScreen ? '/ventas-destock' : '/ventas');
   };
 
+  const handleReplicateSale = (venta, e) => {
+    e.stopPropagation();
+    // Navegar a la página de ventas (desktop) con el estado para replicar
+    // Si la ruta móvil ('/ventas') usa un componente diferente, esto solo funcionará en '/ventas-destock'
+    // Asumimos que el usuario quiere ir a VentasDestock como especificó
+    navigate('/ventas-destock', { state: { replicateVenta: venta } });
+  };
+
   const handleDeleteVenta = (venta, e) => {
     e.stopPropagation();
     setSelectedVenta(venta);
@@ -302,6 +317,46 @@ const VentasHistorial = () => {
       setError('No se pudo eliminar la venta. Inténtalo de nuevo.');
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  // Manejadores para la reimpresión
+  const handleOpenReprintModal = (venta, e) => {
+    e.stopPropagation();
+    setSelectedReprintVenta(venta);
+    setReprintModalOpen(true);
+  };
+
+  const handleCloseReprintModal = () => {
+    setReprintModalOpen(false);
+    setSelectedReprintVenta(null);
+  };
+
+  const handleConfirmReprint = async () => {
+    if (!selectedReprintVenta) return;
+
+    setReprintLoading(true);
+    try {
+      const response = await fetch('http://localhost:5002/api/reimprimir-venta', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ venta_id: selectedReprintVenta.id }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error en la solicitud de reimpresión');
+      }
+
+      const data = await response.json();
+      setSuccess('Solicitud de reimpresión enviada correctamente.');
+      handleCloseReprintModal();
+    } catch (err) {
+      console.error('Error al reimprimir:', err);
+      setError('Error al enviar la solicitud de reimpresión.');
+    } finally {
+      setReprintLoading(false);
     }
   };
 
@@ -521,11 +576,10 @@ const VentasHistorial = () => {
                       key={opcion.value}
                       onClick={() => handleFiltroChange(opcion.value)}
                       disabled={loadingHistorial}
-                      className={`px-3 py-3 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 min-h-[44px] active:scale-95 ${
-                        filtroFecha === opcion.value
-                          ? 'bg-[#45923a] text-white shadow-md'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
+                      className={`px-3 py-3 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 min-h-[44px] active:scale-95 ${filtroFecha === opcion.value
+                        ? 'bg-[#45923a] text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
                     >
                       {opcion.label}
                     </button>
@@ -576,74 +630,92 @@ const VentasHistorial = () => {
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {ventasHistorial.map((venta) => (
-                <div
-                  key={venta.id}
-                  onClick={() => handleViewVenta(venta.id)}
-                  className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all duration-200 cursor-pointer active:scale-[0.98] sm:active:scale-100"
-                >
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-[#45923a] rounded-full"></div>
-                      <span className="text-xs font-medium text-gray-500">
-                        {formatDateShort(venta.fecha_creacion)}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        {formatTime(venta.fecha_creacion)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className={`flex items-center gap-1 px-2 py-1 rounded-full border text-xs font-medium ${getEstadoColor(venta.estado)}`}>
-                        {getEstadoIcon(venta.estado)}
-                        <span>{venta.estado.charAt(0).toUpperCase() + venta.estado.slice(1)}</span>
-                      </div>
-                      <button
-                        onClick={(e) => handleDeleteVenta(venta, e)}
-                        className="p-2 bg-red-100 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center active:scale-95"
-                        title="Eliminar venta"
-                      >
-                        <Trash2 size={18} strokeWidth={2.25} />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <User size={16} strokeWidth={2.25} className="text-[#ffa40c] flex-shrink-0" />
-                    <span className="font-medium text-gray-900 truncate">{venta.nombre_cliente}</span>
-                  </div>
-                  <div className="mb-3">
-                    <div className="text-xs text-gray-500 mb-2">Productos:</div>
-                    <div className="text-sm text-gray-700 leading-relaxed">
-                      {venta.productos.slice(0, 2).map((p, index) => (
-                        <span key={index} className="inline-block bg-gray-100 rounded-md px-2 py-1 mr-1 mb-1 text-xs">
-                          {p.nombre} ({p.cantidad})
+                  <div
+                    key={venta.id}
+                    onClick={() => handleViewVenta(venta.id)}
+                    className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all duration-200 cursor-pointer active:scale-[0.98] sm:active:scale-100"
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-[#45923a] rounded-full"></div>
+                        <span className="text-xs font-medium text-gray-500">
+                          {formatDateShort(venta.fecha_creacion)}
                         </span>
-                      ))}
-                      {venta.productos.length > 2 && (
-                        <span className="text-xs text-gray-500 font-medium">
-                          +{venta.productos.length - 2} más
+                        <span className="text-xs text-gray-400">
+                          {formatTime(venta.fecha_creacion)}
                         </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center pt-3 border-t border-gray-100">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                      <div className="flex items-center gap-1">
-                        <span className="text-green-600 font-bold text-sm">Total:</span>
-                        <span className="font-bold text-green-600 text-lg">S/{venta.total.toFixed(2)}</span>
                       </div>
-                      {venta.total_retornables > 0 && (
-                        <div className="flex items-center gap-1">
-                          <Milk className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                          <span className="text-xs text-blue-600 font-medium">Debe botellas: {venta.total_retornables}</span>
+                      <div className="flex items-center gap-2">
+                        <div className={`flex items-center gap-1 px-2 py-1 rounded-full border text-xs font-medium ${getEstadoColor(venta.estado)}`}>
+                          {getEstadoIcon(venta.estado)}
+                          <span>{venta.estado.charAt(0).toUpperCase() + venta.estado.slice(1)}</span>
                         </div>
-                      )}
+                        <button
+                          onClick={(e) => handleDeleteVenta(venta, e)}
+                          className="p-2 bg-red-100 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center active:scale-95"
+                          title="Eliminar venta"
+                        >
+                          <Trash2 size={18} strokeWidth={2.25} />
+                        </button>
+                      </div>
                     </div>
-                    <button className="flex items-center gap-1 text-[#45923a] hover:text-[#3a7d30] text-sm font-medium px-3 py-2 rounded-lg hover:bg-green-50 transition-colors">
-                      <FileText className="w-4 h-4" />
-                      <span className="hidden xs:inline">Ver</span>
-                    </button>
+                    <div className="flex items-center gap-2 mb-3">
+                      <User size={16} strokeWidth={2.25} className="text-[#ffa40c] flex-shrink-0" />
+                      <span className="font-medium text-gray-900 truncate">{venta.nombre_cliente}</span>
+                    </div>
+                    <div className="mb-3">
+                      <div className="text-xs text-gray-500 mb-2">Productos:</div>
+                      <div className="text-sm text-gray-700 leading-relaxed">
+                        {venta.productos.slice(0, 2).map((p, index) => (
+                          <span key={index} className="inline-block bg-gray-100 rounded-md px-2 py-1 mr-1 mb-1 text-xs">
+                            {p.nombre} ({p.cantidad})
+                          </span>
+                        ))}
+                        {venta.productos.length > 2 && (
+                          <span className="text-xs text-gray-500 font-medium">
+                            +{venta.productos.length - 2} más
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                        <div className="flex items-center gap-1">
+                          <span className="text-green-600 font-bold text-sm">Total:</span>
+                          <span className="font-bold text-green-600 text-lg">S/{venta.total.toFixed(2)}</span>
+                        </div>
+                        {venta.total_retornables > 0 && (
+                          <div className="flex items-center gap-1">
+                            <Milk className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                            <span className="text-xs text-blue-600 font-medium">Debe botellas: {venta.total_retornables}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-2 rounded-lg hover:bg-blue-50 transition-colors"
+                          title="Replicar venta"
+                          onClick={(e) => handleReplicateSale(venta, e)}
+                        >
+                          <Repeat className="w-4 h-4" />
+                          <span className="hidden xs:inline">Replicar</span>
+                        </button>
+                        <button
+                          className="flex items-center gap-1 text-gray-600 hover:text-gray-900 text-sm font-medium px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                          title="Imprimir ticket"
+                          onClick={(e) => handleOpenReprintModal(venta, e)}
+                        >
+                          <Printer className="w-4 h-4" />
+                          <span className="hidden xs:inline">Imprimir</span>
+                        </button>
+                        <button className="flex items-center gap-1 text-[#45923a] hover:text-[#3a7d30] text-sm font-medium px-3 py-2 rounded-lg hover:bg-green-50 transition-colors">
+                          <FileText className="w-4 h-4" />
+                          <span className="hidden xs:inline">Ver</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
               </div>
 
               {/* Controles de paginación - Diseño móvil optimizado */}
@@ -659,7 +731,7 @@ const VentasHistorial = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Controles de navegación - Táctil para móvil */}
                 <div className="p-4">
                   <div className="flex items-center justify-between gap-4">
@@ -672,20 +744,20 @@ const VentasHistorial = () => {
                       <span className="hidden xs:inline">Anterior</span>
                       <span className="xs:hidden">Ant.</span>
                     </button>
-                    
+
                     {/* Indicador visual de página actual - Más grande para móvil */}
                     <div className="flex items-center justify-center min-w-[64px] h-[52px] bg-gradient-to-r from-[#45923a] to-[#3d8033] text-white rounded-xl text-base font-bold shadow-lg">
                       {loadingHistorial ? (
                         <div className="flex space-x-1">
                           <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
-                          <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                          <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                          <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                          <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                         </div>
                       ) : (
                         paginaActual
                       )}
                     </div>
-                    
+
                     <button
                       onClick={handleSiguientePagina}
                       disabled={!hayMasPaginas || loadingHistorial}
@@ -739,6 +811,45 @@ const VentasHistorial = () => {
           )}
         </div>
       </main>
+
+      {/* Modal de confirmación de reimpresión (DaisyUI) */}
+      {reprintModalOpen && (
+        <dialog className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg text-gray-900">¿Reimprimir Ticket?</h3>
+            <p className="py-4 text-gray-600">
+              ¿Estás seguro de que deseas reimprimir el ticket para la venta de
+              <span className="font-semibold text-gray-800"> {selectedReprintVenta?.nombre_cliente}</span>?
+            </p>
+            <div className="modal-action">
+              <button
+                className="btn btn-ghost"
+                onClick={handleCloseReprintModal}
+                disabled={reprintLoading}
+              >
+                Cancelar
+              </button>
+              <button
+                className="btn btn-primary bg-[#45923a] border-none hover:bg-[#3a7d30] text-white"
+                onClick={handleConfirmReprint}
+                disabled={reprintLoading}
+              >
+                {reprintLoading ? (
+                  <>
+                    <span className="loading loading-spinner text-white"></span>
+                    Enviando...
+                  </>
+                ) : (
+                  'Aceptar'
+                )}
+              </button>
+            </div>
+          </div>
+          <form method="dialog" className="modal-backdrop">
+            <button onClick={handleCloseReprintModal}>close</button>
+          </form>
+        </dialog>
+      )}
     </div>
   );
 };

@@ -34,5 +34,8 @@ const yapeApp = initializeApp(firebaseYapeConfig, 'yapeApp');
 // Obtener referencia a Realtime Database
 export const configDatabase = getDatabase(configApp);
 
+// Obtener referencia a Firestore de Configuración (para Pedidos)
+export const configFirestore = getFirestore(configApp);
+
 // Obtener referencia a Firestore de Yape
 export const yapeDb = getFirestore(yapeApp);
