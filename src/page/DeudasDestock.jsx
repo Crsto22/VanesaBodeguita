@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { 
-  ShoppingCart, CreditCard, Users, Barcode, Package, Search, 
-  AlertCircle, Milk, DollarSign, CheckSquare, ChevronDown, 
+import {
+  ShoppingCart, CreditCard, Users, Barcode, Package, Search,
+  AlertCircle, Milk, DollarSign, CheckSquare, ChevronDown,
   Calendar, Clock, Eye, ListOrdered, RefreshCw, Wallet, History, X, Plus, Minus, Printer, BookOpen, Grid3x3
 } from 'lucide-react';
 import Logo from '../assets/Logo.svg';
@@ -26,12 +26,12 @@ const DeudasDestock = () => {
   const { obtenerProductoPorId, obtenerProductoPorIdDirecto } = useProducts();
   const [clientesConDeudas, setClientesConDeudas] = useState([]);
   const [isCalculating, setIsCalculating] = useState(true);
-  
+
   // Estados para el cliente seleccionado
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [activeTab, setActiveTab] = useState('deudas');
   const [vistaMode, setVistaMode] = useState('cuaderno'); // 'ventas' o 'cuaderno'
-  
+
   // Estados para gestión de pagos
   const [ventas, setVentas] = useState([]);
   const [selectedVentas, setSelectedVentas] = useState([]);
@@ -46,13 +46,13 @@ const DeudasDestock = () => {
     const saved = localStorage.getItem('deudasDestock_resumido');
     return saved ? JSON.parse(saved) : false;
   });
-  
+
   // Estados para gestión de botellas
   const [ventasConRetornables, setVentasConRetornables] = useState([]);
   const [cantidadesBotellas, setCantidadesBotellas] = useState({});
   const [loadingBotellas, setLoadingBotellas] = useState(false);
   const [productDetailsCache, setProductDetailsCache] = useState({});
-  
+
   // Estado para modal de confirmación de impresión
   const [mostrarModalImprimir, setMostrarModalImprimir] = useState(false);
 
@@ -128,12 +128,12 @@ const DeudasDestock = () => {
           setLoadingPago(true);
           const cliente = await obtenerClientePorId(clienteId);
           setClienteSeleccionado(cliente);
-          
+
           // Cargar ventas del cliente
           const ventasCliente = await obtenerVentasPorCliente(clienteId);
           const ventasPendientes = ventasCliente.filter(v => v.monto_pendiente > 0);
           setVentas(ventasPendientes);
-          
+
           // Inicializar estado de acordeones
           const initialExpanded = {};
           ventasPendientes.forEach(venta => {
@@ -151,7 +151,7 @@ const DeudasDestock = () => {
         setVentas([]);
       }
     };
-    
+
     cargarClienteSeleccionado();
   }, [clienteId, obtenerClientePorId, obtenerVentasPorCliente]);
 
@@ -164,14 +164,14 @@ const DeudasDestock = () => {
           const ventasCliente = await obtenerVentasPorCliente(clienteId, true);
           const ventasConRetornablesPendientes = ventasCliente.filter(v => v.total_retornables > 0);
           setVentasConRetornables(ventasConRetornablesPendientes);
-          
+
           // Inicializar cantidades
           const initialCantidades = {};
           ventasConRetornablesPendientes.forEach(venta => {
             initialCantidades[venta.id] = 0;
           });
           setCantidadesBotellas(initialCantidades);
-          
+
           // Cargar detalles de productos
           const cache = {};
           for (const venta of ventasConRetornablesPendientes) {
@@ -194,7 +194,7 @@ const DeudasDestock = () => {
         }
       }
     };
-    
+
     cargarVentasConRetornables();
   }, [clienteId, activeTab, obtenerVentasPorCliente, obtenerProductoPorId, obtenerProductoPorIdDirecto]);
 
@@ -240,18 +240,18 @@ const DeudasDestock = () => {
   const actualizarListaClientes = async () => {
     try {
       setIsCalculating(true);
-      
+
       // Obtener clientes frescos desde el servidor
       await obtenerClientes();
-      
+
       // Esperar un momento para que el contexto se actualice
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       const clientesConDeudasActualizados = [];
-      
+
       // Usar los clientes del contexto (ya actualizados)
       const clientesActuales = clientes.length > 0 ? clientes : await obtenerClientes();
-      
+
       for (const cliente of clientesActuales) {
         const deudaInfo = await obtenerDeudaTotalPorCliente(cliente.id);
         if (deudaInfo.deuda_total > 0 || deudaInfo.total_retornables > 0) {
@@ -262,7 +262,7 @@ const DeudasDestock = () => {
           });
         }
       }
-      
+
       setClientesConDeudas(clientesConDeudasActualizados);
     } catch (error) {
       console.error('Error al actualizar lista de clientes:', error);
@@ -404,7 +404,7 @@ const DeudasDestock = () => {
       setLoadingPago(true);
       const deudaTotalAnterior = totalDeuda;
       let montoTotalPagado = 0;
-      
+
       if (modoAbono) {
         const monto = parseFloat(montoAbono);
         if (isNaN(monto)) {
@@ -414,18 +414,24 @@ const DeudasDestock = () => {
         montoTotalPagado = monto;
         await registrarAbono(clienteId, monto, notas);
       } else {
+
         if (selectedVentas.length === 0 && !pagarTodo) {
           setError('Selecciona al menos una venta o activa "Pagar todo".');
           return;
         }
         const ventasAPagar = pagarTodo ? ventas : ventas.filter(v => selectedVentas.includes(v.id));
         montoTotalPagado = ventasAPagar.reduce((sum, venta) => sum + (venta.monto_pendiente || 0), 0);
-        for (const venta of ventasAPagar) await pagarVenta(venta.id);
+
+        // Obtener IDs de las ventas a pagar para generar un solo abono
+        const idsPagos = ventasAPagar.map(v => v.id);
+
+        // Usar registrarAbono con los IDs específicos para crear un único documento de abono
+        await registrarAbono(clienteId, montoTotalPagado, notas, idsPagos);
       }
-      
+
       const deudaTotalNueva = deudaTotalAnterior - montoTotalPagado;
       await imprimirComprobantePago(clienteSeleccionado.nombre, montoTotalPagado, deudaTotalAnterior, deudaTotalNueva);
-      
+
       // Recargar ventas
       const ventasCliente = await obtenerVentasPorCliente(clienteId);
       const ventasPendientes = ventasCliente.filter(v => v.monto_pendiente > 0);
@@ -434,7 +440,7 @@ const DeudasDestock = () => {
       setPagarTodo(false);
       setModoAbono(false);
       setMontoAbono('');
-      
+
       // Actualizar lista de clientes sin recargar la página
       await actualizarListaClientes();
     } catch (err) {
@@ -500,17 +506,17 @@ const DeudasDestock = () => {
       const ventasCliente = await obtenerVentasPorCliente(clienteId, true);
       const ventasConRetornablesPendientes = ventasCliente.filter(v => v.total_retornables > 0);
       setVentasConRetornables(ventasConRetornablesPendientes);
-      
+
       // Reiniciar cantidades
       const initialCantidades = {};
       ventasConRetornablesPendientes.forEach(venta => {
         initialCantidades[venta.id] = 0;
       });
       setCantidadesBotellas(initialCantidades);
-      
+
       // Actualizar lista de clientes sin recargar la página
       await actualizarListaClientes();
-      
+
       // Recargar detalles de productos
       const cache = {};
       for (const venta of ventasConRetornablesPendientes) {
@@ -577,12 +583,12 @@ const DeudasDestock = () => {
         onOptionClick={handleOptionClick}
         logo={Logo}
       />
-      
+
       <main className="ml-0">
         <div className={`transition-opacity duration-500 ${appear ? 'opacity-100' : 'opacity-0'}`}>
           {/* Layout de 2 columnas */}
           <div className="flex" style={{ height: 'calc(100vh - 64px)' }}>
-            
+
             {/* COLUMNA IZQUIERDA - Lista de Clientes */}
             <div className="w-1/4 border-r  border-gray-200 bg-white flex flex-col">
               {/* Header de la columna */}
@@ -631,11 +637,10 @@ const DeudasDestock = () => {
                       <div
                         key={cliente.id}
                         onClick={() => handleClienteClick(cliente.id)}
-                        className={`p-4 rounded-xl shadow-sm border-2 transition-all duration-200 cursor-pointer ${
-                          clienteId === cliente.id
-                            ? 'bg-green-50 border-[#45923a] shadow-md ring-2 ring-[#45923a]/20'
-                            : 'bg-white border-gray-200 hover:shadow-md hover:border-[#45923a]/30'
-                        }`}
+                        className={`p-4 rounded-xl shadow-sm border-2 transition-all duration-200 cursor-pointer ${clienteId === cliente.id
+                          ? 'bg-green-50 border-[#45923a] shadow-md ring-2 ring-[#45923a]/20'
+                          : 'bg-white border-gray-200 hover:shadow-md hover:border-[#45923a]/30'
+                          }`}
                       >
                         <div className="flex items-start gap-3">
                           <div className="w-10 h-10 bg-gradient-to-br from-[#45923a] to-[#3d8033] rounded-full flex items-center justify-center flex-shrink-0">
@@ -725,11 +730,10 @@ const DeudasDestock = () => {
                         <button
                           onClick={() => setMostrarModalImprimir(true)}
                           disabled={loadingPago || ventas.length === 0}
-                          className={`flex items-center gap-2 px-4 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all active:scale-95 ${
-                            loadingPago || ventas.length === 0
-                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white'
-                          }`}
+                          className={`flex items-center gap-2 px-4 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all active:scale-95 ${loadingPago || ventas.length === 0
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white'
+                            }`}
                           title="Imprimir todas las ventas pendientes"
                         >
                           <Printer className="h-5 w-5" />
@@ -742,11 +746,10 @@ const DeudasDestock = () => {
                     <div className="flex gap-2 mb-3">
                       <button
                         onClick={() => setActiveTab('deudas')}
-                        className={`flex-1 py-3 px-4 rounded-lg font-semibold text-sm transition-all ${
-                          activeTab === 'deudas'
-                            ? 'bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
+                        className={`flex-1 py-3 px-4 rounded-lg font-semibold text-sm transition-all ${activeTab === 'deudas'
+                          ? 'bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
                       >
                         <div className="flex items-center justify-center gap-2">
                           <DollarSign className="h-4 w-4" />
@@ -755,11 +758,10 @@ const DeudasDestock = () => {
                       </button>
                       <button
                         onClick={() => setActiveTab('botellas')}
-                        className={`flex-1 py-3 px-4 rounded-lg font-semibold text-sm transition-all ${
-                          activeTab === 'botellas'
-                            ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
+                        className={`flex-1 py-3 px-4 rounded-lg font-semibold text-sm transition-all ${activeTab === 'botellas'
+                          ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
                       >
                         <div className="flex items-center justify-center gap-2">
                           <Milk className="h-4 w-4" />
@@ -774,11 +776,10 @@ const DeudasDestock = () => {
                         <div className="flex gap-2 bg-gray-50 p-2 rounded-lg border border-gray-200 flex-1">
                           <button
                             onClick={() => setVistaMode('cuaderno')}
-                            className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
-                              vistaMode === 'cuaderno'
-                                ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
-                                : 'text-gray-600 hover:text-gray-900'
-                            }`}
+                            className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${vistaMode === 'cuaderno'
+                              ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
+                              : 'text-gray-600 hover:text-gray-900'
+                              }`}
                           >
                             <div className="flex items-center justify-center gap-2">
                               <BookOpen className="h-4 w-4" />
@@ -787,11 +788,10 @@ const DeudasDestock = () => {
                           </button>
                           <button
                             onClick={() => setVistaMode('ventas')}
-                            className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${
-                              vistaMode === 'ventas'
-                                ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
-                                : 'text-gray-600 hover:text-gray-900'
-                            }`}
+                            className={`flex-1 py-2 px-3 rounded-lg font-medium text-xs transition-all ${vistaMode === 'ventas'
+                              ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
+                              : 'text-gray-600 hover:text-gray-900'
+                              }`}
                           >
                             <div className="flex items-center justify-center gap-2">
                               <Grid3x3 className="h-4 w-4" />
@@ -863,76 +863,74 @@ const DeudasDestock = () => {
                               <>
                                 {/* Opciones de pago en grid */}
                                 <div className="grid grid-cols-2 gap-4">
-                              {/* Modo abono */}
-                              <div className={`bg-white rounded-2xl shadow-md border-2 transition-all hover:shadow-lg ${
-                                modoAbono ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-orange-200'
-                              }`}>
-                                <label className="flex flex-col p-5 cursor-pointer h-full">
-                                  <div className="flex items-center gap-3 mb-3">
-                                    <input
-                                      type="checkbox"
-                                      checked={modoAbono}
-                                      onChange={() => {
-                                        setModoAbono(!modoAbono);
-                                        setSelectedVentas([]);
-                                        setPagarTodo(false);
-                                      }}
-                                      className="checkbox checkbox-warning checkbox-lg"
-                                    />
-                                    <div className="flex items-center gap-2">
-                                      <DollarSign className="h-6 w-6 text-orange-600" />
-                                      <span className="text-lg font-bold text-gray-800">Abono</span>
-                                    </div>
-                                  </div>
-                                  <p className="text-sm text-gray-600 mb-3">Pago parcial flexible</p>
-                                  {modoAbono && (
-                                    <div className="mt-auto">
-                                      <label className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-                                        <Wallet className="h-3.5 w-3.5" />
-                                        Monto del abono
-                                      </label>
-                                      <div className="relative">
+                                  {/* Modo abono */}
+                                  <div className={`bg-white rounded-2xl shadow-md border-2 transition-all hover:shadow-lg ${modoAbono ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-orange-200'
+                                    }`}>
+                                    <label className="flex flex-col p-5 cursor-pointer h-full">
+                                      <div className="flex items-center gap-3 mb-3">
                                         <input
-                                          type="number"
-                                          value={montoAbono}
-                                          onChange={(e) => setMontoAbono(e.target.value)}
-                                          placeholder="0.00"
-                                          step="0.01"
-                                          min="0"
-                                          className="w-full pl-9 pr-3 py-2.5 text-lg font-bold border-2 border-orange-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-white"
+                                          type="checkbox"
+                                          checked={modoAbono}
+                                          onChange={() => {
+                                            setModoAbono(!modoAbono);
+                                            setSelectedVentas([]);
+                                            setPagarTodo(false);
+                                          }}
+                                          className="checkbox checkbox-warning checkbox-lg"
                                         />
-                                        <span className="absolute left-3 top-2.5 text-base font-semibold text-gray-600">S/</span>
+                                        <div className="flex items-center gap-2">
+                                          <DollarSign className="h-6 w-6 text-orange-600" />
+                                          <span className="text-lg font-bold text-gray-800">Abono</span>
+                                        </div>
                                       </div>
-                                    </div>
-                                  )}
-                                </label>
-                              </div>
+                                      <p className="text-sm text-gray-600 mb-3">Pago parcial flexible</p>
+                                      {modoAbono && (
+                                        <div className="mt-auto">
+                                          <label className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+                                            <Wallet className="h-3.5 w-3.5" />
+                                            Monto del abono
+                                          </label>
+                                          <div className="relative">
+                                            <input
+                                              type="number"
+                                              value={montoAbono}
+                                              onChange={(e) => setMontoAbono(e.target.value)}
+                                              placeholder="0.00"
+                                              step="0.01"
+                                              min="0"
+                                              className="w-full pl-9 pr-3 py-2.5 text-lg font-bold border-2 border-orange-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-white"
+                                            />
+                                            <span className="absolute left-3 top-2.5 text-base font-semibold text-gray-600">S/</span>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </label>
+                                  </div>
 
-                              {/* Pagar todo */}
-                              <div className={`rounded-2xl shadow-md border-2 transition-all hover:shadow-lg ${
-                                pagarTodo ? 'border-green-400 bg-green-50' : 'border-gray-200 hover:border-green-200'
-                              } ${modoAbono ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`} onClick={!modoAbono ? handlePagarTodo : undefined}>
-                                <label className="flex flex-col p-5 cursor-pointer h-full">
-                                  <div className="flex items-center gap-3 mb-3">
-                                    <input 
-                                      type="checkbox" 
-                                      checked={pagarTodo} 
-                                      onChange={handlePagarTodo} 
-                                      disabled={modoAbono} 
-                                      className="checkbox checkbox-success checkbox-lg"
-                                    />
-                                    <div className="flex items-center gap-2">
-                                      <CreditCard className="h-6 w-6 text-green-600" />
-                                      <span className="text-lg font-bold text-gray-800">Pagar Todo</span>
-                                    </div>
+                                  {/* Pagar todo */}
+                                  <div className={`rounded-2xl shadow-md border-2 transition-all hover:shadow-lg ${pagarTodo ? 'border-green-400 bg-green-50' : 'border-gray-200 hover:border-green-200'
+                                    } ${modoAbono ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`} onClick={!modoAbono ? handlePagarTodo : undefined}>
+                                    <label className="flex flex-col p-5 cursor-pointer h-full">
+                                      <div className="flex items-center gap-3 mb-3">
+                                        <input
+                                          type="checkbox"
+                                          checked={pagarTodo}
+                                          onChange={handlePagarTodo}
+                                          disabled={modoAbono}
+                                          className="checkbox checkbox-success checkbox-lg"
+                                        />
+                                        <div className="flex items-center gap-2">
+                                          <CreditCard className="h-6 w-6 text-green-600" />
+                                          <span className="text-lg font-bold text-gray-800">Pagar Todo</span>
+                                        </div>
+                                      </div>
+                                      <p className="text-sm text-gray-600 mb-3">Liquidar todas las deudas</p>
+                                      <div className="mt-auto">
+                                        <p className="text-xs text-gray-500 mb-1">Monto total</p>
+                                        <p className="text-2xl font-bold text-green-600">{formatCurrency(calcularMontoTotal())}</p>
+                                      </div>
+                                    </label>
                                   </div>
-                                  <p className="text-sm text-gray-600 mb-3">Liquidar todas las deudas</p>
-                                  <div className="mt-auto">
-                                    <p className="text-xs text-gray-500 mb-1">Monto total</p>
-                                    <p className="text-2xl font-bold text-green-600">{formatCurrency(calcularMontoTotal())}</p>
-                                  </div>
-                                </label>
-                                </div>
                                 </div>
 
                                 {/* Vista tipo cuaderno - Lista de productos */}
@@ -982,342 +980,340 @@ const DeudasDestock = () => {
                                             return ventasOrdenadas.map((venta, ventaIndex) => {
                                               // Verificar si es una venta parcial (monto_pendiente < total)
                                               const esParcial = venta.monto_pendiente < venta.total;
-                                          
-                                          if (esParcial) {
-                                            // Para ventas parciales, mostrar una sola fila con todos los productos
-                                            const nombresProductos = venta.productos.map(p => p.nombre).join(', ');
-                                            const montoPagado = venta.total - venta.monto_pendiente;
-                                            return (
-                                              <tr 
-                                                key={venta.id}
-                                                className={`hover:bg-amber-50/50 transition-colors ${
-                                                  (selectedVentas.includes(venta.id) || pagarTodo) && !modoAbono
-                                                    ? 'bg-blue-50 border-l-4 border-blue-500'
-                                                    : ''
-                                                }`}
-                                              >
-                                                <td className="px-4 py-3 text-sm text-gray-600 font-medium">
-                                                  {ventaIndex + 1}
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                  <div className="flex flex-col">
-                                                    <span className="text-sm font-medium text-gray-900">
-                                                      {formatDateTime(venta.fecha_creacion).date}
-                                                    </span>
-                                                    <span className="text-xs text-gray-500">
-                                                      {formatDateTime(venta.fecha_creacion).time}
-                                                    </span>
-                                                  </div>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                  <div className="flex flex-col gap-1">
-                                                    <span className="text-sm font-bold text-orange-700">
-                                                      PARCIAL
-                                                    </span>
-                                                    <span className="text-xs text-gray-600 italic">
-                                                      {nombresProductos}
-                                                    </span>
-                                                    <div className="bg-gray-50 rounded-lg p-2 mt-2">
-                                                      <div className="text-xs flex items-center justify-between">
-                                                        <span className="text-gray-600">Total: <span className="font-semibold text-gray-800">{formatCurrency(venta.total)}</span></span>
-                                                        <span className="text-green-600">Pagado: <span className="font-semibold text-green-600">{formatCurrency(montoPagado)}</span></span>
-                                                      </div>
-                                                    </div>
-                                                  </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                  <span className="text-xs text-gray-500">-</span>
-                                                </td>
-                                                <td className="px-4 py-3 text-right">
-                                                  <span className="text-xs text-gray-500">-</span>
-                                                </td>
-                                                <td className="px-4 py-3 text-right">
-                                                  <div className="flex flex-col items-end">
-                                                    <span className="text-xs text-gray-500 mb-1">Pendiente:</span>
-                                                    <span className="text-base font-bold text-orange-600">
-                                                      {formatCurrency(venta.monto_pendiente)}
-                                                    </span>
-                                                  </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                  <button 
-                                                    onClick={() => navigate(`/ventas/${venta.id}`)}
-                                                    className="p-2 rounded-lg bg-green-100 hover:bg-green-200 border border-green-200 transition-all inline-flex items-center justify-center"
-                                                    title="Ver nota de venta"
+
+                                              if (esParcial) {
+                                                // Para ventas parciales, mostrar una sola fila con todos los productos
+                                                const nombresProductos = venta.productos.map(p => p.nombre).join(', ');
+                                                const montoPagado = venta.total - venta.monto_pendiente;
+                                                return (
+                                                  <tr
+                                                    key={venta.id}
+                                                    className={`hover:bg-amber-50/50 transition-colors ${(selectedVentas.includes(venta.id) || pagarTodo) && !modoAbono
+                                                      ? 'bg-blue-50 border-l-4 border-blue-500'
+                                                      : ''
+                                                      }`}
                                                   >
-                                                    <Eye className="h-4 w-4 text-green-700" />
-                                                  </button>
-                                                </td>
-                                              </tr>
-                                            );
-                                          } else {
-                                            // Para ventas completas, mostrar cada producto
-                                            return venta.productos.map((producto, productoIndex) => (
-                                              <tr 
-                                                key={`${venta.id}-${productoIndex}`}
-                                                className={`hover:bg-amber-50/50 transition-colors ${
-                                                  (selectedVentas.includes(venta.id) || pagarTodo) && !modoAbono
-                                                    ? 'bg-blue-50 border-l-4 border-blue-500'
-                                                    : ''
-                                                }`}
-                                              >
-                                                <td className="px-4 py-3 text-sm text-gray-600 font-medium">
-                                                  {ventaIndex + 1}.{productoIndex + 1}
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                  <div className="flex flex-col">
-                                                    <span className="text-sm font-medium text-gray-900">
-                                                      {formatDateTime(venta.fecha_creacion).date}
-                                                    </span>
-                                                    <span className="text-xs text-gray-500">
-                                                      {formatDateTime(venta.fecha_creacion).time}
-                                                    </span>
-                                                  </div>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                  <div className="flex flex-col">
-                                                    <span className="text-sm font-semibold text-gray-900">
-                                                      {producto.nombre}
-                                                    </span>
-                                                    {producto.retornable && producto.cantidad_retornable > 0 && (
-                                                      <div className="flex items-center gap-1 mt-1">
-                                                        <RefreshCw className="h-3 w-3 text-orange-600" />
-                                                        <span className="text-xs font-medium text-orange-600">
-                                                          {producto.cantidad_retornable} retornables
+                                                    <td className="px-4 py-3 text-sm text-gray-600 font-medium">
+                                                      {ventaIndex + 1}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                      <div className="flex flex-col">
+                                                        <span className="text-sm font-medium text-gray-900">
+                                                          {formatDateTime(venta.fecha_creacion).date}
+                                                        </span>
+                                                        <span className="text-xs text-gray-500">
+                                                          {formatDateTime(venta.fecha_creacion).time}
                                                         </span>
                                                       </div>
-                                                    )}
-                                                  </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                  <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold bg-gray-100 text-gray-800">
-                                                    {producto.cantidad}
-                                                  </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-right">
-                                                  <span className="text-sm font-medium text-gray-700">
-                                                    {formatCurrency(producto.precio_unitario)}
-                                                  </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-right">
-                                                  <span className="text-base font-bold" style={{ color: colors.primary }}>
-                                                    {formatCurrency(producto.subtotal)}
-                                                  </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                  {productoIndex === 0 && (
-                                                    <button 
-                                                      onClick={() => navigate(`/ventas/${venta.id}`)}
-                                                      className="p-2 rounded-lg bg-green-100 hover:bg-green-200 border border-green-200 transition-all inline-flex items-center justify-center"
-                                                      title="Ver nota de venta"
-                                                    >
-                                                      <Eye className="h-4 w-4 text-green-700" />
-                                                    </button>
-                                                  )}
-                                                </td>
-                                              </tr>
-                                            ));
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                      <div className="flex flex-col gap-1">
+                                                        <span className="text-sm font-bold text-orange-700">
+                                                          PARCIAL
+                                                        </span>
+                                                        <span className="text-xs text-gray-600 italic">
+                                                          {nombresProductos}
+                                                        </span>
+                                                        <div className="bg-gray-50 rounded-lg p-2 mt-2">
+                                                          <div className="text-xs flex items-center justify-between">
+                                                            <span className="text-gray-600">Total: <span className="font-semibold text-gray-800">{formatCurrency(venta.total)}</span></span>
+                                                            <span className="text-green-600">Pagado: <span className="font-semibold text-green-600">{formatCurrency(montoPagado)}</span></span>
+                                                          </div>
+                                                        </div>
+                                                      </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                      <span className="text-xs text-gray-500">-</span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right">
+                                                      <span className="text-xs text-gray-500">-</span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right">
+                                                      <div className="flex flex-col items-end">
+                                                        <span className="text-xs text-gray-500 mb-1">Pendiente:</span>
+                                                        <span className="text-base font-bold text-orange-600">
+                                                          {formatCurrency(venta.monto_pendiente)}
+                                                        </span>
+                                                      </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                      <button
+                                                        onClick={() => navigate(`/ventas/${venta.id}`)}
+                                                        className="p-2 rounded-lg bg-green-100 hover:bg-green-200 border border-green-200 transition-all inline-flex items-center justify-center"
+                                                        title="Ver nota de venta"
+                                                      >
+                                                        <Eye className="h-4 w-4 text-green-700" />
+                                                      </button>
+                                                    </td>
+                                                  </tr>
+                                                );
+                                              } else {
+                                                // Para ventas completas, mostrar cada producto
+                                                return venta.productos.map((producto, productoIndex) => (
+                                                  <tr
+                                                    key={`${venta.id}-${productoIndex}`}
+                                                    className={`hover:bg-amber-50/50 transition-colors ${(selectedVentas.includes(venta.id) || pagarTodo) && !modoAbono
+                                                      ? 'bg-blue-50 border-l-4 border-blue-500'
+                                                      : ''
+                                                      }`}
+                                                  >
+                                                    <td className="px-4 py-3 text-sm text-gray-600 font-medium">
+                                                      {ventaIndex + 1}.{productoIndex + 1}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                      <div className="flex flex-col">
+                                                        <span className="text-sm font-medium text-gray-900">
+                                                          {formatDateTime(venta.fecha_creacion).date}
+                                                        </span>
+                                                        <span className="text-xs text-gray-500">
+                                                          {formatDateTime(venta.fecha_creacion).time}
+                                                        </span>
+                                                      </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                      <div className="flex flex-col">
+                                                        <span className="text-sm font-semibold text-gray-900">
+                                                          {producto.nombre}
+                                                        </span>
+                                                        {producto.retornable && producto.cantidad_retornable > 0 && (
+                                                          <div className="flex items-center gap-1 mt-1">
+                                                            <RefreshCw className="h-3 w-3 text-orange-600" />
+                                                            <span className="text-xs font-medium text-orange-600">
+                                                              {producto.cantidad_retornable} retornables
+                                                            </span>
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                      <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold bg-gray-100 text-gray-800">
+                                                        {producto.cantidad}
+                                                      </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right">
+                                                      <span className="text-sm font-medium text-gray-700">
+                                                        {formatCurrency(producto.precio_unitario)}
+                                                      </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right">
+                                                      <span className="text-base font-bold" style={{ color: colors.primary }}>
+                                                        {formatCurrency(producto.subtotal)}
+                                                      </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                      {productoIndex === 0 && (
+                                                        <button
+                                                          onClick={() => navigate(`/ventas/${venta.id}`)}
+                                                          className="p-2 rounded-lg bg-green-100 hover:bg-green-200 border border-green-200 transition-all inline-flex items-center justify-center"
+                                                          title="Ver nota de venta"
+                                                        >
+                                                          <Eye className="h-4 w-4 text-green-700" />
+                                                        </button>
+                                                      )}
+                                                    </td>
+                                                  </tr>
+                                                ));
+                                              }
+                                            });
                                           }
-                                        });
-                                      }
 
-                                      // Lógica resumida: buscar fecha de pago más reciente y agrupar
-                                      const latestPaymentDate = getLatestPaymentDateAcrossVentas(ventas);
-                                      if (!latestPaymentDate) {
-                                        // Si no hay pagos, mostrar todo normal
-                                        // Ordenar ventas por fecha de creación (más recientes primero)
-                                        const ventasOrdenadas = [...ventas].sort((a, b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion));
-                                        return ventasOrdenadas.map((venta, ventaIndex) => {
-                                          const esParcial = venta.monto_pendiente < venta.total;
-                                          
-                                          if (esParcial) {
-                                            const nombresProductos = venta.productos.map(p => p.nombre).join(', ');
-                                            const montoPagado = venta.total - venta.monto_pendiente;
-                                            return (
-                                              <tr key={venta.id} className="hover:bg-amber-50/50 transition-colors">
-                                                <td className="px-4 py-3 text-sm text-gray-600 font-medium">{ventaIndex + 1}</td>
-                                                <td className="px-4 py-3">
-                                                  <div className="flex flex-col">
-                                                    <span className="text-sm font-medium text-gray-900">{formatDateTime(venta.fecha_creacion).date}</span>
-                                                    <span className="text-xs text-gray-500">{formatDateTime(venta.fecha_creacion).time}</span>
-                                                  </div>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                  <div className="flex flex-col gap-1">
-                                                    <span className="text-sm font-bold text-orange-700">PARCIAL</span>
-                                                    <span className="text-xs text-gray-600 italic">{nombresProductos}</span>
-                                                    <div className="bg-gray-50 rounded-lg p-2 mt-2 text-xs flex items-center justify-between">
-                                                      <span className="text-gray-600">Total de la venta: <span className="font-semibold text-gray-800">{formatCurrency(venta.total)}</span></span>
-                                                      <span className="text-green-600">Ya pagado: <span className="font-semibold text-green-600">{formatCurrency(montoPagado)}</span></span>
-                                                    </div>
-                                                  </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-center"><span className="text-xs text-gray-500">-</span></td>
-                                                <td className="px-4 py-3 text-right"><span className="text-xs text-gray-500">-</span></td>
-                                                <td className="px-4 py-3 text-right">
-                                                  <div className="flex flex-col items-end">
-                                                    <span className="text-xs text-gray-500 mb-1">Pendiente:</span>
-                                                    <span className="text-base font-bold text-orange-600">
-                                                      {formatCurrency(venta.monto_pendiente)}
-                                                    </span>
-                                                  </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                  <button onClick={() => navigate(`/ventas/${venta.id}`)} className="p-2 rounded-lg bg-green-100 hover:bg-green-200 border border-green-200 transition-all">
-                                                    <Eye className="h-4 w-4 text-green-700" />
-                                                  </button>
-                                                </td>
-                                              </tr>
-                                            );
-                                          } else {
-                                            return venta.productos.map((producto, productoIndex) => (
-                                              <tr key={`${venta.id}-${productoIndex}`} className="hover:bg-amber-50/50 transition-colors">
-                                                <td className="px-4 py-3 text-sm text-gray-600 font-medium">{ventaIndex + 1}.{productoIndex + 1}</td>
-                                                <td className="px-4 py-3">
-                                                  <div className="flex flex-col">
-                                                    <span className="text-sm font-medium text-gray-900">{formatDateTime(venta.fecha_creacion).date}</span>
-                                                    <span className="text-xs text-gray-500">{formatDateTime(venta.fecha_creacion).time}</span>
-                                                  </div>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                  <span className="text-sm font-semibold text-gray-900">{producto.nombre}</span>
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                  <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold bg-gray-100 text-gray-800">{producto.cantidad}</span>
-                                                </td>
-                                                <td className="px-4 py-3 text-right">
-                                                  <span className="text-sm font-medium text-gray-700">{formatCurrency(producto.precio_unitario)}</span>
-                                                </td>
-                                                <td className="px-4 py-3 text-right">
-                                                  <span className="text-base font-bold" style={{ color: colors.primary }}>{formatCurrency(producto.subtotal)}</span>
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                  {productoIndex === 0 && (
-                                                    <button onClick={() => navigate(`/ventas/${venta.id}`)} className="p-2 rounded-lg bg-green-100 hover:bg-green-200 border border-green-200 transition-all">
-                                                      <Eye className="h-4 w-4 text-green-700" />
-                                                    </button>
-                                                  )}
-                                                </td>
-                                              </tr>
-                                            ));
+                                          // Lógica resumida: buscar fecha de pago más reciente y agrupar
+                                          const latestPaymentDate = getLatestPaymentDateAcrossVentas(ventas);
+                                          if (!latestPaymentDate) {
+                                            // Si no hay pagos, mostrar todo normal
+                                            // Ordenar ventas por fecha de creación (más recientes primero)
+                                            const ventasOrdenadas = [...ventas].sort((a, b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion));
+                                            return ventasOrdenadas.map((venta, ventaIndex) => {
+                                              const esParcial = venta.monto_pendiente < venta.total;
+
+                                              if (esParcial) {
+                                                const nombresProductos = venta.productos.map(p => p.nombre).join(', ');
+                                                const montoPagado = venta.total - venta.monto_pendiente;
+                                                return (
+                                                  <tr key={venta.id} className="hover:bg-amber-50/50 transition-colors">
+                                                    <td className="px-4 py-3 text-sm text-gray-600 font-medium">{ventaIndex + 1}</td>
+                                                    <td className="px-4 py-3">
+                                                      <div className="flex flex-col">
+                                                        <span className="text-sm font-medium text-gray-900">{formatDateTime(venta.fecha_creacion).date}</span>
+                                                        <span className="text-xs text-gray-500">{formatDateTime(venta.fecha_creacion).time}</span>
+                                                      </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                      <div className="flex flex-col gap-1">
+                                                        <span className="text-sm font-bold text-orange-700">PARCIAL</span>
+                                                        <span className="text-xs text-gray-600 italic">{nombresProductos}</span>
+                                                        <div className="bg-gray-50 rounded-lg p-2 mt-2 text-xs flex items-center justify-between">
+                                                          <span className="text-gray-600">Total de la venta: <span className="font-semibold text-gray-800">{formatCurrency(venta.total)}</span></span>
+                                                          <span className="text-green-600">Ya pagado: <span className="font-semibold text-green-600">{formatCurrency(montoPagado)}</span></span>
+                                                        </div>
+                                                      </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center"><span className="text-xs text-gray-500">-</span></td>
+                                                    <td className="px-4 py-3 text-right"><span className="text-xs text-gray-500">-</span></td>
+                                                    <td className="px-4 py-3 text-right">
+                                                      <div className="flex flex-col items-end">
+                                                        <span className="text-xs text-gray-500 mb-1">Pendiente:</span>
+                                                        <span className="text-base font-bold text-orange-600">
+                                                          {formatCurrency(venta.monto_pendiente)}
+                                                        </span>
+                                                      </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                      <button onClick={() => navigate(`/ventas/${venta.id}`)} className="p-2 rounded-lg bg-green-100 hover:bg-green-200 border border-green-200 transition-all">
+                                                        <Eye className="h-4 w-4 text-green-700" />
+                                                      </button>
+                                                    </td>
+                                                  </tr>
+                                                );
+                                              } else {
+                                                return venta.productos.map((producto, productoIndex) => (
+                                                  <tr key={`${venta.id}-${productoIndex}`} className="hover:bg-amber-50/50 transition-colors">
+                                                    <td className="px-4 py-3 text-sm text-gray-600 font-medium">{ventaIndex + 1}.{productoIndex + 1}</td>
+                                                    <td className="px-4 py-3">
+                                                      <div className="flex flex-col">
+                                                        <span className="text-sm font-medium text-gray-900">{formatDateTime(venta.fecha_creacion).date}</span>
+                                                        <span className="text-xs text-gray-500">{formatDateTime(venta.fecha_creacion).time}</span>
+                                                      </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                      <span className="text-sm font-semibold text-gray-900">{producto.nombre}</span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                      <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold bg-gray-100 text-gray-800">{producto.cantidad}</span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right">
+                                                      <span className="text-sm font-medium text-gray-700">{formatCurrency(producto.precio_unitario)}</span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right">
+                                                      <span className="text-base font-bold" style={{ color: colors.primary }}>{formatCurrency(producto.subtotal)}</span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                      {productoIndex === 0 && (
+                                                        <button onClick={() => navigate(`/ventas/${venta.id}`)} className="p-2 rounded-lg bg-green-100 hover:bg-green-200 border border-green-200 transition-all">
+                                                          <Eye className="h-4 w-4 text-green-700" />
+                                                        </button>
+                                                      )}
+                                                    </td>
+                                                  </tr>
+                                                ));
+                                              }
+                                            });
                                           }
-                                        });
-                                      }
 
-                                      // Particionar ventas por fecha_creacion vs latestPaymentDate
-                                      const ventasAnteriores = ventas.filter((v) => {
-                                        const fc = v.fecha_creacion ? new Date(v.fecha_creacion) : null;
-                                        return fc && fc < latestPaymentDate;
-                                      }).sort((a, b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion));
+                                          // Particionar ventas por fecha_creacion vs latestPaymentDate
+                                          const ventasAnteriores = ventas.filter((v) => {
+                                            const fc = v.fecha_creacion ? new Date(v.fecha_creacion) : null;
+                                            return fc && fc < latestPaymentDate;
+                                          }).sort((a, b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion));
 
-                                      const ventasPosteriores = ventas.filter((v) => {
-                                        const fc = v.fecha_creacion ? new Date(v.fecha_creacion) : null;
-                                        return !fc || fc >= latestPaymentDate;
-                                      }).sort((a, b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion));
+                                          const ventasPosteriores = ventas.filter((v) => {
+                                            const fc = v.fecha_creacion ? new Date(v.fecha_creacion) : null;
+                                            return !fc || fc >= latestPaymentDate;
+                                          }).sort((a, b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion));
 
-                                      const sumaDeudaRestante = ventasAnteriores.reduce((acc, v) => acc + (Number(v.monto_pendiente) || 0), 0);
+                                          const sumaDeudaRestante = ventasAnteriores.reduce((acc, v) => acc + (Number(v.monto_pendiente) || 0), 0);
 
-                                      return (
-                                        <>
-                                          {/* Bloque DEUDA RESTANTE */}
-                                          {ventasAnteriores.length > 0 && (
-                                            <tr className="bg-red-50 border-l-4 border-red-500">
-                                              <td className="px-4 py-3 text-sm text-red-700 font-bold">-</td>
-                                              <td className="px-4 py-3">
-                                                <span className="text-sm font-medium text-red-700">HASTA: {formatDateTime(latestPaymentDate.toISOString()).date}</span>
-                                              </td>
-                                              <td className="px-4 py-3">
-                                                <span className="text-sm font-bold text-red-800">DEUDA RESTANTE</span>
-                                                <div className="text-xs text-red-600 mt-1">Suma de deudas anteriores</div>
-                                              </td>
-                                              <td className="px-4 py-3 text-center"><span className="text-xs text-gray-500">-</span></td>
-                                              <td className="px-4 py-3 text-right"><span className="text-xs text-gray-500">-</span></td>
-                                              <td className="px-4 py-3 text-right">
-                                                <span className="text-base font-bold text-red-600">{formatCurrency(sumaDeudaRestante)}</span>
-                                              </td>
-                                              <td className="px-4 py-3 text-center"><span className="text-xs text-gray-500">-</span></td>
-                                            </tr>
-                                          )}
-
-                                          {/* Mostrar ventas posteriores normalmente */}
-                                          {ventasPosteriores.map((venta, ventaIndex) => {
-                                            const esParcial = venta.monto_pendiente < venta.total;
-                                            
-                                            if (esParcial) {
-                                              const nombresProductos = venta.productos.map(p => p.nombre).join(', ');
-                                              const montoPagado = venta.total - venta.monto_pendiente;
-                                              return (
-                                                <tr key={venta.id} className="hover:bg-amber-50/50 transition-colors">
-                                                  <td className="px-4 py-3 text-sm text-gray-600 font-medium">{ventaIndex + 1}</td>
+                                          return (
+                                            <>
+                                              {/* Bloque DEUDA RESTANTE */}
+                                              {ventasAnteriores.length > 0 && (
+                                                <tr className="bg-red-50 border-l-4 border-red-500">
+                                                  <td className="px-4 py-3 text-sm text-red-700 font-bold">-</td>
                                                   <td className="px-4 py-3">
-                                                    <div className="flex flex-col">
-                                                      <span className="text-sm font-medium text-gray-900">{formatDateTime(venta.fecha_creacion).date}</span>
-                                                      <span className="text-xs text-gray-500">{formatDateTime(venta.fecha_creacion).time}</span>
-                                                    </div>
+                                                    <span className="text-sm font-medium text-red-700">HASTA: {formatDateTime(latestPaymentDate.toISOString()).date}</span>
                                                   </td>
                                                   <td className="px-4 py-3">
-                                                    <div className="flex flex-col gap-1">
-                                                      <span className="text-sm font-bold text-orange-700">PARCIAL</span>
-                                                      <span className="text-xs text-gray-600 italic">{nombresProductos}</span>
-                                                      <div className="bg-gray-50 rounded-lg p-2 mt-2 text-xs flex items-center justify-between">
-                                                        <span className="text-gray-600">Total de la venta: <span className="font-semibold text-gray-800">{formatCurrency(venta.total)}</span></span>
-                                                        <span className="text-green-600">Ya pagado: <span className="font-semibold text-green-600">{formatCurrency(montoPagado)}</span></span>
-                                                      </div>
-                                                    </div>
+                                                    <span className="text-sm font-bold text-red-800">DEUDA RESTANTE</span>
+                                                    <div className="text-xs text-red-600 mt-1">Suma de deudas anteriores</div>
                                                   </td>
                                                   <td className="px-4 py-3 text-center"><span className="text-xs text-gray-500">-</span></td>
                                                   <td className="px-4 py-3 text-right"><span className="text-xs text-gray-500">-</span></td>
                                                   <td className="px-4 py-3 text-right">
-                                                    <div className="flex flex-col items-end">
-                                                      <span className="text-xs text-gray-500 mb-1">Pendiente:</span>
-                                                      <span className="text-base font-bold text-orange-600">
-                                                        {formatCurrency(venta.monto_pendiente)}
-                                                      </span>
-                                                    </div>
+                                                    <span className="text-base font-bold text-red-600">{formatCurrency(sumaDeudaRestante)}</span>
                                                   </td>
-                                                  <td className="px-4 py-3 text-center">
-                                                    <button onClick={() => navigate(`/ventas/${venta.id}`)} className="p-2 rounded-lg bg-green-100 hover:bg-green-200 border border-green-200 transition-all">
-                                                      <Eye className="h-4 w-4 text-green-700" />
-                                                    </button>
-                                                  </td>
+                                                  <td className="px-4 py-3 text-center"><span className="text-xs text-gray-500">-</span></td>
                                                 </tr>
-                                              );
-                                            } else {
-                                              return venta.productos.map((producto, productoIndex) => (
-                                                <tr key={`${venta.id}-${productoIndex}`} className="hover:bg-amber-50/50 transition-colors">
-                                                  <td className="px-4 py-3 text-sm text-gray-600 font-medium">{ventaIndex + 1}.{productoIndex + 1}</td>
-                                                  <td className="px-4 py-3">
-                                                    <div className="flex flex-col">
-                                                      <span className="text-sm font-medium text-gray-900">{formatDateTime(venta.fecha_creacion).date}</span>
-                                                      <span className="text-xs text-gray-500">{formatDateTime(venta.fecha_creacion).time}</span>
-                                                    </div>
-                                                  </td>
-                                                  <td className="px-4 py-3">
-                                                    <span className="text-sm font-semibold text-gray-900">{producto.nombre}</span>
-                                                  </td>
-                                                  <td className="px-4 py-3 text-center">
-                                                    <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold bg-gray-100 text-gray-800">{producto.cantidad}</span>
-                                                  </td>
-                                                  <td className="px-4 py-3 text-right">
-                                                    <span className="text-sm font-medium text-gray-700">{formatCurrency(producto.precio_unitario)}</span>
-                                                  </td>
-                                                  <td className="px-4 py-3 text-right">
-                                                    <span className="text-base font-bold" style={{ color: colors.primary }}>{formatCurrency(producto.subtotal)}</span>
-                                                  </td>
-                                                  <td className="px-4 py-3 text-center">
-                                                    {productoIndex === 0 && (
-                                                      <button onClick={() => navigate(`/ventas/${venta.id}`)} className="p-2 rounded-lg bg-green-100 hover:bg-green-200 border border-green-200 transition-all">
-                                                        <Eye className="h-4 w-4 text-green-700" />
-                                                      </button>
-                                                    )}
-                                                  </td>
-                                                </tr>
-                                              ));
-                                            }
-                                          })}
-                                        </>
-                                      );
-                                    })()}
+                                              )}
+
+                                              {/* Mostrar ventas posteriores normalmente */}
+                                              {ventasPosteriores.map((venta, ventaIndex) => {
+                                                const esParcial = venta.monto_pendiente < venta.total;
+
+                                                if (esParcial) {
+                                                  const nombresProductos = venta.productos.map(p => p.nombre).join(', ');
+                                                  const montoPagado = venta.total - venta.monto_pendiente;
+                                                  return (
+                                                    <tr key={venta.id} className="hover:bg-amber-50/50 transition-colors">
+                                                      <td className="px-4 py-3 text-sm text-gray-600 font-medium">{ventaIndex + 1}</td>
+                                                      <td className="px-4 py-3">
+                                                        <div className="flex flex-col">
+                                                          <span className="text-sm font-medium text-gray-900">{formatDateTime(venta.fecha_creacion).date}</span>
+                                                          <span className="text-xs text-gray-500">{formatDateTime(venta.fecha_creacion).time}</span>
+                                                        </div>
+                                                      </td>
+                                                      <td className="px-4 py-3">
+                                                        <div className="flex flex-col gap-1">
+                                                          <span className="text-sm font-bold text-orange-700">PARCIAL</span>
+                                                          <span className="text-xs text-gray-600 italic">{nombresProductos}</span>
+                                                          <div className="bg-gray-50 rounded-lg p-2 mt-2 text-xs flex items-center justify-between">
+                                                            <span className="text-gray-600">Total de la venta: <span className="font-semibold text-gray-800">{formatCurrency(venta.total)}</span></span>
+                                                            <span className="text-green-600">Ya pagado: <span className="font-semibold text-green-600">{formatCurrency(montoPagado)}</span></span>
+                                                          </div>
+                                                        </div>
+                                                      </td>
+                                                      <td className="px-4 py-3 text-center"><span className="text-xs text-gray-500">-</span></td>
+                                                      <td className="px-4 py-3 text-right"><span className="text-xs text-gray-500">-</span></td>
+                                                      <td className="px-4 py-3 text-right">
+                                                        <div className="flex flex-col items-end">
+                                                          <span className="text-xs text-gray-500 mb-1">Pendiente:</span>
+                                                          <span className="text-base font-bold text-orange-600">
+                                                            {formatCurrency(venta.monto_pendiente)}
+                                                          </span>
+                                                        </div>
+                                                      </td>
+                                                      <td className="px-4 py-3 text-center">
+                                                        <button onClick={() => navigate(`/ventas/${venta.id}`)} className="p-2 rounded-lg bg-green-100 hover:bg-green-200 border border-green-200 transition-all">
+                                                          <Eye className="h-4 w-4 text-green-700" />
+                                                        </button>
+                                                      </td>
+                                                    </tr>
+                                                  );
+                                                } else {
+                                                  return venta.productos.map((producto, productoIndex) => (
+                                                    <tr key={`${venta.id}-${productoIndex}`} className="hover:bg-amber-50/50 transition-colors">
+                                                      <td className="px-4 py-3 text-sm text-gray-600 font-medium">{ventaIndex + 1}.{productoIndex + 1}</td>
+                                                      <td className="px-4 py-3">
+                                                        <div className="flex flex-col">
+                                                          <span className="text-sm font-medium text-gray-900">{formatDateTime(venta.fecha_creacion).date}</span>
+                                                          <span className="text-xs text-gray-500">{formatDateTime(venta.fecha_creacion).time}</span>
+                                                        </div>
+                                                      </td>
+                                                      <td className="px-4 py-3">
+                                                        <span className="text-sm font-semibold text-gray-900">{producto.nombre}</span>
+                                                      </td>
+                                                      <td className="px-4 py-3 text-center">
+                                                        <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold bg-gray-100 text-gray-800">{producto.cantidad}</span>
+                                                      </td>
+                                                      <td className="px-4 py-3 text-right">
+                                                        <span className="text-sm font-medium text-gray-700">{formatCurrency(producto.precio_unitario)}</span>
+                                                      </td>
+                                                      <td className="px-4 py-3 text-right">
+                                                        <span className="text-base font-bold" style={{ color: colors.primary }}>{formatCurrency(producto.subtotal)}</span>
+                                                      </td>
+                                                      <td className="px-4 py-3 text-center">
+                                                        {productoIndex === 0 && (
+                                                          <button onClick={() => navigate(`/ventas/${venta.id}`)} className="p-2 rounded-lg bg-green-100 hover:bg-green-200 border border-green-200 transition-all">
+                                                            <Eye className="h-4 w-4 text-green-700" />
+                                                          </button>
+                                                        )}
+                                                      </td>
+                                                    </tr>
+                                                  ));
+                                                }
+                                              })}
+                                            </>
+                                          );
+                                        })()}
                                       </tbody>
                                       <tfoot className="bg-gray-50 border-t-2 border-gray-300">
                                         <tr>
@@ -1362,9 +1358,8 @@ const DeudasDestock = () => {
                                 {/* Opciones de pago en grid */}
                                 <div className="grid grid-cols-2 gap-4">
                                   {/* Modo abono */}
-                                  <div className={`bg-white rounded-2xl shadow-md border-2 transition-all hover:shadow-lg ${
-                                    modoAbono ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-orange-200'
-                                  }`}>
+                                  <div className={`bg-white rounded-2xl shadow-md border-2 transition-all hover:shadow-lg ${modoAbono ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-orange-200'
+                                    }`}>
                                     <label className="flex flex-col p-5 cursor-pointer h-full">
                                       <div className="flex items-center gap-3 mb-3">
                                         <input
@@ -1407,16 +1402,15 @@ const DeudasDestock = () => {
                                   </div>
 
                                   {/* Pagar todo */}
-                                  <div className={`rounded-2xl shadow-md border-2 transition-all hover:shadow-lg ${
-                                    pagarTodo ? 'border-green-400 bg-green-50' : 'border-gray-200 hover:border-green-200'
-                                  } ${modoAbono ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`} onClick={!modoAbono ? handlePagarTodo : undefined}>
+                                  <div className={`rounded-2xl shadow-md border-2 transition-all hover:shadow-lg ${pagarTodo ? 'border-green-400 bg-green-50' : 'border-gray-200 hover:border-green-200'
+                                    } ${modoAbono ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`} onClick={!modoAbono ? handlePagarTodo : undefined}>
                                     <label className="flex flex-col p-5 cursor-pointer h-full">
                                       <div className="flex items-center gap-3 mb-3">
-                                        <input 
-                                          type="checkbox" 
-                                          checked={pagarTodo} 
-                                          onChange={handlePagarTodo} 
-                                          disabled={modoAbono} 
+                                        <input
+                                          type="checkbox"
+                                          checked={pagarTodo}
+                                          onChange={handlePagarTodo}
+                                          disabled={modoAbono}
                                           className="checkbox checkbox-success checkbox-lg"
                                         />
                                         <div className="flex items-center gap-2">
@@ -1442,9 +1436,8 @@ const DeudasDestock = () => {
                                   <div className="grid grid-cols-2 gap-3">
                                     {/* Ordenar ventas por fecha de creación (más recientes primero) */}
                                     {[...ventas].sort((a, b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion)).map((venta, index) => (
-                                      <div key={venta.id} className={`rounded-xl shadow-sm border-2 transition-all hover:shadow-md ${
-                                        selectedVentas.includes(venta.id) || pagarTodo ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300'
-                                      } ${modoAbono ? 'opacity-50' : ''}`}>
+                                      <div key={venta.id} className={`rounded-xl shadow-sm border-2 transition-all hover:shadow-md ${selectedVentas.includes(venta.id) || pagarTodo ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300'
+                                        } ${modoAbono ? 'opacity-50' : ''}`}>
                                         <div className="p-3">
                                           <div className="flex items-start gap-3">
                                             <label className="flex items-start gap-2 cursor-pointer flex-1">
@@ -1459,18 +1452,18 @@ const DeudasDestock = () => {
                                                 {/* Header */}
                                                 <div className="flex items-center justify-between">
                                                   <p className="text-sm font-bold text-gray-900">Compra #{index + 1}</p>
-                                                  <button 
+                                                  <button
                                                     onClick={(e) => {
                                                       e.preventDefault();
                                                       navigate(`/ventas/${venta.id}`);
-                                                    }} 
+                                                    }}
                                                     className="p-1.5 rounded-lg bg-green-100 hover:bg-green-200 border border-green-200 transition-all"
                                                     title="Ver nota"
                                                   >
                                                     <Eye className="h-4 w-4 text-green-700" />
                                                   </button>
                                                 </div>
-                                                
+
                                                 {/* Fecha y hora */}
                                                 <div className="flex items-center gap-2 text-xs text-gray-600">
                                                   <Calendar className="h-3 w-3 text-blue-600" />
@@ -1478,7 +1471,7 @@ const DeudasDestock = () => {
                                                   <Clock className="h-3 w-3 text-purple-600 ml-1" />
                                                   <span className="text-gray-500">{formatDateTime(venta.fecha_creacion).time}</span>
                                                 </div>
-                                                
+
                                                 {/* Montos */}
                                                 <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-200">
                                                   <div>
@@ -1494,39 +1487,39 @@ const DeudasDestock = () => {
                                             </label>
                                           </div>
                                         </div>
-                                      <button onClick={() => toggleExpandVenta(venta.id)} className="w-full px-4 py-3 border-t border-gray-200 flex items-center justify-between text-sm text-gray-600 hover:bg-gray-50">
-                                        <div className="flex items-center gap-2">
-                                          <ListOrdered className="h-4 w-4 text-purple-600" />
-                                          <span className="font-medium">Ver productos comprados</span>
-                                        </div>
-                                        <ChevronDown className={`h-4 w-4 transition-transform ${expandedVentas[venta.id] ? 'rotate-180' : ''}`} />
-                                      </button>
-                                      {expandedVentas[venta.id] && (
-                                        <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
-                                          <div className="space-y-2">
-                                            {venta.productos.map((producto, pIndex) => (
-                                              <div key={pIndex} className="flex justify-between items-center p-3 bg-white rounded-lg border border-gray-100">
-                                                <div className="flex-1">
-                                                  <p className="font-semibold text-gray-800 mb-1">{producto.nombre}</p>
-                                                  <p className="text-sm text-gray-500 flex items-center gap-2">
-                                                    <Package className="h-3 w-3" />
-                                                    {producto.cantidad} × {formatCurrency(producto.precio_unitario)}
-                                                  </p>
-                                                </div>
-                                                <div className="text-right">
-                                                  <p className="font-bold text-base" style={{ color: colors.primary }}>{formatCurrency(producto.subtotal)}</p>
-                                                  {producto.retornable && (
-                                                    <div className="flex items-center gap-1 mt-1">
-                                                      <RefreshCw className="h-3 w-3" style={{ color: colors.secondary }} />
-                                                      <p className="text-xs font-medium" style={{ color: colors.secondary }}>{producto.cantidad_retornable} retornables</p>
-                                                    </div>
-                                                  )}
-                                                </div>
-                                              </div>
-                                            ))}
+                                        <button onClick={() => toggleExpandVenta(venta.id)} className="w-full px-4 py-3 border-t border-gray-200 flex items-center justify-between text-sm text-gray-600 hover:bg-gray-50">
+                                          <div className="flex items-center gap-2">
+                                            <ListOrdered className="h-4 w-4 text-purple-600" />
+                                            <span className="font-medium">Ver productos comprados</span>
                                           </div>
-                                        </div>
-                                      )}
+                                          <ChevronDown className={`h-4 w-4 transition-transform ${expandedVentas[venta.id] ? 'rotate-180' : ''}`} />
+                                        </button>
+                                        {expandedVentas[venta.id] && (
+                                          <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
+                                            <div className="space-y-2">
+                                              {venta.productos.map((producto, pIndex) => (
+                                                <div key={pIndex} className="flex justify-between items-center p-3 bg-white rounded-lg border border-gray-100">
+                                                  <div className="flex-1">
+                                                    <p className="font-semibold text-gray-800 mb-1">{producto.nombre}</p>
+                                                    <p className="text-sm text-gray-500 flex items-center gap-2">
+                                                      <Package className="h-3 w-3" />
+                                                      {producto.cantidad} × {formatCurrency(producto.precio_unitario)}
+                                                    </p>
+                                                  </div>
+                                                  <div className="text-right">
+                                                    <p className="font-bold text-base" style={{ color: colors.primary }}>{formatCurrency(producto.subtotal)}</p>
+                                                    {producto.retornable && (
+                                                      <div className="flex items-center gap-1 mt-1">
+                                                        <RefreshCw className="h-3 w-3" style={{ color: colors.secondary }} />
+                                                        <p className="text-xs font-medium" style={{ color: colors.secondary }}>{producto.cantidad_retornable} retornables</p>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
                                     ))}
                                   </div>
@@ -1574,10 +1567,10 @@ const DeudasDestock = () => {
                                     <AlertCircle className="h-6 w-6 text-red-600" />
                                     <span className="text-3xl font-bold text-red-600">
                                       {formatCurrency(
-                                        modoAbono 
+                                        modoAbono
                                           ? Math.max(0, totalDeuda - (parseFloat(montoAbono) || 0))
-                                          : pagarTodo 
-                                            ? 0 
+                                          : pagarTodo
+                                            ? 0
                                             : totalDeuda - calcularMontoTotal()
                                       )}
                                     </span>
@@ -1595,11 +1588,10 @@ const DeudasDestock = () => {
                             <button
                               onClick={handleConfirmarPago}
                               disabled={loadingPago || (modoAbono ? !montoAbono || parseFloat(montoAbono) <= 0 : !pagarTodo && selectedVentas.length === 0)}
-                              className={`px-12 py-6 rounded-2xl flex items-center justify-center gap-3 text-xl font-bold shadow-lg transition-all ${
-                                loadingPago || (modoAbono ? !montoAbono || parseFloat(montoAbono) <= 0 : !pagarTodo && selectedVentas.length === 0)
-                                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                                  : 'text-white hover:shadow-2xl hover:scale-105 active:scale-100'
-                              }`}
+                              className={`px-12 py-6 rounded-2xl flex items-center justify-center gap-3 text-xl font-bold shadow-lg transition-all ${loadingPago || (modoAbono ? !montoAbono || parseFloat(montoAbono) <= 0 : !pagarTodo && selectedVentas.length === 0)
+                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                : 'text-white hover:shadow-2xl hover:scale-105 active:scale-100'
+                                }`}
                               style={{ background: loadingPago || (modoAbono ? !montoAbono || parseFloat(montoAbono) <= 0 : !pagarTodo && selectedVentas.length === 0) ? undefined : `linear-gradient(135deg, ${colors.secondary} 0%, #e69500 100%)` }}
                             >
                               {loadingPago ? (
@@ -1687,8 +1679,8 @@ const DeudasDestock = () => {
                                           <p className="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
                                             {venta.total_retornables} {venta.total_retornables === 1 ? 'botella' : 'botellas'}
                                           </p>
-                                          <button 
-                                            onClick={() => navigate(`/ventas/${venta.id}`)} 
+                                          <button
+                                            onClick={() => navigate(`/ventas/${venta.id}`)}
                                             className="p-1.5 rounded-lg bg-green-100 hover:bg-green-200 border border-green-200 transition-all"
                                             title="Ver nota de venta"
                                           >
@@ -1781,11 +1773,10 @@ const DeudasDestock = () => {
                             <button
                               onClick={handleConfirmarDevolucion}
                               disabled={loadingBotellas || calcularTotalBotellas() === 0}
-                              className={`px-12 py-6 rounded-2xl flex items-center justify-center gap-3 text-xl font-bold shadow-lg transition-all ${
-                                loadingBotellas || calcularTotalBotellas() === 0
-                                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                                  : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:shadow-2xl hover:scale-105 active:scale-100'
-                              }`}
+                              className={`px-12 py-6 rounded-2xl flex items-center justify-center gap-3 text-xl font-bold shadow-lg transition-all ${loadingBotellas || calcularTotalBotellas() === 0
+                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:shadow-2xl hover:scale-105 active:scale-100'
+                                }`}
                             >
                               {loadingBotellas ? (
                                 <>
