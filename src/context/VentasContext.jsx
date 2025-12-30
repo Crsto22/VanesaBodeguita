@@ -12,7 +12,7 @@ export const useVentas = () => useContext(VentasContext);
 export const VentasProvider = ({ children }) => {
   const [ventas, setVentas] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Estados para paginación del historial
   const [ventasHistorial, setVentasHistorial] = useState([]);
   const [loadingHistorial, setLoadingHistorial] = useState(false);
@@ -21,7 +21,7 @@ export const VentasProvider = ({ children }) => {
   const [primerDocumento, setPrimerDocumento] = useState(null);
   const [hayMasPaginas, setHayMasPaginas] = useState(true);
   const [historialPaginacion, setHistorialPaginacion] = useState([]);
-  
+
   const { currentUser } = useAuth();
   const { clientes, obtenerClientePorId } = useClientes();
   const productsContext = useProducts();
@@ -96,18 +96,18 @@ export const VentasProvider = ({ children }) => {
       let totalRetornables = 0;
       const productosProcesados = await Promise.all(ventaData.productos.map(async (item) => {
         let producto = null;
-        
+
         // Solo validar productos que tienen un ID real (no temporal)
         if (item.producto_ref && obtenerProductoPorIdDirecto && !item.producto_ref.startsWith('temp_')) {
           producto = await obtenerProductoPorIdDirecto(item.producto_ref);
           if (!producto) throw new Error(`Producto ${item.producto_ref} no encontrado`);
         }
-        
+
         // Validaciones básicas
         if (item.cantidad <= 0) throw new Error(`Cantidad inválida para ${item.nombre}`);
         if (item.cantidad_retornable > item.cantidad) throw new Error(`Cantidad retornable inválida para ${item.nombre}`);
         if (item.precio_unitario <= 0) throw new Error(`Precio unitario inválido para ${item.nombre}`);
-        
+
         const subtotalCalculado = formatToTwoDecimals(item.cantidad * item.precio_unitario);
         if (Math.abs(item.subtotal - subtotalCalculado) > 0.01) {
           throw new Error(`Subtotal inválido para ${item.nombre}`);
@@ -115,7 +115,7 @@ export const VentasProvider = ({ children }) => {
 
         const cantidadRetornable = item.retornable ? item.cantidad_retornable || 0 : 0;
         total += subtotalCalculado;
-        
+
         // Sumar directamente cantidad_retornable (que ahora representa botellas que debe)
         if (item.retornable) {
           totalRetornables += cantidadRetornable;
@@ -203,7 +203,7 @@ export const VentasProvider = ({ children }) => {
 
       // Obtener cliente
       const cliente = obtenerClientePorId(ventaData.cliente_ref);
-      
+
       // Calcular deuda total del cliente antes del pago
       const deudaAnterior = await obtenerDeudaTotalPorCliente(ventaData.cliente_ref);
 
@@ -229,18 +229,18 @@ export const VentasProvider = ({ children }) => {
         transaction.set(abonoRef, {
           monto: montoPendiente,
           fecha: new Date().toISOString(),
-          
+
           cliente_ref: ventaData.cliente_ref,
           cliente_nombre: cliente?.nombre || 'Cliente',
-          
+
           cajero_ref: currentUser.uid,
           cajero_nombre: currentUser.displayName || currentUser.email,
-          
+
           deuda_anterior: deudaAnterior,
           deuda_nueva: formatToTwoDecimals(deudaAnterior - montoPendiente),
-          
+
           ventas_pagadas: [ventaId],
-          
+
           estado: 'activo'
         });
       });
@@ -253,15 +253,16 @@ export const VentasProvider = ({ children }) => {
   };
 
   // Registrar un abono
-  const registrarAbono = async (clienteId, montoAbono, notas) => {
+  const registrarAbono = async (clienteId, montoAbono, notas, ventasIdsEspecificas = null) => {
     try {
       if (!currentUser) throw new Error('Usuario no autenticado');
       const montoAbonoFormatted = formatToTwoDecimals(Number(montoAbono));
       if (montoAbonoFormatted <= 0) throw new Error('El monto del abono debe ser mayor a 0');
-      
+
       const cliente = obtenerClientePorId(clienteId);
       if (!cliente) throw new Error('Cliente no encontrado');
 
+      // Obtener todas las ventas pendientes del cliente para calcular deuda total real
       const ventasQuery = query(
         ventasCollection,
         where('cliente_ref', '==', clienteId),
@@ -270,28 +271,54 @@ export const VentasProvider = ({ children }) => {
       const snapshot = await getDocs(ventasQuery);
       if (snapshot.empty) throw new Error('No hay ventas pendientes para este cliente');
 
-      let montoRestante = montoAbonoFormatted;
-      let deudaTotal = 0;
-      snapshot.forEach(doc => deudaTotal += formatToTwoDecimals(doc.data().monto_pendiente));
-      
-      if (montoAbonoFormatted > deudaTotal) {
-        throw new Error(`El abono de ${montoAbonoFormatted} soles excede la deuda total de ${deudaTotal} soles`);
+      let deudaTotalGlobal = 0;
+      snapshot.forEach(doc => deudaTotalGlobal += formatToTwoDecimals(doc.data().monto_pendiente));
+
+      // Filtrar ventas a procesar
+      let ventasAProcesar = snapshot.docs;
+
+      if (ventasIdsEspecificas && ventasIdsEspecificas.length > 0) {
+        ventasAProcesar = ventasAProcesar.filter(doc => ventasIdsEspecificas.includes(doc.id));
+
+        // Validar que el monto no exceda la deuda de las ventas seleccionadas
+        let deudaSeleccionada = 0;
+        ventasAProcesar.forEach(doc => deudaSeleccionada += formatToTwoDecimals(doc.data().monto_pendiente));
+
+        // Permitimos un margen de error pequeño por redondeo
+        if (montoAbonoFormatted > deudaSeleccionada + 0.05) {
+          throw new Error(`El monto del abono (${montoAbonoFormatted}) excede la deuda de las ventas seleccionadas (${formatToTwoDecimals(deudaSeleccionada)})`);
+        }
+      } else {
+        // Validación normal para abono general
+        if (montoAbonoFormatted > deudaTotalGlobal + 0.05) {
+          throw new Error(`El abono de ${montoAbonoFormatted} soles excede la deuda total de ${formatToTwoDecimals(deudaTotalGlobal)} soles`);
+        }
       }
 
+      let montoRestante = montoAbonoFormatted;
       const updates = [];
-      const ventasPagadas = [];
-      
-      snapshot.docs
-        .sort((a, b) => a.data().fecha_creacion.localeCompare(b.data().fecha_creacion))
-        .forEach(doc => {
-          if (montoRestante <= 0) return;
+      const ventasPagadasIds = [];
 
-          const ventaData = doc.data();
-          const montoPendiente = formatToTwoDecimals(ventaData.monto_pendiente);
-          const montoAPagar = formatToTwoDecimals(Math.min(montoPendiente, montoRestante));
+      // Ordenar por fecha para priorizar antiguas (si no es selección específica, o incluso dentro de la selección)
+      ventasAProcesar.sort((a, b) => a.data().fecha_creacion.localeCompare(b.data().fecha_creacion));
+
+      ventasAProcesar.forEach(doc => {
+        if (montoRestante <= 0 && (!ventasIdsEspecificas)) return; // Si es abono general paramos al acabar dinero
+        // Si es ventasIdsEspecificas, intentamos cubrir todas las seleccionadas con el monto dado
+
+        const ventaData = doc.data();
+        const montoPendiente = formatToTwoDecimals(ventaData.monto_pendiente);
+
+        // Cuánto pagamos de esta venta
+        const montoAPagar = formatToTwoDecimals(Math.min(montoPendiente, montoRestante));
+
+        if (montoAPagar > 0) {
           const nuevoMontoPagado = formatToTwoDecimals((ventaData.monto_pagado || 0) + montoAPagar);
           const nuevoMontoPendiente = formatToTwoDecimals(ventaData.total - nuevoMontoPagado);
-          const nuevoEstado = nuevoMontoPagado >= ventaData.total ? 'pagado' : 'parcial';
+          // Si el pendiente es muy pequeño (error de redondeo), lo cerramos
+          const esPagado = nuevoMontoPendiente < 0.01;
+
+          const nuevoEstado = esPagado ? 'pagado' : 'parcial';
 
           const abono = {
             monto: montoAPagar,
@@ -304,41 +331,42 @@ export const VentasProvider = ({ children }) => {
             ventaRef: doc.ref,
             data: {
               monto_pagado: nuevoMontoPagado,
-              monto_pendiente: nuevoMontoPendiente,
+              monto_pendiente: esPagado ? 0 : nuevoMontoPendiente,
               estado: nuevoEstado,
               historial_pagos: [...(ventaData.historial_pagos || []), abono],
             },
           });
-          
+
           // Guardar solo el ID de la venta
-          ventasPagadas.push(doc.id);
+          ventasPagadasIds.push(doc.id);
 
           montoRestante = formatToTwoDecimals(montoRestante - montoAPagar);
-        });
+        }
+      });
 
       await runTransaction(db, async (transaction) => {
         // Actualizar ventas
         updates.forEach(({ ventaRef, data }) => {
           transaction.update(ventaRef, data);
         });
-        
+
         // Crear documento de abono
         const abonoRef = doc(collection(db, 'abonos'));
         transaction.set(abonoRef, {
           monto: montoAbonoFormatted,
           fecha: new Date().toISOString(),
-          
+
           cliente_ref: clienteId,
           cliente_nombre: cliente.nombre,
-          
+
           cajero_ref: currentUser.uid,
           cajero_nombre: currentUser.displayName || currentUser.email,
-          
-          deuda_anterior: deudaTotal,
-          deuda_nueva: formatToTwoDecimals(deudaTotal - montoAbonoFormatted),
-          
-          ventas_pagadas: ventasPagadas,
-          
+
+          deuda_anterior: formatToTwoDecimals(deudaTotalGlobal),
+          deuda_nueva: formatToTwoDecimals(deudaTotalGlobal - montoAbonoFormatted),
+
+          ventas_pagadas: ventasPagadasIds,
+
           estado: 'activo'
         });
       });
@@ -430,7 +458,7 @@ export const VentasProvider = ({ children }) => {
       const ventaRef = doc(db, 'ventas', id);
       const ventaDoc = await getDoc(ventaRef);
       if (!ventaDoc.exists()) return null;
-      
+
       const ventaData = ventaDoc.data();
       return {
         id: ventaDoc.id,
@@ -507,7 +535,7 @@ export const VentasProvider = ({ children }) => {
   const cargarPrimerasPaginaHistorial = async (filtros = {}) => {
     try {
       setLoadingHistorial(true);
-      
+
       let ventasQuery = query(
         ventasCollection,
         orderBy('fecha_creacion', 'desc'),
@@ -537,7 +565,7 @@ export const VentasProvider = ({ children }) => {
       setVentasHistorial(ventasData);
       setPaginaActual(1);
       setHistorialPaginacion([]);
-      
+
       if (snapshot.docs.length > 0) {
         setUltimoDocumento(snapshot.docs[snapshot.docs.length - 1]);
         setPrimerDocumento(snapshot.docs[0]);
@@ -595,7 +623,7 @@ export const VentasProvider = ({ children }) => {
       if (snapshot.docs.length > 0) {
         // Guardar referencia de la página anterior
         setHistorialPaginacion(prev => [...prev, { primerDoc: primerDocumento, ultimoDoc: ultimoDocumento }]);
-        
+
         setVentasHistorial(ventasData);
         setPaginaActual(prev => prev + 1);
         setUltimoDocumento(snapshot.docs[snapshot.docs.length - 1]);
@@ -652,7 +680,7 @@ export const VentasProvider = ({ children }) => {
       setVentasHistorial(ventasData);
       setPaginaActual(prev => prev - 1);
       setHistorialPaginacion(prev => prev.slice(0, -1));
-      
+
       if (snapshot.docs.length > 0) {
         setUltimoDocumento(snapshot.docs[snapshot.docs.length - 1]);
         setPrimerDocumento(snapshot.docs[0]);
