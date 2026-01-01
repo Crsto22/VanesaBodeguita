@@ -14,7 +14,8 @@ import {
     Milk,
     Filter,
     ArrowRight,
-    Download
+    Download,
+    Printer
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Logo from '../assets/Logo.svg';
@@ -81,6 +82,34 @@ const Reportes = () => {
     }, [searchTerm, reporteRetornables]);
 
 
+    const handlePrintReport = async () => {
+        try {
+            const startDate = new Date(fechaInicio + 'T00:00:00.000Z');
+            const endDate = new Date(fechaFin + 'T23:59:59.999Z');
+
+            const response = await fetch('http://localhost:5003/api/imprimir-reporte-retornables', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    fecha_inicio: startDate.toISOString(),
+                    fecha_fin: endDate.toISOString()
+                })
+            });
+
+            if (response.ok) {
+                alert('Reporte enviado a la impresora térmica.');
+            } else {
+                console.error('Error al imprimir:', response.statusText);
+                alert('Error al enviar a la impresora.');
+            }
+        } catch (error) {
+            console.error('Error de red al imprimir:', error);
+            alert('No se pudo conectar con el servicio de impresión.');
+        }
+    };
+
     const handleOptionClick = useCallback((path) => {
         navigate(path);
         setMenuOpen(false);
@@ -109,6 +138,13 @@ const Reportes = () => {
                                 <h1 className="mb-2 text-xl font-bold">Reporte de Retornables</h1>
                                 <p className="text-teal-100 text-sm mb-4">Control de botellas pendientes por cliente</p>
                             </div>
+                            <button
+                                onClick={handlePrintReport}
+                                className="bg-white text-[#0d9488] px-4 py-2 rounded-xl font-bold shadow-sm flex items-center gap-2 hover:bg-teal-50 transition-colors"
+                            >
+                                <Printer size={20} />
+                                <span className="hidden sm:inline">Imprimir</span>
+                            </button>
                         </div>
                     </div>
 
