@@ -13,7 +13,9 @@ import {
   ArrowRight,
   ShoppingBag,
   Truck,
-  Settings
+  Settings,
+  Store,
+  FileText
 } from 'lucide-react';
 import Logo from '../assets/Logo.svg';
 import Sidebar from '../components/Sidebar';
@@ -101,6 +103,22 @@ const Dashboard = () => {
       color: 'bg-purple-600',
       description: 'Visualizar pagos de Yape',
       path: '/pagos-yape'
+    },
+    {
+      id: 'config-tienda',
+      title: 'Tienda Virtual',
+      icon: <Store className="h-6 w-6" />,
+      color: 'bg-cyan-600',
+      description: 'Configurar apariencia y opciones',
+      path: '/configuracion-tienda'
+    },
+    {
+      id: 'reportes',
+      title: 'Reportes',
+      icon: <FileText className="h-6 w-6" />,
+      color: 'bg-teal-600',
+      description: 'Ver reportes y estadísticas',
+      path: '/reportes'
     },
   ];
 
