@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { configDatabase } from '../firebase/firebaseConfig';
+import { pedidosDatabase } from '../firebase/firebaseConfig';
 import { ref, onValue, set } from 'firebase/database';
 
 const ConfigContext = createContext();
@@ -22,11 +22,11 @@ export const ConfigProvider = ({ children }) => {
 
   // Cargar configuración desde Firebase Realtime Database
   useEffect(() => {
-    const configRef = ref(configDatabase, 'configuracion');
-    
+    const configRef = ref(pedidosDatabase, 'configuracion');
+
     const unsubscribe = onValue(configRef, (snapshot) => {
       const data = snapshot.val();
-      
+
       if (data) {
         setConfiguracion({
           hacer_pedidos: data.hacer_pedidos || false,
@@ -56,25 +56,25 @@ export const ConfigProvider = ({ children }) => {
   const updateConfig = async (campo, valor) => {
     try {
       setSaving(true);
-      const configRef = ref(configDatabase, 'configuracion');
-      
+      const configRef = ref(pedidosDatabase, 'configuracion');
+
       let nuevaConfig = {
         ...configuracion,
         [campo]: valor
       };
-      
+
       // Si se cierra la tienda, también deshabilitar hacer_pedidos
       if (campo === 'tienda_abierta' && valor === false) {
         nuevaConfig.hacer_pedidos = false;
       }
-      
+
       // Si se abre la tienda, también habilitar hacer_pedidos
       if (campo === 'tienda_abierta' && valor === true) {
         nuevaConfig.hacer_pedidos = true;
       }
-      
+
       await set(configRef, nuevaConfig);
-      
+
       return { success: true };
     } catch (error) {
       console.error('Error al actualizar configuración:', error);

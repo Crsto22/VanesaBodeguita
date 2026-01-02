@@ -5,26 +5,28 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
-
-// Configuración de Firebase para el proyecto bodeguitavanesa
+// ============================================
+// PROYECTO A: NEGOCIO (PRINCIPAL)
+// ============================================
 const firebaseConfig = {
   apiKey: 'AIzaSyCx8JzJ_eVrArMUDi-GkZ9FpgKM6mnZEV8',
   authDomain: 'bodeguitavanesa.firebaseapp.com',
   projectId: 'bodeguitavanesa',
   storageBucket: 'bodeguitavanesa.firebasestorage.app',
-
   appId: '1:734082784317:web:c196d30c1d8538a14ede54',
   measurementId: 'G-169FNDEJ8N',
 };
 
-// Inicializar Firebase
+// Inicializar Firebase (App Principal)
 const app = initializeApp(firebaseConfig);
 
-// Inicializar servicios
+// Inicializar servicios del Proyecto A
 const analytics = getAnalytics(app);
 const auth = getAuth(app);
-const db = getFirestore(app, 'negociovanesa'); // Especificar la base de datos negociovanesa
+const dbNegocio = getFirestore(app, 'negociovanesa'); // Base de datos del negocio
 const storage = getStorage(app);
 
+// Mantener export 'db' para compatibilidad con código existente
+export const db = dbNegocio;
 
-export { auth, db, storage, analytics };
+export { auth, dbNegocio, storage, analytics };

@@ -1,9 +1,12 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase } from 'firebase/database';
 import { getFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
-// Configuración del segundo Firebase para configuración
-const firebaseConfigSettings = {
+// ============================================
+// PROYECTO B: CLIENTES Y PEDIDOS
+// ============================================
+const firebaseConfigPedidos = {
   apiKey: "AIzaSyBQxWn4Fa7MPZCrJt6e1EN4o339IW1wfVs",
   authDomain: "vanesa-e39df.firebaseapp.com",
   projectId: "vanesa-e39df",
@@ -14,7 +17,9 @@ const firebaseConfigSettings = {
   databaseURL: "https://vanesa-e39df-default-rtdb.firebaseio.com"
 };
 
-// Configuración de Firebase para visualizar pagos de Yape
+// ============================================
+// PROYECTO YAPE: PAGOS
+// ============================================
 const firebaseYapeConfig = {
   apiKey: "AIzaSyAH0RuHMdA5nKrL9ROqQd92MiDDg5-4-YQ",
   authDomain: "yapebodeguitavanesa.firebaseapp.com",
@@ -25,17 +30,39 @@ const firebaseYapeConfig = {
   measurementId: "G-TGYW1RDF8W"
 };
 
-// Inicializar la segunda app de Firebase con un nombre único
-const configApp = initializeApp(firebaseConfigSettings, 'configApp');
+// ============================================
+// INICIALIZAR APPS SECUNDARIAS
+// ============================================
 
-// Inicializar la tercera app de Firebase para Yape
+// App de Pedidos y Clientes (Proyecto B)
+const pedidosApp = initializeApp(firebaseConfigPedidos, 'pedidosApp');
+
+// App de Yape
 const yapeApp = initializeApp(firebaseYapeConfig, 'yapeApp');
 
-// Obtener referencia a Realtime Database
-export const configDatabase = getDatabase(configApp);
+// ============================================
+// EXPORTS: PROYECTO B (PEDIDOS/CLIENTES)
+// ============================================
 
-// Obtener referencia a Firestore de Configuración (para Pedidos)
-export const configFirestore = getFirestore(configApp);
+// Auth para login unificado
+export const authPedidos = getAuth(pedidosApp);
 
-// Obtener referencia a Firestore de Yape
+// Realtime Database
+export const pedidosDatabase = getDatabase(pedidosApp);
+
+// Firestore para colección 'pedidos' y 'usuarios_clientes'
+export const dbPedidos = getFirestore(pedidosApp);
+
+// ============================================
+// ALIASES PARA COMPATIBILIDAD CON CÓDIGO EXISTENTE
+// ============================================
+
+// Mantener exports antiguos como alias para no romper código existente
+export const configFirestore = dbPedidos;      // Alias de dbPedidos
+export const configDatabase = pedidosDatabase; // Alias de pedidosDatabase
+
+// ============================================
+// EXPORTS: PROYECTO YAPE
+// ============================================
+
 export const yapeDb = getFirestore(yapeApp);

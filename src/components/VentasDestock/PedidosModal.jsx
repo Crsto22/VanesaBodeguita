@@ -33,8 +33,12 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
         if (selectedPedido) {
             // Verificar si los items realmente cambiaron antes de resetear el estado local
             const currentSignature = JSON.stringify(selectedPedido.items);
-            if (currentSignature === prevItemsSignature.current) {
-                return; // Los items son idénticos, no re-inicializar (preserva edits locales)
+
+            // Re-inicializar SI:
+            // 1. La firma cambió (es un pedido diferente o los items fueron modificados)
+            // 2. O editedItems está vacío (el modal se cerró y abrió de nuevo)
+            if (currentSignature === prevItemsSignature.current && editedItems.length > 0) {
+                return; // Los items son idénticos y ya están cargados, no re-inicializar
             }
             prevItemsSignature.current = currentSignature;
 
@@ -69,6 +73,19 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                     isRecoveredPrice = false;
                 }
 
+                // GUARDAR el precio base original (sin helar) antes de cualquier modificación
+                const precioBaseOriginal = precioBaseToUse;
+
+                // NUEVA LÓGICA: Si todas las unidades son heladas, usar precio_helada como precio_base
+                const qtyHelada = parseFloat(item.cantidad_helada || 0);
+                const qtySolicitada = parseFloat(item.cantidad_solicitada || 1);
+                const precioHelada = parseFloat(item.precio_helada || 0);
+
+                // Si TODAS son heladas y hay precio_helada definido, usar ese como precio unitario
+                if (qtyHelada > 0 && qtyHelada === qtySolicitada && precioHelada > 0) {
+                    precioBaseToUse = precioHelada;
+                }
+
                 // Cálculo del precio final inicial
                 let calculatedFinalPrice = 0;
 
@@ -91,13 +108,14 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                         }
                     } else {
                         const qty = item.cantidad_solicitada || 1;
-                        const qtyHelada = parseFloat(item.cantidad_helada || 0);
-                        const precioHelada = parseFloat(item.precio_helada || 0);
 
-                        if (qtyHelada > 0 && precioHelada > 0) {
+                        // Recalcular según si hay mezcla de heladas o no
+                        if (qtyHelada > 0 && precioHelada > 0 && qtyHelada < qty) {
+                            // Hay mezcla: algunas heladas, algunas sin helar
                             const qtyFresca = Math.max(0, qty - qtyHelada);
-                            calculatedFinalPrice = parseFloat(((qtyHelada * precioHelada) + (qtyFresca * precioBaseToUse)).toFixed(2));
+                            calculatedFinalPrice = parseFloat(((qtyHelada * precioHelada) + (qtyFresca * precioBaseOriginal)).toFixed(2));
                         } else {
+                            // Todas heladas o todas sin helar
                             calculatedFinalPrice = parseFloat((precioBaseToUse * qty).toFixed(2));
                         }
                     }
@@ -106,6 +124,7 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                 return {
                     ...item,
                     precio_base: precioBaseToUse,
+                    precio_helada: precioHelada || item.precio_helada, // Preservar precio_helada
                     precio_final: calculatedFinalPrice,
                     cantidad_final: item.cantidad_final ?? (item.cantidad_solicitada || 1),
                     peso_final: item.peso_final ?? (item.peso_solicitado_gramos || 0),
@@ -158,7 +177,7 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                         if (newQty < originalQty && newQty > 0) {
                             updated.estado_item = 'stock_parcial';
                             updated.requiere_confirmacion = true;
-                        
+
                         } else if (newQty === originalQty) {
                             if (updated.estado_item === 'stock_parcial') {
                                 updated.estado_item = 'disponible';
@@ -186,11 +205,18 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                         const pBase = parseFloat(updated.precio_base) || 0;
                         const qty = parseFloat(updated.cantidad_final) || 0;
                         const qtyHelada = parseFloat(updated.cantidad_helada) || 0;
-                        
+
                         // Si hay precio diferenciado por helada (asumimos +0.00 por ahora o lógica futura, 
                         // pero aquí respetamos el precio base para todo SALVO que el usuario edite manualmente)
                         // Si el producto tuviera precio_helada en DB, se usaría aquí.
                         // Por ahora el precio es uniforme según tu lógica actual:
+                        updated.precio_final = parseFloat((pBase * qty).toFixed(2));
+                    }
+                } else {
+                    // Para productos KILOGRAMO: recalcular precio_final automáticamente
+                    if (field === 'precio_base' || field === 'cantidad_final') {
+                        const pBase = parseFloat(updated.precio_base) || 0;
+                        const qty = parseFloat(updated.cantidad_final) || 1;
                         updated.precio_final = parseFloat((pBase * qty).toFixed(2));
                     }
                 }
@@ -425,7 +451,7 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                 }
             });
             console.log(`Pedido actualizado a: ${nuevoEstado}`);
-            
+
             if (nuevoEstado === 'esperando_confirmacion') {
                 // Mantenemos modal abierto y actualizamos estado local
                 setSelectedPedido(prev => ({ ...prev, estado: nuevoEstado }));
@@ -690,7 +716,7 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
 
                                     {/* Content Gestión - Lista Editable */}
                                     <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/50 custom-scrollbar">
-                                        
+
                                         {/* Payment Info Card */}
                                         <div className="bg-white rounded-[1.5rem] border border-slate-200/60 shadow-sm overflow-hidden mb-6 p-4 sm:p-5 flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
                                             <div className="flex items-center gap-4">
@@ -698,7 +724,7 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                     <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center shadow-sm transition-all duration-300 ${selectedPedido.pago?.rechazo_vuelto ? 'bg-red-50 border-red-100 text-red-500' : 'bg-emerald-50 border-emerald-100 text-emerald-600'}`}>
                                                         {selectedPedido.pago?.metodo === 'efectivo' ? <Banknote size={24} strokeWidth={2} /> : <Smartphone size={24} strokeWidth={2} />}
                                                     </div>
-                                                    
+
                                                     {/* Toggle Button for Cash Rejection */}
                                                     {selectedPedido.pago?.metodo === 'efectivo' && (
                                                         <button
@@ -719,9 +745,9 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
 
                                                                 try {
                                                                     // Immediate save to Firestore
-                                                                    const nuevoPago = { 
-                                                                        ...selectedPedido.pago, 
-                                                                        rechazo_vuelto: newValue 
+                                                                    const nuevoPago = {
+                                                                        ...selectedPedido.pago,
+                                                                        rechazo_vuelto: newValue
                                                                     };
                                                                     // Clean up fields just in case
                                                                     delete nuevoPago.total_estimado;
@@ -755,7 +781,15 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                 <div>
                                                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Método de Pago</p>
                                                     <p className="text-base font-black text-slate-800 capitalize flex items-center gap-2">
-                                                        {selectedPedido.pago?.metodo === 'efectivo' ? 'Efectivo' : 'Yape / Plin'}
+                                                        {selectedPedido.pago?.metodo === 'efectivo'
+                                                            ? 'Efectivo'
+                                                            : selectedPedido.pago?.metodo
+                                                                ? 'Yape / Plin'
+                                                                : <span className="text-sm font-semibold text-slate-500 flex items-center gap-1.5">
+                                                                    <Clock size={14} />
+                                                                    En espera del cliente...
+                                                                </span>
+                                                        }
                                                         {selectedPedido.pago?.metodo === 'efectivo' && (
                                                             <span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-bold text-slate-500 border border-slate-200 uppercase">
                                                                 Contraentrega
@@ -795,9 +829,9 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                                 if (item.es_sustituto || item.estado_item === 'sin_stock') return sum;
                                                                 return sum + (parseFloat(item.precio_final) || 0);
                                                             }, 0);
-                                                            
+
                                                             const vuelto = (parseFloat(selectedPedido.pago?.monto_paga_con) || 0) - currentTotal;
-                                                            
+
                                                             return (
                                                                 <p className={`text-xl font-black font-mono ${vuelto < 0 ? 'text-red-500' : 'text-emerald-600'} ${selectedPedido.pago?.rechazo_vuelto ? 'line-through opacity-50' : ''}`}>
                                                                     {formatCurrency(vuelto)}
@@ -847,7 +881,7 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                                 const { item, index } = group.main;
                                                                 const isNoStock = item.estado_item === 'sin_stock';
                                                                 const isPartialStock = item.estado_item === 'stock_parcial';
-                                                                
+
                                                                 return (
                                                                     <div
                                                                         key={`${item.id}-${index}`}
@@ -856,7 +890,7 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                                                 isPartialStock ? 'bg-orange-50/30 border-orange-200 ring-1 ring-orange-100' :
                                                                                     'bg-white border-slate-100 hover:border-blue-300 hover:shadow-[0_4px_20px_-12px_rgba(37,99,235,0.2)]'}`}
                                                                     >
-                                                                         <div className="flex flex-col sm:grid sm:grid-cols-12 gap-4 items-start sm:items-center">
+                                                                        <div className="flex flex-col sm:grid sm:grid-cols-12 gap-4 items-start sm:items-center">
                                                                             {/* Imagen */}
                                                                             <div className="col-span-12 sm:col-span-1 relative flex items-center gap-3 sm:block">
                                                                                 <div className="w-14 h-14 sm:w-12 sm:h-12 rounded-xl overflow-hidden bg-white border border-slate-200 shadow-sm flex-shrink-0">
@@ -872,7 +906,7 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                                                     </div>
                                                                                 )}
                                                                                 <div className="sm:hidden flex-1">
-                                                                                     <h4 className={`font-bold text-sm line-clamp-2 ${isNoStock ? 'line-through text-slate-400' : 'text-slate-800'}`}>{item.nombre}</h4>
+                                                                                    <h4 className={`font-bold text-sm line-clamp-2 ${isNoStock ? 'line-through text-slate-400' : 'text-slate-800'}`}>{item.nombre}</h4>
                                                                                 </div>
                                                                             </div>
 
@@ -885,7 +919,7 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                                                             ? 'Variable'
                                                                                             : `S/ ${parseFloat(item.precio_base || 0).toFixed(2)}`}
                                                                                     </span>
-                                                                                    
+
                                                                                     {isPartialStock && (
                                                                                         <span className="text-[10px] text-orange-700 font-bold bg-orange-100 px-1.5 py-0.5 rounded flex items-center gap-1">
                                                                                             <AlertTriangle size={10} /> Stock Parcial
@@ -909,7 +943,36 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                                                 )}
                                                                             </div>
 
-                                                                            {/* Cantidad/Peso Input */}
+                                                                            {/* Precio Unitario Input - PARA TODOS LOS PRODUCTOS */}
+                                                                            <div className="col-span-6 sm:col-span-2 flex flex-row sm:flex-col gap-2 sm:gap-1 items-center justify-between sm:justify-start w-full">
+                                                                                <label className="text-[10px] font-bold text-slate-400 uppercase sm:mb-0.5 whitespace-nowrap">
+                                                                                    {item.tipo_unidad === 'kilogramo' ? 'PRECIO/KILO' : 'PRECIO UNIDAD'}
+                                                                                </label>
+                                                                                <div className="relative w-full max-w-[110px]">
+                                                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">S/</span>
+                                                                                    <input
+                                                                                        type="number"
+                                                                                        step="0.01"
+                                                                                        disabled={isNoStock}
+                                                                                        value={item.precio_base || ''}
+                                                                                        onChange={(e) => {
+                                                                                            const newPrecioBase = parseFloat(e.target.value) || 0;
+                                                                                            handleUpdateItem(index, 'precio_base', newPrecioBase);
+                                                                                            // Recalcular precio_final automáticamente
+                                                                                            const cantidad = parseFloat(item.cantidad_final) || 1;
+                                                                                            handleUpdateItem(index, 'precio_final', parseFloat((newPrecioBase * cantidad).toFixed(2)));
+                                                                                        }}
+                                                                                        className={`w-full pl-8 pr-3 py-1.5 border-2 rounded-xl text-sm font-bold focus:ring-4 focus:ring-amber-100 outline-none transition-all ${isNoStock
+                                                                                            ? 'bg-slate-100 text-slate-400 border-slate-200'
+                                                                                            : item.is_recovered_price
+                                                                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 focus:border-emerald-400 focus:ring-emerald-100'
+                                                                                                : 'bg-white text-slate-900 border-slate-200 focus:border-amber-500'
+                                                                                            }`}
+                                                                                    />
+                                                                                </div>
+                                                                            </div>
+
+                                                                            {/* Cantidad Input */}
                                                                             <div className="col-span-6 sm:col-span-2 flex flex-row sm:flex-col gap-2 sm:gap-1 items-center justify-between sm:justify-center w-full">
                                                                                 <label className="text-[10px] font-bold text-slate-400 uppercase sm:mb-0.5">CANTIDAD</label>
                                                                                 {item.tipo_unidad === 'kilogramo' ? (
@@ -937,37 +1000,25 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                                                 )}
                                                                             </div>
 
-                                                                            {/* Precio Final Input */}
+                                                                            {/* Precio Final Input - SIEMPRE NO EDITABLE */}
                                                                             <div className="col-span-6 sm:col-span-3 flex flex-row sm:flex-col gap-2 sm:gap-1 items-center justify-between sm:justify-start w-full">
                                                                                 <label className="text-[10px] font-bold text-slate-400 uppercase sm:mb-0.5 whitespace-nowrap">PRECIO FINAL</label>
                                                                                 <div className="relative w-full max-w-[120px]">
                                                                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">S/</span>
                                                                                     <input
                                                                                         type="number"
-                                                                                        disabled={isNoStock}
+                                                                                        step="0.01"
+                                                                                        disabled={true}
                                                                                         value={item.precio_final || ''}
-                                                                                        onChange={(e) => {
-                                                                                            handleUpdateItem(index, 'precio_final', parseFloat(e.target.value));
-                                                                                            if (invalidFields.has(index)) {
-                                                                                                const next = new Set(invalidFields);
-                                                                                                next.delete(index);
-                                                                                                setInvalidFields(next);
-                                                                                            }
-                                                                                        }}
-                                                                                        className={`w-full pl-8 pr-3 py-1.5 border-2 rounded-xl text-sm font-bold focus:ring-4 focus:ring-blue-100 outline-none transition-all ${isNoStock
+                                                                                        readOnly
+                                                                                        className={`w-full pl-8 pr-3 py-1.5 border-2 rounded-xl text-sm font-bold outline-none cursor-not-allowed ${isNoStock
                                                                                             ? 'bg-slate-100 text-slate-400 border-slate-200'
-                                                                                            : invalidFields.has(index)
-                                                                                                ? 'bg-red-50 text-red-900 border-red-300 focus:border-red-400 focus:ring-red-100'
-                                                                                                : item.is_recovered_price
-                                                                                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 focus:border-emerald-400 focus:ring-emerald-100'
-                                                                                                    : 'bg-white text-slate-900 border-slate-200 focus:border-blue-500'
+                                                                                            : 'bg-blue-50 text-blue-700 border-blue-200'
                                                                                             }`}
                                                                                     />
-                                                                                    {invalidFields.has(index) && (
-                                                                                        <span className="text-[10px] text-red-500 font-bold absolute -bottom-5 right-0 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 animate-bounce">
-                                                                                            ¡Requerido!
-                                                                                        </span>
-                                                                                    )}
+                                                                                    <span className="text-[9px] text-blue-600 font-bold absolute -bottom-4 right-0 bg-blue-50 px-1.5 py-0.5 rounded">
+                                                                                        Auto-calculado
+                                                                                    </span>
                                                                                 </div>
                                                                             </div>
 
@@ -997,7 +1048,7 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                                                 >
                                                                                     {isNoStock ? <RefreshCw size={18} strokeWidth={2.5} /> : <Ban size={18} strokeWidth={2.5} />}
                                                                                 </button>
-                                                                                
+
                                                                                 <button
                                                                                     onClick={() => handleRemoveItem(index)}
                                                                                     className="p-2 text-slate-400 hover:text-red-500 bg-white border border-slate-200 hover:border-red-200 hover:bg-red-50 rounded-xl transition-all shadow-sm hover:scale-110"
@@ -1006,7 +1057,7 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                                                     <Trash2 size={18} strokeWidth={2.5} />
                                                                                 </button>
                                                                             </div>
-                                                                         </div>
+                                                                        </div>
                                                                     </div>
                                                                 );
                                                             })())}
@@ -1069,7 +1120,7 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                                                             />
                                                                                         </div>
                                                                                     </div>
-                                                                                    
+
                                                                                     {/* Helada Toggle for Substitutes */}
                                                                                     <div className="flex items-center justify-between mt-1 px-2 py-1.5 bg-white/80 rounded-lg border border-purple-50">
                                                                                         <span className="text-[9px] font-bold text-slate-500 uppercase">Helada</span>
@@ -1184,7 +1235,7 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                             }
                                                             return null;
                                                         })()}
-                                                        
+
                                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-2 pt-2">Catálogo</p>
                                                         {products
                                                             .filter(p => !substSearchTerm || p.nombre.toLowerCase().includes(substSearchTerm.toLowerCase()))
@@ -1342,8 +1393,8 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                                 }`}
                                                         >
                                                             {isProcessing ? <Loader2 size={22} className="animate-spin" /> : (isReviewNeeded ? <Save size={22} strokeWidth={2.5} /> : <CheckCircle size={22} strokeWidth={2.5} />)}
-                                                            {isProcessing 
-                                                                ? 'Procesando...' 
+                                                            {isProcessing
+                                                                ? 'Procesando...'
                                                                 : (isReviewNeeded ? 'Solicitar Confirmación' : 'Aceptar y Preparar')
                                                             }
                                                         </button>
