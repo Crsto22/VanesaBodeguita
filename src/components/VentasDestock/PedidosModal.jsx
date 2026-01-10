@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ClipboardList, Clock, Search, Filter, Phone, User, Calendar, RefreshCcw, RefreshCw, CheckCircle, Package, Truck, AlertTriangle, Eye, ArrowLeft, Plus, Trash2, Save, Minus, Ban, Snowflake, Sun, Loader2, Smartphone, Banknote } from 'lucide-react';
+import { X, ClipboardList, Clock, Search, PackageSearch, Phone, User, Calendar, RefreshCcw, RefreshCw, CheckCircle, Package, Truck, AlertTriangle, Eye, ArrowLeft, Plus, Trash2, Save, Minus, Ban, Snowflake, Sun, Loader2, Smartphone, Banknote, PackageX } from 'lucide-react';
 import { usePedidos } from '../../context/PedidosContext';
+import { useProducts } from '../../context/ProductContext';
 
 const CATEGORIA_BEBIDAS = [
     '3gWRZpqiZd5gTLW1snA5',
@@ -11,7 +12,8 @@ const CATEGORIA_BEBIDAS = [
 ];
 
 const PedidosModal = ({ isOpen, onClose, products = [] }) => {
-    const { pedidos, loading, actualizarEstadoPedido, actualizarPedidoCompleto } = usePedidos();
+    const { pedidos, loading, actualizarEstadoPedido, actualizarPedidoCompleto, eliminarPedido } = usePedidos();
+    const { actualizarProducto } = useProducts();
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedPedido, setSelectedPedido] = useState(null);
     const [editedItems, setEditedItems] = useState([]);
@@ -19,11 +21,20 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [error, setError] = useState(null);
     const [invalidFields, setInvalidFields] = useState(new Set());
+    const [stockLoadingStates, setStockLoadingStates] = useState({});
 
     // Substitution Logic State
     const [substitutionIndex, setSubstitutionIndex] = useState(null);
     const [substSearchTerm, setSubstSearchTerm] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
+    const [pedidoEliminado, setPedidoEliminado] = useState(false);
+    
+    // Propuesta para productos kilogramo en el catálogo
+    const [kilogramoPropuesta, setKilogramoPropuesta] = useState({
+        unidad: 'gramos',
+        cantidad: '',
+        precio: ''
+    });
 
     // Ref para evitar resets innecesarios de editedItems si solo cambia el pago
     const prevItemsSignature = React.useRef("");
@@ -31,6 +42,9 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
     // Inicializar items editables cuando se selecciona un pedido
     React.useEffect(() => {
         if (selectedPedido) {
+            // Reset estado de eliminado al seleccionar un pedido
+            setPedidoEliminado(false);
+            
             // Verificar si los items realmente cambiaron antes de resetear el estado local
             const currentSignature = JSON.stringify(selectedPedido.items);
 
@@ -43,25 +57,29 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
             prevItemsSignature.current = currentSignature;
 
             setEditedItems(selectedPedido.items?.map(item => {
+                // Buscar el producto completo en el catálogo
+                const productId = item.productoId || item.id;
+                let cachedProduct = null;
+                
+                if (products.length > 0 && productId) {
+                    // Búsqueda por productoId o id
+                    cachedProduct = products.find(p => String(p.id).trim() === String(productId).trim());
+                    
+                    // Si falla por ID, buscar por nombre exacto
+                    if (!cachedProduct) {
+                        cachedProduct = products.find(p => p.nombre.toLowerCase().trim() === item.nombre.toLowerCase().trim());
+                    }
+                }
+
                 // Verificar si falta precio base y recuperarlo del caché
                 let precioBaseToUse = parseFloat(item.precio_base);
                 let isRecoveredPrice = false;
 
                 // Si precioBaseToUse es NaN, null, undefined o 0, intentamos recuperar
                 if (!precioBaseToUse || isNaN(precioBaseToUse) || precioBaseToUse === 0) {
-                    if (products.length > 0) {
-                        // Búsqueda por ID (más robusta)
-                        let cachedProduct = products.find(p => String(p.id).trim() === String(item.id).trim());
-
-                        // Si falla por ID, intento de borrado/recreado o ID distinto, buscar por Nombre exacto
-                        if (!cachedProduct) {
-                            cachedProduct = products.find(p => p.nombre.toLowerCase().trim() === item.nombre.toLowerCase().trim());
-                        }
-
-                        if (cachedProduct) {
-                            precioBaseToUse = parseFloat(cachedProduct.precio);
-                            isRecoveredPrice = true;
-                        }
+                    if (cachedProduct) {
+                        precioBaseToUse = parseFloat(cachedProduct.precio);
+                        isRecoveredPrice = true;
                     }
                 }
 
@@ -73,23 +91,10 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                     isRecoveredPrice = false;
                 }
 
-                // GUARDAR el precio base original (sin helar) antes de cualquier modificación
-                const precioBaseOriginal = precioBaseToUse;
-
-                // NUEVA LÓGICA: Si todas las unidades son heladas, usar precio_helada como precio_base
-                const qtyHelada = parseFloat(item.cantidad_helada || 0);
-                const qtySolicitada = parseFloat(item.cantidad_solicitada || 1);
-                const precioHelada = parseFloat(item.precio_helada || 0);
-
-                // Si TODAS son heladas y hay precio_helada definido, usar ese como precio unitario
-                if (qtyHelada > 0 && qtyHelada === qtySolicitada && precioHelada > 0) {
-                    precioBaseToUse = precioHelada;
-                }
-
-                // Cálculo del precio final inicial
+                // Cálculo del precio final inicial - SIMPLIFICADO
                 let calculatedFinalPrice = 0;
 
-                if (item.precio_final !== undefined && item.precio_final !== null) {
+                if (item.precio_final !== undefined && item.precio_final !== null && item.precio_final > 0) {
                     calculatedFinalPrice = item.precio_final;
                 } else {
                     if (item.tipo_unidad === 'kilogramo') {
@@ -107,24 +112,15 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                             }
                         }
                     } else {
+                        // SIMPLE: precio_base × cantidad (sin lógica de heladas)
                         const qty = item.cantidad_solicitada || 1;
-
-                        // Recalcular según si hay mezcla de heladas o no
-                        if (qtyHelada > 0 && precioHelada > 0 && qtyHelada < qty) {
-                            // Hay mezcla: algunas heladas, algunas sin helar
-                            const qtyFresca = Math.max(0, qty - qtyHelada);
-                            calculatedFinalPrice = parseFloat(((qtyHelada * precioHelada) + (qtyFresca * precioBaseOriginal)).toFixed(2));
-                        } else {
-                            // Todas heladas o todas sin helar
-                            calculatedFinalPrice = parseFloat((precioBaseToUse * qty).toFixed(2));
-                        }
+                        calculatedFinalPrice = parseFloat((precioBaseToUse * qty).toFixed(2));
                     }
                 }
 
                 return {
                     ...item,
                     precio_base: precioBaseToUse,
-                    precio_helada: precioHelada || item.precio_helada, // Preservar precio_helada
                     precio_final: calculatedFinalPrice,
                     cantidad_final: item.cantidad_final ?? (item.cantidad_solicitada || 1),
                     peso_final: item.peso_final ?? (item.peso_solicitado_gramos || 0),
@@ -143,6 +139,13 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
         if (selectedPedido) {
             const updatedPedido = pedidos.find(p => p.id === selectedPedido.id);
             if (updatedPedido) {
+                // Verificar si el pedido fue cancelado
+                if (updatedPedido.estado === 'cancelado' && selectedPedido.estado !== 'cancelado') {
+                    console.log("Pedido cancelado/eliminado en tiempo real");
+                    setPedidoEliminado(true);
+                    return;
+                }
+                
                 const statusChanged = updatedPedido.estado !== selectedPedido.estado;
                 const isWaiting = selectedPedido.estado === 'esperando_confirmacion';
                 const pagoChanged = JSON.stringify(updatedPedido.pago) !== JSON.stringify(selectedPedido.pago);
@@ -155,9 +158,13 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                     console.log("Sincronizando pedido en tiempo real...", { statusChanged, pagoChanged });
                     setSelectedPedido(updatedPedido);
                 }
+            } else {
+                // El pedido ya no existe en la lista (fue eliminado)
+                console.log("Pedido eliminado completamente de la base de datos");
+                setPedidoEliminado(true);
             }
         }
-    }, [pedidos]); // Dependencia solo en pedidos para revisar cuando cambie la data global
+    }, [pedidos, selectedPedido]); // Dependencia solo en pedidos para revisar cuando cambie la data global
 
     // Handlers para edición
     const handleUpdateItem = (index, field, value) => {
@@ -200,16 +207,12 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                         updated.cantidad_helada = newHelada;
                     }
 
-                    // Recalculate price considering cold units if applicable
+                    // Recalcular precio_final automáticamente - SIMPLIFICADO
                     if (field === 'cantidad_final' || field === 'precio_base' || field === 'cantidad_helada') {
                         const pBase = parseFloat(updated.precio_base) || 0;
                         const qty = parseFloat(updated.cantidad_final) || 0;
-                        const qtyHelada = parseFloat(updated.cantidad_helada) || 0;
-
-                        // Si hay precio diferenciado por helada (asumimos +0.00 por ahora o lógica futura, 
-                        // pero aquí respetamos el precio base para todo SALVO que el usuario edite manualmente)
-                        // Si el producto tuviera precio_helada en DB, se usaría aquí.
-                        // Por ahora el precio es uniforme según tu lógica actual:
+                        
+                        // SIMPLE: precio_base × cantidad (sin lógica diferenciada de heladas)
                         updated.precio_final = parseFloat((pBase * qty).toFixed(2));
                     }
                 } else {
@@ -262,32 +265,34 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
         }
 
         const newItem = {
-            id: product.id, // ID del Producto (sku)
-            itemId: `sub-${Date.now()}`, // ID único en la lista del pedido
+            id: product.id,
+            itemId: `sub-${Date.now()}`,
             nombre: product.nombre,
-            categoria_ref: product.categoria_ref, // <--- IMPORTANTE: Copiar la categoría para validar si es bebida
+            categoria_ref: product.categoria_ref,
             precio_base: parseFloat(product.precio),
-            precio_final: parseFloat((parseFloat(product.precio) * suggestedQty).toFixed(2)),
+            precio_final: product.tipo_unidad === 'kilogramo' ? 0 : parseFloat((parseFloat(product.precio) * suggestedQty).toFixed(2)),
             cantidad_solicitada: suggestedQty,
             cantidad_final: suggestedQty,
-            cantidad_helada: 0, // Inicializar en 0 por defecto
+            cantidad_helada: 0,
             tipo_unidad: product.tipo_unidad,
             imagen: product.imagen,
             estado_item: 'disponible',
-            requiere_confirmacion: false,
-            // Marca para saber que es una propuesta de sustitución (no suma al total)
+            requiere_confirmacion: true,
             es_sustituto: true,
-            sustituye_a: parentItem.itemId, // VINCULACIÓN: ID del ítem que reemplaza
+            sustituye_a: parentItem.itemId,
             mostrar_precio_web: true,
-            es_retornable: product.retornable === true // <--- NUEVO: Indicar si es retornable
+            es_retornable: product.retornable === true,
+            // Para productos kilogramo, inicializar con valores editables
+            detalle: product.tipo_unidad === 'kilogramo' ? '100 g' : null,
+            peso_propuesto_gramos: product.tipo_unidad === 'kilogramo' ? 100 : null,
+            cantidad_propuesta: null
         };
 
         const newItems = [...editedItems];
-        // Insertar justo después del ítem que se está sustituyendo
         newItems.splice(substitutionIndex + 1, 0, newItem);
 
         setEditedItems(newItems);
-        setSubstitutionIndex(null); // Cerrar catálogo
+        setSubstitutionIndex(null);
         setSubstSearchTerm('');
     };
 
@@ -329,34 +334,152 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
         setEditedItems(prev => {
             const newItems = [...prev];
             const item = newItems[index];
-            const isNoStock = item.estado_item === 'sin_stock'; // Currently no stock?
+            const isNoStock = item.estado_item === 'sin_stock';
 
-            // Update status
             newItems[index] = {
                 ...item,
                 estado_item: isNoStock ? 'disponible' : 'sin_stock',
-                precio_final: isNoStock ? (item.precio_previo || item.precio_base) : 0, // Restore price if toggling back
+                precio_final: isNoStock ? (item.precio_previo || item.precio_base) : 0,
                 cantidad_final: isNoStock ? (item.cantidad_previo || 1) : 0,
                 peso_final: isNoStock ? (item.peso_previo || 0) : 0,
-                // Save previous values to restore if needed
                 precio_previo: isNoStock ? undefined : item.precio_final,
                 cantidad_previo: isNoStock ? undefined : item.cantidad_final,
                 peso_previo: isNoStock ? undefined : item.peso_final
             };
 
-            // If we are restoring (isNoStock was true), remove all following substitutes
             if (isNoStock) {
                 let nextIndex = index + 1;
                 while (nextIndex < newItems.length && newItems[nextIndex].es_sustituto) {
                     newItems.splice(nextIndex, 1);
                 }
             } else {
-                // If marking as No Stock, open substitution panel automatically
                 setSubstitutionIndex(index);
             }
 
             return newItems;
         });
+    };
+    
+    const handleAddKilogramoProposal = () => {
+        if (substitutionIndex === null) return;
+        
+        const { cantidad, unidad, precio } = kilogramoPropuesta;
+        const cantidadNum = parseFloat(cantidad);
+        const precioNum = parseFloat(precio);
+        
+        if (!cantidadNum || cantidadNum <= 0 || !precioNum || precioNum <= 0) {
+            setError('Ingresa cantidad y precio válidos');
+            setTimeout(() => setError(null), 3000);
+            return;
+        }
+        
+        const parentItem = editedItems[substitutionIndex];
+        
+        // Crear detalle descriptivo
+        let detalleTexto = '';
+        if (unidad === 'gramos') {
+            if (cantidadNum >= 1000) {
+                detalleTexto = `${(cantidadNum / 1000).toFixed(2)} kg`;
+            } else {
+                detalleTexto = `${cantidadNum} g`;
+            }
+        } else {
+            detalleTexto = `${cantidadNum} ${cantidadNum === 1 ? 'unid.' : 'unids.'}`;
+        }
+        
+        // Crear item sustituto con la propuesta
+        const newItem = {
+            id: parentItem.id,
+            itemId: `sub-${Date.now()}-kilogramo`,
+            nombre: parentItem.nombre,
+            categoria_ref: parentItem.categoria_ref,
+            precio_base: 0,
+            precio_final: precioNum,
+            cantidad_solicitada: 1,
+            cantidad_final: 1,
+            cantidad_helada: 0,
+            tipo_unidad: parentItem.tipo_unidad,
+            imagen: parentItem.imagen,
+            estado_item: 'disponible',
+            requiere_confirmacion: true,
+            es_sustituto: true,
+            sustituye_a: parentItem.itemId,
+            mostrar_precio_web: true,
+            detalle: detalleTexto,
+            peso_propuesto_gramos: unidad === 'gramos' ? cantidadNum : null,
+            cantidad_propuesta: unidad === 'unidades' ? cantidadNum : null
+        };
+        
+        const newItems = [...editedItems];
+        newItems.splice(substitutionIndex + 1, 0, newItem);
+        
+        setEditedItems(newItems);
+        setKilogramoPropuesta({ unidad: 'gramos', cantidad: '', precio: '' });
+    };
+
+    const handleSubmitKilogramoProposal = () => {
+        if (kilogramoProposal === null) return;
+        
+        const { cantidad, unidad, precio } = proposalData;
+        const cantidadNum = parseFloat(cantidad);
+        const precioNum = parseFloat(precio);
+        
+        if (!cantidadNum || cantidadNum <= 0 || !precioNum || precioNum <= 0) {
+            setError('Ingresa cantidad y precio válidos');
+            setTimeout(() => setError(null), 3000);
+            return;
+        }
+        
+        const parentItem = editedItems[kilogramoProposal];
+        
+        // Crear detalle descriptivo
+        let detalleTexto = '';
+        if (unidad === 'gramos') {
+            if (cantidadNum >= 1000) {
+                detalleTexto = `${(cantidadNum / 1000).toFixed(2)} kg`;
+            } else {
+                detalleTexto = `${cantidadNum} g`;
+            }
+        } else {
+            detalleTexto = `${cantidadNum} ${cantidadNum === 1 ? 'unid.' : 'unids.'}`;
+        }
+        
+        // Crear item sustituto con la propuesta
+        const newItem = {
+            id: parentItem.id,
+            itemId: `sub-${Date.now()}-kilogramo`,
+            nombre: parentItem.nombre,
+            categoria_ref: parentItem.categoria_ref,
+            precio_base: 0, // Para kilogramo variable, el precio es directo
+            precio_final: precioNum,
+            cantidad_solicitada: 1,
+            cantidad_final: 1,
+            cantidad_helada: 0,
+            tipo_unidad: parentItem.tipo_unidad,
+            imagen: parentItem.imagen,
+            estado_item: 'disponible',
+            requiere_confirmacion: true,
+            es_sustituto: true,
+            sustituye_a: parentItem.itemId,
+            mostrar_precio_web: true,
+            detalle: detalleTexto,
+            peso_propuesto_gramos: unidad === 'gramos' ? cantidadNum : null,
+            cantidad_propuesta: unidad === 'unidades' ? cantidadNum : null
+        };
+        
+        // Marcar el item original como sin stock
+        const newItems = [...editedItems];
+        newItems[kilogramoProposal] = {
+            ...newItems[kilogramoProposal],
+            estado_item: 'sin_stock',
+            precio_final: 0,
+            cantidad_final: 0
+        };
+        
+        // Insertar la propuesta justo después
+        newItems.splice(kilogramoProposal + 1, 0, newItem);
+        
+        setKilogramoPropuesta({ unidad: 'gramos', cantidad: '', precio: '' });
     };
 
     const handleConfirmarPedido = async () => {
@@ -403,10 +526,16 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                 es_sustituto: item.es_sustituto === true,
                 sustituye_a: item.sustituye_a || null,
 
+                // Campos específicos para propuestas de productos kilogramo
+                peso_propuesto_gramos: item.peso_propuesto_gramos ? Number(item.peso_propuesto_gramos) : null,
+                cantidad_propuesta: item.cantidad_propuesta ? Number(item.cantidad_propuesta) : null,
+
                 // UI / Flags
                 mostrar_precio_web: item.mostrar_precio_web === true,
                 detalle: item.detalle || null,
-                requiere_confirmacion: item.requiere_confirmacion === true
+                requiere_confirmacion: item.requiere_confirmacion === true,
+                categoria_ref: item.categoria_ref || null,
+                es_retornable: item.es_retornable === true
             };
 
             // Limpiar undefineds explícitos si los hubiera (opcional, pero buena práctica para Firebase)
@@ -466,18 +595,89 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
         }
     };
 
+    // Función para llamar a la API externa (sincronización de caché)
+    const callApi = async (endpoint, method, body = null) => {
+        const apiKey = import.meta.env.VITE_API_KEY;
+        const apiUrl = import.meta.env.VITE_API_URL;
+
+        const headers = { 'x-api-key': apiKey };
+        if (body) headers['Content-Type'] = 'application/json';
+
+        try {
+            const response = await fetch(`${apiUrl}${endpoint}`, {
+                method,
+                headers,
+                body: body ? JSON.stringify(body) : undefined
+            });
+            if (!response.ok) throw new Error(`API Error: ${response.status}`);
+            return await response.json();
+        } catch (error) {
+            console.error("API Call failed:", error);
+            throw error;
+        }
+    };
+
+    // Función para marcar producto como agotado
+    const handleMarcarAgotado = async (item) => {
+        // El ID del producto está en productoId (no en id)
+        const productId = item.productoId || item.id;
+        
+        // Validar que tengamos el ID del producto
+        if (!productId) {
+            setError('❌ No se pudo identificar el producto');
+            setTimeout(() => setError(null), 3000);
+            return;
+        }
+
+        // Buscar el producto completo en el catálogo para tener todos sus datos
+        const productoCompleto = products.find(p => p.id === productId);
+        if (!productoCompleto) {
+            setError('❌ Producto no encontrado en el catálogo');
+            setTimeout(() => setError(null), 3000);
+            return;
+        }
+
+        if (!window.confirm(`¿Marcar "${item.nombre}" como AGOTADO?\n\nEsto pondrá el stock en 0 y otros clientes no podrán comprarlo.`)) {
+            return;
+        }
+
+        setStockLoadingStates(prev => ({ ...prev, [productId]: true }));
+
+        try {
+            // 1. Actualizar stock en Firebase
+            await actualizarProducto(productId, {
+                ...productoCompleto,
+                stock: 0
+            });
+
+            // 2. Sincronizar con la API del caché de la tienda virtual
+            await callApi(`/productos/${productId}/agotado`, 'PATCH');
+
+            setError(null);
+            // Mostrar mensaje de éxito temporal
+            setError(`✅ "${item.nombre}" marcado como agotado`);
+            setTimeout(() => setError(null), 3000);
+        } catch (error) {
+            console.error('Error al marcar producto como agotado:', error);
+            setError('❌ Error al actualizar stock. Intenta nuevamente.');
+            setTimeout(() => setError(null), 5000);
+        } finally {
+            setStockLoadingStates(prev => ({ ...prev, [productId]: false }));
+        }
+    };
+
     // Productos filtrados para agregar (buscador)
     const availableProducts = productSearchTerm
         ? products.filter(p => p.nombre.toLowerCase().includes(productSearchTerm.toLowerCase()))
         : [];
 
 
-    // Filtrar pedidos
+    // Filtrar y ordenar pedidos activos
     const filteredPedidos = pedidos.filter(pedido => {
-        // Excluir cancelados
-        if (pedido.estado === 'cancelado') return false;
+        // Excluir pedidos cancelados y entregados del listado
+        if (pedido.estado === 'cancelado' || pedido.estado === 'entregada') return false;
 
-        // Filtrar por búsqueda (nombre cliente o número orden)
+        // Búsqueda por nombre de cliente o número de orden
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             const cliente = pedido.cliente?.nombre?.toLowerCase() || '';
@@ -588,7 +788,7 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                         ) : filteredPedidos.length === 0 ? (
                                             <div className="flex flex-col items-center justify-center h-full text-center p-12 border-2 border-dashed border-slate-200 rounded-[2.5rem] mx-auto max-w-xl bg-white/50">
                                                 <div className="bg-slate-100 p-6 rounded-full mb-6">
-                                                    <Filter className="w-12 h-12 text-slate-300" />
+                                                    <PackageSearch className="w-12 h-12 text-slate-300" />
                                                 </div>
                                                 <h3 className="text-xl font-bold text-slate-800 mb-2">Sin resultados</h3>
                                                 <p className="text-slate-500">No hay pedidos que coincidan con tu búsqueda.</p>
@@ -682,6 +882,40 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                 </div>
                             ) : (
                                 <div className="flex flex-col h-full bg-slate-50 relative font-sans">
+                                    {/* Overlay de Pedido Eliminado */}
+                                    {pedidoEliminado && (
+                                        <div className="absolute inset-0 z-50 bg-white/95 backdrop-blur-sm flex items-center justify-center p-8">
+                                            <motion.div
+                                                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                className="max-w-md w-full bg-white rounded-3xl shadow-2xl border-2 border-red-100 p-8 text-center"
+                                            >
+                                                <div className="w-20 h-20 mx-auto mb-6 bg-red-50 rounded-full flex items-center justify-center">
+                                                    <AlertTriangle className="w-10 h-10 text-red-500" strokeWidth={2.5} />
+                                                </div>
+                                                <h3 className="text-2xl font-black text-slate-800 mb-3">
+                                                    Pedido Eliminado
+                                                </h3>
+                                                <p className="text-slate-600 font-medium mb-2">
+                                                    El cliente ha cancelado este pedido
+                                                </p>
+                                                <p className="text-sm text-slate-400 mb-8">
+                                                    Este pedido ya no está disponible para edición
+                                                </p>
+                                                <button
+                                                    onClick={() => {
+                                                        setPedidoEliminado(false);
+                                                        setSelectedPedido(null);
+                                                    }}
+                                                    className="w-full px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-2xl shadow-lg shadow-blue-500/30 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-3"
+                                                >
+                                                    <ArrowLeft size={22} strokeWidth={2.5} />
+                                                    Regresar a Pedidos
+                                                </button>
+                                            </motion.div>
+                                        </div>
+                                    )}
+                                    
                                     {/* Header Gestión Premium */}
                                     <div className="bg-white/90 backdrop-blur-md px-6 py-4 flex flex-col gap-4 flex-shrink-0 z-20 shadow-sm sticky top-0 border-b border-slate-100">
                                         <div className="flex items-center justify-between">
@@ -711,6 +945,26 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                     </div>
                                                 </div>
                                             </div>
+                                            
+                                            {/* Botón Eliminar Pedido */}
+                                            <button
+                                                onClick={async () => {
+                                                    if (window.confirm(`¿Estás seguro de eliminar el pedido #${selectedPedido.numeroOrden}?\n\nEsta acción no se puede deshacer.`)) {
+                                                        try {
+                                                            await eliminarPedido(selectedPedido.id);
+                                                            setSelectedPedido(null);
+                                                        } catch (error) {
+                                                            console.error('Error al eliminar pedido:', error);
+                                                            setError('❌ Error al eliminar el pedido');
+                                                            setTimeout(() => setError(null), 3000);
+                                                        }
+                                                    }
+                                                }}
+                                                className="p-2.5 hover:bg-red-50 rounded-xl transition-all text-slate-400 hover:text-red-500 border border-transparent hover:border-red-200"
+                                                title="Eliminar pedido"
+                                            >
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
                                         </div>
                                     </div>
 
@@ -874,7 +1128,11 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                         }
                                                     });
 
-                                                    return groups.map((group, gIndex) => (
+                                                    return groups.map((group, gIndex) => {
+                                                        // Verificar si el pedido está en un estado no editable
+                                                        const isNonEditableState = ['confirmada', 'preparando', 'lista', 'entregada'].includes(selectedPedido.estado);
+                                                        
+                                                        return (
                                                         <div key={gIndex} className="group-wrapper pt-4 first:pt-0">
                                                             {/* Render Main Item */}
                                                             {group.main && ((() => {
@@ -953,17 +1211,17 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                                                     <input
                                                                                         type="number"
                                                                                         step="0.01"
-                                                                                        disabled={isNoStock}
+                                                                                        disabled={isNoStock || isNonEditableState}
                                                                                         value={item.precio_base || ''}
                                                                                         onChange={(e) => {
+                                                                                            if (isNonEditableState) return;
                                                                                             const newPrecioBase = parseFloat(e.target.value) || 0;
                                                                                             handleUpdateItem(index, 'precio_base', newPrecioBase);
-                                                                                            // Recalcular precio_final automáticamente
-                                                                                            const cantidad = parseFloat(item.cantidad_final) || 1;
-                                                                                            handleUpdateItem(index, 'precio_final', parseFloat((newPrecioBase * cantidad).toFixed(2)));
+                                                                                            // handleUpdateItem ya recalcula precio_final automáticamente considerando heladas
                                                                                         }}
-                                                                                        className={`w-full pl-8 pr-3 py-1.5 border-2 rounded-xl text-sm font-bold focus:ring-4 focus:ring-amber-100 outline-none transition-all ${isNoStock
-                                                                                            ? 'bg-slate-100 text-slate-400 border-slate-200'
+                                                                                        className={`w-full pl-8 pr-3 py-1.5 border-2 rounded-xl text-sm font-bold focus:ring-4 focus:ring-amber-100 outline-none transition-all ${
+                                                                                            isNoStock || isNonEditableState
+                                                                                            ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
                                                                                             : item.is_recovered_price
                                                                                                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 focus:border-emerald-400 focus:ring-emerald-100'
                                                                                                 : 'bg-white text-slate-900 border-slate-200 focus:border-amber-500'
@@ -984,7 +1242,7 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                                                         <button
                                                                                             className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-white rounded-lg shadow-sm disabled:opacity-50 transition-all font-bold bg-white border border-slate-200"
                                                                                             onClick={() => handleUpdateItem(index, 'cantidad_final', Math.max(1, (item.cantidad_final || 0) - 1))}
-                                                                                            disabled={isNoStock}
+                                                                                            disabled={isNoStock || isNonEditableState}
                                                                                         >
                                                                                             <Minus size={12} strokeWidth={3} />
                                                                                         </button>
@@ -992,7 +1250,7 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                                                         <button
                                                                                             className="w-7 h-7 flex items-center justify-center text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm disabled:opacity-50 transition-all"
                                                                                             onClick={() => handleUpdateItem(index, 'cantidad_final', (item.cantidad_final || 0) + 1)}
-                                                                                            disabled={isNoStock}
+                                                                                            disabled={isNoStock || isNonEditableState}
                                                                                         >
                                                                                             <Plus size={12} strokeWidth={3} />
                                                                                         </button>
@@ -1023,40 +1281,55 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                                             </div>
 
                                                                             {/* Actions */}
-                                                                            <div className="col-span-12 sm:col-span-2 flex justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-0 border-slate-100 mt-2 sm:mt-0">
-                                                                                <button
-                                                                                    onClick={() => setSubstitutionIndex(index)}
-                                                                                    className="p-2 rounded-xl text-purple-600 bg-purple-50 hover:bg-purple-100 hover:scale-110 transition-all border border-purple-100 shadow-sm"
-                                                                                    title="Añadir Propuesta / Sustituto"
-                                                                                >
-                                                                                    <Plus size={18} strokeWidth={2.5} />
-                                                                                </button>
+                                                                            {!isNonEditableState && (
+                                                                                <div className="col-span-12 sm:col-span-2 flex justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-0 border-slate-100 mt-2 sm:mt-0">
+                                                                                    <button
+                                                                                        onClick={() => setSubstitutionIndex(index)}
+                                                                                        className="p-2 rounded-xl text-purple-600 bg-purple-50 hover:bg-purple-100 hover:scale-110 transition-all border border-purple-100 shadow-sm"
+                                                                                        title="Añadir Propuesta / Sustituto"
+                                                                                    >
+                                                                                        <Plus size={18} strokeWidth={2.5} />
+                                                                                    </button>
 
-                                                                                <button
-                                                                                    onClick={() => {
-                                                                                        if (isNoStock) {
-                                                                                            handleMarkNoStock(index);
-                                                                                            setSubstitutionIndex(null);
-                                                                                        } else {
-                                                                                            handleMarkNoStock(index);
-                                                                                            setSubstitutionIndex(index);
-                                                                                            setSubstSearchTerm('');
-                                                                                        }
-                                                                                    }}
-                                                                                    className={`p-2 rounded-xl transition-all border shadow-sm hover:scale-110 ${isNoStock ? 'text-red-600 bg-red-50 border-red-100 hover:bg-red-100' : 'text-slate-400 bg-white border-slate-200 hover:text-orange-500 hover:border-orange-200 hover:bg-orange-50'}`}
-                                                                                    title={isNoStock ? "Restaurar item" : "Marcar Sin Stock"}
-                                                                                >
-                                                                                    {isNoStock ? <RefreshCw size={18} strokeWidth={2.5} /> : <Ban size={18} strokeWidth={2.5} />}
-                                                                                </button>
+                                                                                    <button
+                                                                                        onClick={() => handleMarcarAgotado(item)}
+                                                                                        disabled={stockLoadingStates[item.id]}
+                                                                                        className="p-2 rounded-xl text-red-600 bg-red-50 hover:bg-red-100 hover:scale-110 transition-all border border-red-100 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                                        title="Marcar producto como agotado (Stock = 0)"
+                                                                                    >
+                                                                                        {stockLoadingStates[item.id] ? (
+                                                                                            <Loader2 size={18} strokeWidth={2.5} className="animate-spin" />
+                                                                                        ) : (
+                                                                                            <PackageX size={18} strokeWidth={2.5} />
+                                                                                        )}
+                                                                                    </button>
 
-                                                                                <button
-                                                                                    onClick={() => handleRemoveItem(index)}
-                                                                                    className="p-2 text-slate-400 hover:text-red-500 bg-white border border-slate-200 hover:border-red-200 hover:bg-red-50 rounded-xl transition-all shadow-sm hover:scale-110"
-                                                                                    title="Eliminar ítem"
-                                                                                >
-                                                                                    <Trash2 size={18} strokeWidth={2.5} />
-                                                                                </button>
-                                                                            </div>
+                                                                                    <button
+                                                                                        onClick={() => {
+                                                                                            if (isNoStock) {
+                                                                                                handleMarkNoStock(index);
+                                                                                                setSubstitutionIndex(null);
+                                                                                            } else {
+                                                                                                handleMarkNoStock(index);
+                                                                                                setSubstitutionIndex(index);
+                                                                                                setSubstSearchTerm('');
+                                                                                            }
+                                                                                        }}
+                                                                                        className={`p-2 rounded-xl transition-all border shadow-sm hover:scale-110 ${isNoStock ? 'text-red-600 bg-red-50 border-red-100 hover:bg-red-100' : 'text-slate-400 bg-white border-slate-200 hover:text-orange-500 hover:border-orange-200 hover:bg-orange-50'}`}
+                                                                                        title={isNoStock ? "Restaurar item" : "Marcar Sin Stock"}
+                                                                                    >
+                                                                                        {isNoStock ? <RefreshCw size={18} strokeWidth={2.5} /> : <Ban size={18} strokeWidth={2.5} />}
+                                                                                    </button>
+
+                                                                                    <button
+                                                                                        onClick={() => handleRemoveItem(index)}
+                                                                                        className="p-2 text-slate-400 hover:text-red-500 bg-white border border-slate-200 hover:border-red-200 hover:bg-red-50 rounded-xl transition-all shadow-sm hover:scale-110"
+                                                                                        title="Eliminar ítem"
+                                                                                    >
+                                                                                        <Trash2 size={18} strokeWidth={2.5} />
+                                                                                    </button>
+                                                                                </div>
+                                                                            )}
                                                                         </div>
                                                                     </div>
                                                                 );
@@ -1093,58 +1366,174 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                                                         <h4 className="font-bold text-xs text-slate-800 line-clamp-2 leading-tight">{item.nombre}</h4>
                                                                                     </div>
 
-                                                                                    <div className="flex items-center justify-between gap-1">
-                                                                                        <div className="flex items-center gap-1 bg-white rounded-lg border border-purple-100 px-1.5 py-0.5 shadow-sm">
-                                                                                            <button
-                                                                                                className="w-5 h-5 flex items-center justify-center text-slate-600 hover:bg-purple-100 rounded hover:text-purple-700"
-                                                                                                onClick={() => handleUpdateItem(index, 'cantidad_final', Math.max(1, (item.cantidad_final || 0) - 1))}
-                                                                                            >
-                                                                                                <Minus size={10} strokeWidth={3} />
-                                                                                            </button>
-                                                                                            <span className="text-xs font-bold w-4 text-center text-slate-900">{item.cantidad_final || 1}</span>
-                                                                                            <button
-                                                                                                className="w-5 h-5 flex items-center justify-center text-slate-600 hover:bg-purple-100 rounded hover:text-purple-700"
-                                                                                                onClick={() => handleUpdateItem(index, 'cantidad_final', (item.cantidad_final || 0) + 1)}
-                                                                                            >
-                                                                                                <Plus size={10} strokeWidth={3} />
-                                                                                            </button>
-                                                                                        </div>
+                                                                                    {/* Si es propuesta de kilogramo */}
+                                                                                    {(item.peso_propuesto_gramos || item.cantidad_propuesta) ? (
+                                                                                        isNonEditableState ? (
+                                                                                            // Vista de solo lectura para estados avanzados
+                                                                                            <div className="space-y-2">
+                                                                                                <div className="flex items-center justify-between py-1">
+                                                                                                    <span className="text-[10px] font-bold text-slate-400 uppercase">Cantidad</span>
+                                                                                                    <span className="text-sm font-bold text-slate-800">{item.detalle}</span>
+                                                                                                </div>
+                                                                                                <div className="flex items-center justify-between py-1">
+                                                                                                    <span className="text-[10px] font-bold text-slate-400 uppercase">Precio</span>
+                                                                                                    <span className="text-sm font-bold text-slate-800">S/ {(item.precio_final || 0).toFixed(2)}</span>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        ) : (
+                                                                                            // Controles editables completos
+                                                                                            <div className="space-y-2.5">
+                                                                                                {/* Tipo de unidad */}
+                                                                                                <div>
+                                                                                                    <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1.5">
+                                                                                                        Tipo
+                                                                                                    </label>
+                                                                                                    <div className="grid grid-cols-2 gap-1.5">
+                                                                                                        <button
+                                                                                                            onClick={() => {
+                                                                                                                // Cambiar tipo y resetear cantidad
+                                                                                                                if (item.peso_propuesto_gramos) {
+                                                                                                                    handleUpdateItem(index, 'peso_propuesto_gramos', null);
+                                                                                                                    handleUpdateItem(index, 'cantidad_propuesta', 1);
+                                                                                                                    handleUpdateItem(index, 'detalle', '1 unid.');
+                                                                                                                }
+                                                                                                            }}
+                                                                                                            className={`px-2 py-1.5 rounded-lg font-bold text-[10px] transition-all border ${
+                                                                                                                item.cantidad_propuesta
+                                                                                                                    ? 'bg-amber-100 border-amber-300 text-amber-700'
+                                                                                                                    : 'bg-white border-purple-100 text-slate-500'
+                                                                                                            }`}
+                                                                                                        >
+                                                                                                            Unidades
+                                                                                                        </button>
+                                                                                                        <button
+                                                                                                            onClick={() => {
+                                                                                                                // Cambiar tipo y resetear cantidad
+                                                                                                                if (item.cantidad_propuesta) {
+                                                                                                                    handleUpdateItem(index, 'cantidad_propuesta', null);
+                                                                                                                    handleUpdateItem(index, 'peso_propuesto_gramos', 100);
+                                                                                                                    handleUpdateItem(index, 'detalle', '100 g');
+                                                                                                                }
+                                                                                                            }}
+                                                                                                            className={`px-2 py-1.5 rounded-lg font-bold text-[10px] transition-all border ${
+                                                                                                                item.peso_propuesto_gramos
+                                                                                                                    ? 'bg-amber-100 border-amber-300 text-amber-700'
+                                                                                                                    : 'bg-white border-purple-100 text-slate-500'
+                                                                                                            }`}
+                                                                                                        >
+                                                                                                            Gramos
+                                                                                                        </button>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                                
+                                                                                                {/* Cantidad */}
+                                                                                                <div>
+                                                                                                    <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1.5">
+                                                                                                        Cantidad
+                                                                                                    </label>
+                                                                                                    <div className="relative">
+                                                                                                        <input
+                                                                                                            type="number"
+                                                                                                            step={item.peso_propuesto_gramos ? '50' : '1'}
+                                                                                                            value={item.peso_propuesto_gramos || item.cantidad_propuesta || ''}
+                                                                                                            onChange={(e) => {
+                                                                                                                const val = parseFloat(e.target.value) || 0;
+                                                                                                                if (item.peso_propuesto_gramos) {
+                                                                                                                    handleUpdateItem(index, 'peso_propuesto_gramos', val);
+                                                                                                                    const detalle = val >= 1000 ? `${(val / 1000).toFixed(2)} kg` : `${val} g`;
+                                                                                                                    handleUpdateItem(index, 'detalle', detalle);
+                                                                                                                } else {
+                                                                                                                    handleUpdateItem(index, 'cantidad_propuesta', val);
+                                                                                                                    handleUpdateItem(index, 'detalle', `${val} ${val === 1 ? 'unid.' : 'unids.'}`);
+                                                                                                                }
+                                                                                                            }}
+                                                                                                            className="w-full pl-2.5 pr-8 py-1.5 rounded-lg border border-purple-100 focus:border-purple-300 focus:ring-2 focus:ring-purple-50 outline-none text-xs font-bold text-slate-800"
+                                                                                                            placeholder={item.peso_propuesto_gramos ? '300' : '2'}
+                                                                                                        />
+                                                                                                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[10px]">
+                                                                                                            {item.peso_propuesto_gramos ? 'g' : 'un'}
+                                                                                                        </span>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                                
+                                                                                                {/* Precio */}
+                                                                                                <div>
+                                                                                                    <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1.5">
+                                                                                                        Precio
+                                                                                                    </label>
+                                                                                                    <div className="relative">
+                                                                                                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">
+                                                                                                            S/
+                                                                                                        </span>
+                                                                                                        <input
+                                                                                                            type="number"
+                                                                                                            step="0.50"
+                                                                                                            value={item.precio_final || ''}
+                                                                                                            onChange={(e) => handleUpdateItem(index, 'precio_final', parseFloat(e.target.value))}
+                                                                                                            className="w-full pl-8 pr-2.5 py-1.5 rounded-lg border border-purple-100 focus:border-purple-300 focus:ring-2 focus:ring-purple-50 outline-none text-xs font-bold text-slate-800"
+                                                                                                            placeholder="2.00"
+                                                                                                        />
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        )
+                                                                                    ) : (
+                                                                                        <>
+                                                                                            {/* Controles normales para otros productos */}
+                                                                                            <div className="flex items-center justify-between gap-1">
+                                                                                                <div className="flex items-center gap-1 bg-white rounded-lg border border-purple-100 px-1.5 py-0.5 shadow-sm">
+                                                                                                    <button
+                                                                                                        className="w-5 h-5 flex items-center justify-center text-slate-600 hover:bg-purple-100 rounded hover:text-purple-700"
+                                                                                                        onClick={() => handleUpdateItem(index, 'cantidad_final', Math.max(1, (item.cantidad_final || 0) - 1))}
+                                                                                                    >
+                                                                                                        <Minus size={10} strokeWidth={3} />
+                                                                                                    </button>
+                                                                                                    <span className="text-xs font-bold w-4 text-center text-slate-900">{item.cantidad_final || 1}</span>
+                                                                                                    <button
+                                                                                                        className="w-5 h-5 flex items-center justify-center text-slate-600 hover:bg-purple-100 rounded hover:text-purple-700"
+                                                                                                        onClick={() => handleUpdateItem(index, 'cantidad_final', (item.cantidad_final || 0) + 1)}
+                                                                                                    >
+                                                                                                        <Plus size={10} strokeWidth={3} />
+                                                                                                    </button>
+                                                                                                </div>
 
-                                                                                        <div className="flex items-center gap-0.5 border-b-2 border-purple-100 focus-within:border-purple-500 transition-colors">
-                                                                                            <span className="text-[10px] text-purple-700 font-bold">S/</span>
-                                                                                            <input
-                                                                                                type="number"
-                                                                                                value={item.precio_base || ''}
-                                                                                                onChange={(e) => handleUpdateItem(index, 'precio_base', parseFloat(e.target.value))}
-                                                                                                className="w-12 text-sm font-bold text-purple-700 bg-transparent outline-none text-right px-0"
-                                                                                            />
-                                                                                        </div>
-                                                                                    </div>
+                                                                                                <div className="flex items-center gap-0.5 border-b-2 border-purple-100 focus-within:border-purple-500 transition-colors">
+                                                                                                    <span className="text-[10px] text-purple-700 font-bold">S/</span>
+                                                                                                    <input
+                                                                                                        type="number"
+                                                                                                        value={item.precio_base || ''}
+                                                                                                        onChange={(e) => handleUpdateItem(index, 'precio_base', parseFloat(e.target.value))}
+                                                                                                        className="w-12 text-sm font-bold text-purple-700 bg-transparent outline-none text-right px-0"
+                                                                                                    />
+                                                                                                </div>
+                                                                                            </div>
 
-                                                                                    {/* Helada Toggle for Substitutes */}
-                                                                                    <div className="flex items-center justify-between mt-1 px-2 py-1.5 bg-white/80 rounded-lg border border-purple-50">
-                                                                                        <span className="text-[9px] font-bold text-slate-500 uppercase">Helada</span>
-                                                                                        <button
-                                                                                            onClick={() => {
-                                                                                                const isHelada = item.cantidad_helada > 0;
-                                                                                                const newStatus = !isHelada;
-                                                                                                handleUpdateItem(index, 'cantidad_helada', newStatus ? item.cantidad_final : 0);
-                                                                                                handleUpdateItem(index, 'detalle', newStatus ? "Helada" : "Sin helar");
-                                                                                            }}
-                                                                                            className={`relative inline-flex h-3.5 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${item.cantidad_helada > 0 ? 'bg-blue-500' : 'bg-slate-200'}`}
-                                                                                        >
-                                                                                            <span
-                                                                                                aria-hidden="true"
-                                                                                                className={`pointer-events-none inline-block h-2.5 w-2.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${item.cantidad_helada > 0 ? 'translate-x-3.5' : 'translate-x-0'}`}
-                                                                                            />
-                                                                                        </button>
-                                                                                    </div>
+                                                                                            {/* Helada Toggle for Substitutes */}
+                                                                                            <div className="flex items-center justify-between mt-1 px-2 py-1.5 bg-white/80 rounded-lg border border-purple-50">
+                                                                                                <span className="text-[9px] font-bold text-slate-500 uppercase">Helada</span>
+                                                                                                <button
+                                                                                                    onClick={() => {
+                                                                                                        const isHelada = item.cantidad_helada > 0;
+                                                                                                        const newStatus = !isHelada;
+                                                                                                        handleUpdateItem(index, 'cantidad_helada', newStatus ? item.cantidad_final : 0);
+                                                                                                        handleUpdateItem(index, 'detalle', newStatus ? "Helada" : "Sin helar");
+                                                                                                    }}
+                                                                                                    className={`relative inline-flex h-3.5 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${item.cantidad_helada > 0 ? 'bg-blue-500' : 'bg-slate-200'}`}
+                                                                                                >
+                                                                                                    <span
+                                                                                                        aria-hidden="true"
+                                                                                                        className={`pointer-events-none inline-block h-2.5 w-2.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${item.cantidad_helada > 0 ? 'translate-x-3.5' : 'translate-x-0'}`}
+                                                                                                    />
+                                                                                                </button>
+                                                                                            </div>
+                                                                                        </>
+                                                                                    )}
                                                                                 </div>
                                                                             </div>
                                                                         ))}
 
                                                                         {/* Botón para añadir otra propuesta */}
-                                                                        {group.main && (
+                                                                        {group.main && !isNonEditableState && (
                                                                             <button
                                                                                 onClick={() => setSubstitutionIndex(group.main.index)}
                                                                                 className="flex-shrink-0 w-32 bg-white rounded-2xl border-2 border-dashed border-purple-200 p-3 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-purple-50 hover:border-purple-400 transition-all group"
@@ -1161,7 +1550,8 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                                 </div>
                                                             )}
                                                         </div>
-                                                    ));
+                                                    );
+                                                    });
                                                 })()}
                                             </div>
 
@@ -1198,12 +1588,42 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                     </div>
 
                                                     <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/30 custom-scrollbar">
-                                                        {/* Sugerencia Rápida: Mismo producto "Al tiempo" */}
+                                                        {/* Sugerencia: Mismo producto */}
                                                         {(() => {
                                                             const parent = editedItems[substitutionIndex];
-                                                            // Solo sugerir si:
-                                                            // 1. Tiene heladas solicitadas (esto ya confirma que es un producto refrigerable)
-                                                            // 2. Estamos en stock parcial O sin stock
+                                                            
+                                                            // Mostrar el mismo producto como primera opción
+                                                            if (parent) {
+                                                                // Buscar el producto original en la lista
+                                                                const originalProduct = products.find(p => p.id === parent.id || p.nombre === parent.nombre);
+                                                                
+                                                                if (originalProduct) {
+                                                                    return (
+                                                                        <div className="mb-4">
+                                                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-2">Mismo Producto</p>
+                                                                            <button
+                                                                                onClick={() => handleAddSubstitute(originalProduct)}
+                                                                                className="w-full flex items-center gap-3 p-3 bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 rounded-2xl transition-all border-2 border-amber-200 group shadow-sm hover:shadow-md"
+                                                                            >
+                                                                                <div className="w-12 h-12 rounded-xl bg-white overflow-hidden flex-shrink-0 relative shadow-sm border border-amber-100 p-1">
+                                                                                    <img src={originalProduct.imagen} alt={originalProduct.nombre} className="w-full h-full object-contain mix-blend-multiply" />
+                                                                                </div>
+                                                                                <div className="flex-1 min-w-0 text-left">
+                                                                                    <p className="font-bold text-sm text-slate-800 line-clamp-1">{originalProduct.nombre}</p>
+                                                                                    <p className="text-xs text-amber-700 font-medium mt-0.5">
+                                                                                        {originalProduct.tipo_unidad === 'kilogramo' ? 'Variable' : `S/ ${parseFloat(originalProduct.precio).toFixed(2)}`}
+                                                                                    </p>
+                                                                                </div>
+                                                                                <div className="text-amber-600 bg-white rounded-full p-1.5 shadow-sm border border-amber-200 group-hover:scale-110 transition-transform">
+                                                                                    <Plus size={16} strokeWidth={3} />
+                                                                                </div>
+                                                                            </button>
+                                                                        </div>
+                                                                    );
+                                                                }
+                                                            }
+                                                            
+                                                            // Sugerencia para productos con heladas
                                                             if (parent &&
                                                                 parent.cantidad_helada > 0 &&
                                                                 (parent.estado_item === 'stock_parcial' || parent.estado_item === 'sin_stock')) {
@@ -1317,7 +1737,15 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
 
                                     {/* Footer Botones */}
                                     <div className="border-t border-slate-100 px-6 py-5 bg-white flex justify-end gap-3 flex-shrink-0 z-20 shadow-[0_-5px_20px_-15px_rgba(0,0,0,0.05)]">
-                                        {selectedPedido.estado === 'esperando_confirmacion' ? (
+                                        {selectedPedido.estado === 'entregada' ? (
+                                            <button
+                                                onClick={() => setSelectedPedido(null)}
+                                                className="px-8 py-3 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center gap-2.5"
+                                            >
+                                                <ArrowLeft size={22} strokeWidth={2.5} />
+                                                Regresar a Pedidos
+                                            </button>
+                                        ) : selectedPedido.estado === 'esperando_confirmacion' ? (
                                             <div className="w-full bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-center justify-center gap-3 text-amber-700 font-bold animate-pulse shadow-inner">
                                                 <Clock size={24} className="text-amber-600" />
                                                 <span className="text-lg">Cliente revisando propuestas...</span>

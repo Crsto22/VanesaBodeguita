@@ -64,11 +64,24 @@ export const PedidosProvider = ({ children }) => {
         }
     };
 
+    const eliminarPedido = async (pedidoId) => {
+        try {
+            const { doc, deleteDoc } = await import('firebase/firestore');
+            const pedidoRef = doc(configFirestore, 'pedidos', pedidoId);
+            await deleteDoc(pedidoRef);
+            console.log(`Pedido ${pedidoId} eliminado`);
+        } catch (error) {
+            console.error("Error al eliminar pedido:", error);
+            throw error;
+        }
+    };
+
     const value = {
         pedidos,
         loading,
         actualizarEstadoPedido,
-        actualizarPedidoCompleto
+        actualizarPedidoCompleto,
+        eliminarPedido
     };
 
     return (

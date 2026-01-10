@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Search, Package, X, Store, Image as ImageIcon, ChevronLeft, ChevronRight, Eye, EyeOff, Layers, RefreshCw, Loader2, ShoppingCart, ShoppingBag, CreditCard, Users, Truck, Barcode, Settings, FileText } from 'lucide-react';
+import { Search, Package, X, Store, Image as ImageIcon, ChevronLeft, ChevronRight, Eye, EyeOff, Layers, RefreshCw, Loader2, ShoppingCart, ShoppingBag, CreditCard, Users, Truck, Barcode, Settings, FileText, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../context/ProductContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,6 +19,7 @@ const ConfigTiendaVirtual = () => {
     const [filterSinImagen, setFilterSinImagen] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [isRefreshingCache, setIsRefreshingCache] = useState(false);
+    const [categoriesDrawerOpen, setCategoriesDrawerOpen] = useState(false);
 
     // Track loading states for specific actions on products
     // Structure: { [productId]: { publicado: boolean, precio: boolean, stock: boolean } }
@@ -261,9 +262,9 @@ const ConfigTiendaVirtual = () => {
 
                     {/* Layout Principal: Sidebar + Hero + Filtros */}
                     <div className="flex gap-4 mx-3 mb-6">
-                        {/* Sidebar de Categorías */}
+                        {/* Sidebar de Categorías - Desktop Only */}
                         <motion.div
-                            className="w-72 bg-white rounded-2xl shadow-lg border border-gray-100 flex flex-col sticky top-20 self-start"
+                            className="hidden lg:flex w-72 bg-white rounded-2xl shadow-lg border border-gray-100 flex-col sticky top-20 self-start"
                             style={{ maxHeight: 'calc(100vh - 100px)' }}
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
@@ -355,42 +356,160 @@ const ConfigTiendaVirtual = () => {
                             </div>
 
                             {/* Filters */}
-                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center gap-4 sticky top-20 z-20">
-                        <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
-                            <input type="text" placeholder="Buscar producto..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full rounded-full border border-gray-200 bg-gray-50 py-2 pl-10 pr-4 text-sm outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all" />
-                        </div>
-                        <div className="flex bg-gray-100 p-1 rounded-lg">
-                            {['publicado', 'precio', 'stock'].map(mode => (
-                                <button key={mode} onClick={() => { setFilterMode(mode); setFilterStatus('all'); }} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all capitalize ${filterMode === mode ? 'bg-white text-cyan-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                                    {mode}
-                                </button>
-                            ))}
-                        </div>
-                        <div className="flex gap-2">
-                            <button onClick={() => setFilterStatus('all')} className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${filterStatus === 'all' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>Todos</button>
-                            <button onClick={() => setFilterStatus('active')} className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${filterStatus === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>{filterMode === 'stock' ? 'Con Stock' : 'Activos'}</button>
-                            <button onClick={() => setFilterStatus('inactive')} className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${filterStatus === 'inactive' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>{filterMode === 'stock' ? 'Agotados' : 'Inactivos'}</button>
-                        </div>
-                        <div className="flex gap-2">
-                            <button 
-                                onClick={() => setFilterSinImagen(!filterSinImagen)} 
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 ${
-                                    filterSinImagen 
-                                        ? 'bg-orange-50 text-orange-700 border-orange-200 shadow-sm' 
-                                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                                }`}
-                            >
-                                <ImageIcon size={14} />
-                                Sin Imagen
-                                {filterSinImagen && (
-                                    <span className="bg-orange-200 text-orange-800 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
-                                        {filteredProducts.length}
-                                    </span>
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-4 sticky top-20 z-20">
+                                {/* Search Bar + Category Button (Mobile) */}
+                                <div className="flex gap-2">
+                                    {/* Category Button - Mobile Only */}
+                                    <button
+                                        onClick={() => setCategoriesDrawerOpen(true)}
+                                        className="lg:hidden flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-600 to-cyan-700 text-white rounded-xl font-bold shadow-sm hover:shadow-md transition-all shrink-0"
+                                    >
+                                        <Layers size={18} />
+                                        <span className="hidden sm:inline">Categorías</span>
+                                    </button>
+                                    
+                                    <div className="relative flex-1">
+                                        <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
+                                        <input type="text" placeholder="Buscar producto..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full rounded-full border border-gray-200 bg-gray-50 py-2 pl-10 pr-4 text-sm outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all" />
+                                    </div>
+                                </div>
+                                
+                                {/* Filter Controls */}
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                                    <div className="flex bg-gray-100 p-1 rounded-lg w-full sm:w-auto">
+                                        {['publicado', 'precio', 'stock'].map(mode => (
+                                            <button key={mode} onClick={() => { setFilterMode(mode); setFilterStatus('all'); }} className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold rounded-md transition-all capitalize ${filterMode === mode ? 'bg-white text-cyan-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                                                {mode}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="flex gap-2 flex-wrap">
+                                        <button onClick={() => setFilterStatus('all')} className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${filterStatus === 'all' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>Todos</button>
+                                        <button onClick={() => setFilterStatus('active')} className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${filterStatus === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>{filterMode === 'stock' ? 'Con Stock' : 'Activos'}</button>
+                                        <button onClick={() => setFilterStatus('inactive')} className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${filterStatus === 'inactive' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>{filterMode === 'stock' ? 'Agotados' : 'Inactivos'}</button>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button 
+                                            onClick={() => setFilterSinImagen(!filterSinImagen)} 
+                                            className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                                                filterSinImagen 
+                                                    ? 'bg-orange-50 text-orange-700 border-orange-200 shadow-sm' 
+                                                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            <ImageIcon size={14} />
+                                            <span className="hidden sm:inline">Sin Imagen</span>
+                                            {filterSinImagen && (
+                                                <span className="bg-orange-200 text-orange-800 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                                                    {filteredProducts.length}
+                                                </span>
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Drawer de Categorías - Mobile */}
+                            <AnimatePresence>
+                                {categoriesDrawerOpen && (
+                                    <>
+                                        {/* Overlay */}
+                                        <motion.div
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            exit={{ opacity: 0 }}
+                                            onClick={() => setCategoriesDrawerOpen(false)}
+                                            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] lg:hidden"
+                                        />
+                                        
+                                        {/* Drawer */}
+                                        <motion.div
+                                            initial={{ x: '-100%' }}
+                                            animate={{ x: 0 }}
+                                            exit={{ x: '-100%' }}
+                                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                                            className="fixed left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-white shadow-2xl z-[70] lg:hidden flex flex-col"
+                                        >
+                                            <div className="p-4 bg-gradient-to-r from-cyan-600 to-cyan-700 flex-shrink-0 flex items-center justify-between">
+                                                <div>
+                                                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                                        <Layers size={20} />
+                                                        Categorías
+                                                    </h3>
+                                                    <p className="text-sm text-cyan-100 mt-1">Filtrar por categoría</p>
+                                                </div>
+                                                <button
+                                                    onClick={() => setCategoriesDrawerOpen(false)}
+                                                    className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white"
+                                                >
+                                                    <X size={24} />
+                                                </button>
+                                            </div>
+
+                                            <div className="p-3 flex-1 overflow-y-auto custom-scrollbar">
+                                                {/* Botón Todas las Categorías */}
+                                                <motion.button
+                                                    onClick={() => {
+                                                        setSelectedCategory('all');
+                                                        setCategoriesDrawerOpen(false);
+                                                    }}
+                                                    className={`w-full p-4 text-left rounded-xl mb-3 transition-all shadow-sm ${
+                                                        selectedCategory === 'all'
+                                                            ? 'bg-gradient-to-r from-cyan-600 to-cyan-700 text-white shadow-md'
+                                                            : 'bg-gray-50 hover:bg-gray-100 text-gray-700 hover:shadow-md border border-gray-200'
+                                                    }`}
+                                                    whileTap={{ scale: 0.98 }}
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="font-semibold">Todas las categorías</span>
+                                                        <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${
+                                                            selectedCategory === 'all'
+                                                                ? 'bg-white/20 text-white'
+                                                                : 'bg-gray-200 text-gray-700'
+                                                        }`}>
+                                                            {todosLosProductos?.length || 0}
+                                                        </span>
+                                                    </div>
+                                                </motion.button>
+
+                                                {/* Lista de Categorías */}
+                                                {categorias?.map((categoria) => {
+                                                    const productosEnCategoria = todosLosProductos?.filter(
+                                                        p => p.categoria_ref === categoria.id
+                                                    ).length || 0;
+
+                                                    return (
+                                                        <motion.button
+                                                            key={categoria.id}
+                                                            onClick={() => {
+                                                                setSelectedCategory(categoria.id);
+                                                                setCategoriesDrawerOpen(false);
+                                                            }}
+                                                            className={`w-full p-4 text-left rounded-xl mb-2 transition-all shadow-sm ${
+                                                                selectedCategory === categoria.id
+                                                                    ? 'bg-gradient-to-r from-cyan-600 to-cyan-700 text-white shadow-md'
+                                                                    : 'bg-gray-50 hover:bg-gray-100 text-gray-700 hover:shadow-md border border-gray-200'
+                                                            }`}
+                                                            whileTap={{ scale: 0.98 }}
+                                                        >
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="font-semibold truncate">{categoria.nombre}</span>
+                                                                <span className={`text-xs px-2.5 py-1 rounded-full font-bold ml-2 shrink-0 ${
+                                                                    selectedCategory === categoria.id
+                                                                        ? 'bg-white/20 text-white'
+                                                                        : 'bg-gray-200 text-gray-700'
+                                                                }`}>
+                                                                    {productosEnCategoria}
+                                                                </span>
+                                                            </div>
+                                                        </motion.button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </motion.div>
+                                    </>
                                 )}
-                            </button>
-                        </div>
-                    </div>
+                            </AnimatePresence>
 
                     {/* Grid de Productos */}
                     {loading ? (
