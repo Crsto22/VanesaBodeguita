@@ -94,6 +94,7 @@ const VentasDestock = () => {
     const [isProcessingVenta, setIsProcessingVenta] = useState(false);
     const [isProcessingBarcode, setIsProcessingBarcode] = useState(false);
     const [barcodeNotification, setBarcodeNotification] = useState(null);
+    const [montoPagado, setMontoPagado] = useState(''); // Estado para "Paga con"
 
     // Estado de carga de productos
     const [productosLoading, setProductosLoading] = useState(true);
@@ -275,6 +276,13 @@ const VentasDestock = () => {
             }, 100);
         }
     }, [selectedProducts.length]); // Solo cuando cambia la cantidad de productos (agregados/eliminados)
+
+    // Efecto para resetear el monto pagado cuando el carrito se vacía
+    useEffect(() => {
+        if (selectedProducts.length === 0) {
+            setMontoPagado('');
+        }
+    }, [selectedProducts.length]);
 
     // Filtrar productos según categoría seleccionada y término de búsqueda
     const productosFiltrados = React.useMemo(() => {
@@ -1626,7 +1634,6 @@ const VentasDestock = () => {
                         )}
                     </div>
 
-                    {/* Panel de pago - Solo visible cuando hay productos */}
                     {selectedProducts.length > 0 && (
                         <div className="p-4 bg-gray-50 flex-shrink-0">
                             <div className="space-y-4">
@@ -1634,6 +1641,52 @@ const VentasDestock = () => {
                                     <span className="text-lg font-medium text-gray-700">Total:</span>
                                     <span className="text-4xl font-bold text-[#45923a]">S/{calcularTotal().toFixed(2)}</span>
                                 </div>
+
+                                {/* Campo Paga con: y Vuelto - Solo para clientes genéricos */}
+                                {!clienteSeleccionado && (
+                                    <div className="bg-white rounded-lg p-2.5 border border-gray-200 shadow-sm">
+                                        <div className="flex items-center justify-between gap-3">
+                                            {/* Paga con */}
+                                            <div className="flex items-center gap-2">
+                                                <label htmlFor="monto-pagado" className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                                                    Paga
+                                                </label>
+                                                <div className="flex items-center gap-1 bg-none px-2 py-1.5 border rounded-3xl border-gray-300 transition-all">
+                                                    <span className="text-[#45923a] font-bold text-xl">S/</span>
+                                                    <input
+                                                        id="monto-pagado"
+                                                        type="number"
+                                                        step="0.01"
+                                                        min="0"
+                                                        value={montoPagado}
+                                                        onChange={(e) => setMontoPagado(e.target.value)}
+                                                        placeholder="0.00"
+                                                        className="w-18 px-1 py-0.5 bg-transparent font-bold text-3xl text-gray-900 text-right focus:outline-none   [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                        disabled={ventaStatus === 'uploading'}
+                                                    />
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Separador vertical */}
+                                            <div className="h-6 w-px bg-gray-300"></div>
+                                            
+                                            {/* Vuelto */}
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-sm font-medium text-gray-700">Vuelto:</span>
+                                                <span className={`text-2xl font-bold ${
+                                                    montoPagado && parseFloat(montoPagado) >= calcularTotal() 
+                                                        ? 'text-[#053a4d]' 
+                                                        : 'text-gray-400'
+                                                }`}>
+                                                    S/{montoPagado && parseFloat(montoPagado) > 0 
+                                                        ? Math.max(0, parseFloat(montoPagado) - calcularTotal()).toFixed(2)
+                                                        : '0.00'
+                                                    }
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Deuda Total con el mismo estilo que Total */}
                                 {clienteSeleccionado && deudaTotalCliente > 0 && selectedProducts.length > 0 && (

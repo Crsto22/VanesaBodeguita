@@ -11,6 +11,44 @@ const CATEGORIA_BEBIDAS = [
     'uCPsgvGyH2VYN9Ai1RCD'
 ];
 
+// Función de redondeo personalizado según reglas de negocio
+// S/ 1.01 - 1.04 → S/ 1.00 (redondea hacia abajo)
+// S/ 1.05 - 1.09 → S/ 1.10 (redondea hacia arriba)
+const redondearPrecio = (precio) => {
+    const precioNum = parseFloat(precio);
+    if (isNaN(precioNum)) return 0;
+    
+    // Separar la parte entera de los centavos
+    const parteEntera = Math.floor(precioNum);
+    const centavos = Math.round((precioNum - parteEntera) * 100);
+    
+    // Determinar el último dígito de los centavos
+    const ultimoDigito = centavos % 10;
+    
+    // Redondear según reglas:
+    // Si termina en 1-4: redondear hacia abajo (al 0 más cercano)
+    // Si termina en 5-9: redondear hacia arriba (al 10 más cercano)
+    let centavosRedondeados;
+    
+    if (ultimoDigito >= 1 && ultimoDigito <= 4) {
+        // Redondear hacia abajo al múltiplo de 10 más cercano
+        centavosRedondeados = Math.floor(centavos / 10) * 10;
+    } else if (ultimoDigito >= 5 && ultimoDigito <= 9) {
+        // Redondear hacia arriba al múltiplo de 10 más cercano
+        centavosRedondeados = Math.ceil(centavos / 10) * 10;
+    } else {
+        // Ya termina en 0, no cambiar
+        centavosRedondeados = centavos;
+    }
+    
+    // Si llegamos a 100 centavos, sumar a la parte entera
+    if (centavosRedondeados >= 100) {
+        return parteEntera + 1.00;
+    }
+    
+    return parteEntera + (centavosRedondeados / 100);
+};
+
 const PedidosModal = ({ isOpen, onClose, products = [] }) => {
     const { pedidos, loading, actualizarEstadoPedido, actualizarPedidoCompleto, eliminarPedido } = usePedidos();
     const { actualizarProducto } = useProducts();
@@ -245,7 +283,8 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
             imagen: product.imagen,
             estado_item: 'disponible',
             requiere_confirmacion: false,
-            mostrar_precio_web: true
+            mostrar_precio_web: true,
+            es_bebida: CATEGORIA_BEBIDAS.includes(product.categoria_ref)
         };
         setEditedItems(prev => [...prev, newItem]);
         setProductSearchTerm('');
@@ -282,6 +321,7 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
             sustituye_a: parentItem.itemId,
             mostrar_precio_web: true,
             es_retornable: product.retornable === true,
+            es_bebida: CATEGORIA_BEBIDAS.includes(product.categoria_ref),
             // Para productos kilogramo, inicializar con valores editables
             detalle: product.tipo_unidad === 'kilogramo' ? '100 g' : null,
             peso_propuesto_gramos: product.tipo_unidad === 'kilogramo' ? 100 : null,
@@ -319,6 +359,7 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
             es_sustituto: true,
             sustituye_a: parentItem.itemId,
             mostrar_precio_web: true,
+            es_bebida: parentItem.es_bebida || false,
             detalle: "Sin helar", // Mágica etiqueta
             cantidad_helada: 0 // Explícitamente no helada
         };
@@ -405,6 +446,7 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
             es_sustituto: true,
             sustituye_a: parentItem.itemId,
             mostrar_precio_web: true,
+            es_bebida: parentItem.es_bebida || CATEGORIA_BEBIDAS.includes(parentItem.categoria_ref),
             detalle: detalleTexto,
             peso_propuesto_gramos: unidad === 'gramos' ? cantidadNum : null,
             cantidad_propuesta: unidad === 'unidades' ? cantidadNum : null
@@ -462,6 +504,7 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
             es_sustituto: true,
             sustituye_a: parentItem.itemId,
             mostrar_precio_web: true,
+            es_bebida: parentItem.es_bebida || CATEGORIA_BEBIDAS.includes(parentItem.categoria_ref),
             detalle: detalleTexto,
             peso_propuesto_gramos: unidad === 'gramos' ? cantidadNum : null,
             cantidad_propuesta: unidad === 'unidades' ? cantidadNum : null
@@ -868,9 +911,24 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                                 {/* Footer Price */}
                                                                 <div className="flex items-end justify-between px-1 border-t border-slate-50 pt-3">
                                                                     <span className="text-xs font-semibold text-slate-400">Total Estimado</span>
-                                                                    <span className="text-xl font-black text-slate-800 tracking-tight group-hover:text-blue-600 transition-colors">
-                                                                        {formatCurrency(pedido.total_estimado || pedido.pago?.total_estimado || 0)}
-                                                                    </span>
+                                                                    <div className="flex flex-col items-end gap-1">
+                                                                        <span className="text-xl font-black text-slate-800 tracking-tight group-hover:text-blue-600 transition-colors">
+                                                                            {formatCurrency(redondearPrecio(pedido.total_estimado || pedido.pago?.total_estimado || 0))}
+                                                                        </span>
+                                                                        {(() => {
+                                                                            const totalOriginal = pedido.total_estimado || pedido.pago?.total_estimado || 0;
+                                                                            const totalRedondeado = redondearPrecio(totalOriginal);
+                                                                            const ajuste = totalRedondeado - totalOriginal;
+                                                                            if (Math.abs(ajuste) >= 0.01) {
+                                                                                return (
+                                                                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200">
+                                                                                        Redondeado {ajuste > 0 ? '+' : ''}{formatCurrency(ajuste).replace('S/ ', '')}
+                                                                                    </span>
+                                                                                );
+                                                                            }
+                                                                            return null;
+                                                                        })()}
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -1084,12 +1142,21 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                                 return sum + (parseFloat(item.precio_final) || 0);
                                                             }, 0);
 
-                                                            const vuelto = (parseFloat(selectedPedido.pago?.monto_paga_con) || 0) - currentTotal;
+                                                            const totalRedondeado = redondearPrecio(currentTotal);
+                                                            const ajuste = totalRedondeado - currentTotal;
+                                                            const vuelto = (parseFloat(selectedPedido.pago?.monto_paga_con) || 0) - totalRedondeado;
 
                                                             return (
-                                                                <p className={`text-xl font-black font-mono ${vuelto < 0 ? 'text-red-500' : 'text-emerald-600'} ${selectedPedido.pago?.rechazo_vuelto ? 'line-through opacity-50' : ''}`}>
-                                                                    {formatCurrency(vuelto)}
-                                                                </p>
+                                                                <div className="flex flex-col items-end gap-1">
+                                                                    <p className={`text-xl font-black font-mono ${vuelto < 0 ? 'text-red-500' : 'text-emerald-600'} ${selectedPedido.pago?.rechazo_vuelto ? 'line-through opacity-50' : ''}`}>
+                                                                        {formatCurrency(vuelto)}
+                                                                    </p>
+                                                                    {Math.abs(ajuste) >= 0.01 && (
+                                                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
+                                                                            Total redondeado {ajuste > 0 ? '+' : ''}{formatCurrency(ajuste).replace('S/ ', '')}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             );
                                                         })()}
                                                     </div>
@@ -1185,7 +1252,7 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                                                     )}
                                                                                 </div>
 
-                                                                                {(item.tipo_unidad !== 'kilogramo' && !isNoStock) && (
+                                                                                {(item.tipo_unidad !== 'kilogramo' && !isNoStock && item.es_bebida) && (
                                                                                     <div className="flex flex-wrap gap-1 mt-1.5">
                                                                                         {item.cantidad_helada > 0 && (
                                                                                             <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 flex items-center gap-1 font-bold whitespace-nowrap">
@@ -1579,7 +1646,7 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                             <input
                                                                 type="text"
                                                                 placeholder="Buscar producto..."
-                                                                className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-500 transition-all shadow-sm placeholder:text-slate-400"
+                                                                className="w-full pl-10 pr-4 py-3 text-black bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-500 transition-all shadow-sm placeholder:text-slate-400"
                                                                 value={substSearchTerm}
                                                                 onChange={(e) => setSubstSearchTerm(e.target.value)}
                                                                 autoFocus
@@ -1696,13 +1763,13 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                             {/* Total */}
                                             <div className="p-5 bg-white/90 backdrop-blur-md border-t border-slate-100 flex justify-between items-center z-10 sticky bottom-0 shadow-[0_-5px_30px_-15px_rgba(0,0,0,0.1)]">
                                                 <div className="text-sm text-slate-500">
-                                                    <span className="block font-medium text-slate-700">Estimado Original: {formatCurrency(selectedPedido.total_estimado || selectedPedido.pago?.total_estimado || 0)}</span>
+                                                    <span className="block font-medium text-slate-700">Estimado Original: {formatCurrency(redondearPrecio(selectedPedido.total_estimado || selectedPedido.pago?.total_estimado || 0))}</span>
                                                     <span className="block text-[10px] mt-0.5 font-medium bg-slate-100 px-1.5 py-0.5 rounded text-slate-400 w-fit">Basado en solicitud inicial</span>
                                                 </div>
                                                 <div className="flex flex-col items-end">
                                                     <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-0.5">Total Final</span>
-                                                    <span className="text-3xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                                                        {formatCurrency(editedItems.reduce((sum, item) => {
+                                                    {(() => {
+                                                        const totalOriginal = editedItems.reduce((sum, item) => {
                                                             // Los sustitutos no suman al total hasta que son elegidos/confirmados, 
                                                             // pero aquí asumimos que item que está en la lista principal SUMA.
                                                             // Si item.es_sustituto es true, significa que es una opción extra?
@@ -1716,8 +1783,24 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                                                             // O el sustituto se marcó como "seleccionado"?
                                                             // El array editedItems contiene TODO.
                                                             return sum + (parseFloat(item.precio_final) || 0);
-                                                        }, 0))}
-                                                    </span>
+                                                        }, 0);
+                                                        const totalRedondeado = redondearPrecio(totalOriginal);
+                                                        const ajuste = totalRedondeado - totalOriginal;
+                                                        
+                                                        return (
+                                                            <div className="flex flex-col items-end gap-1">
+                                                                <span className="text-3xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                                                                    {formatCurrency(totalRedondeado)}
+                                                                </span>
+                                                                {Math.abs(ajuste) >= 0.01 && (
+                                                                    <span className="text-[10px] font-bold px-2 py-1 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border border-blue-200 flex items-center gap-1">
+                                                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                                                                        Redondeado {ajuste > 0 ? '+' : ''}{formatCurrency(ajuste).replace('S/ ', '')}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })()}
                                                 </div>
                                             </div>
                                         </div>
