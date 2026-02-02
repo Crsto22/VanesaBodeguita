@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, ClipboardList, Clock, Search, PackageSearch, Phone, User, Calendar, RefreshCcw, RefreshCw, CheckCircle, Package, Truck, AlertTriangle, Eye, ArrowLeft, Plus, Trash2, Save, Minus, Ban, Snowflake, Sun, Loader2, Smartphone, Banknote, PackageX } from 'lucide-react';
 import { usePedidos } from '../../context/PedidosContext';
 import { useProducts } from '../../context/ProductContext';
+import { Timestamp } from 'firebase/firestore';
 
 const CATEGORIA_BEBIDAS = [
     '3gWRZpqiZd5gTLW1snA5',
@@ -607,9 +608,15 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
         delete nuevoPago.total_estimado;
         delete nuevoPago.requiere_confirmacion;
 
+        // Calcular fecha de expiración (10 minutos desde ahora) solo si requiere confirmación
+        const fechaExpiracion = needsConfirmation 
+            ? Timestamp.fromDate(new Date(Date.now() + 10 * 60 * 1000)) // +10 minutos
+            : null;
+
         try {
             setIsProcessing(true);
-            await actualizarPedidoCompleto(selectedPedido.id, {
+            
+            const actualizacionData = {
                 items: itemsLimpios,
                 estado: nuevoEstado,
                 // Colocamos el total en la raíz como pediste
@@ -621,7 +628,14 @@ const PedidosModal = ({ isOpen, onClose, products = [] }) => {
                     requiere_accion: needsConfirmation,
                     motivo: hasStockIssues ? 'stock' : (hasSubstitutes ? 'sustitutos' : 'confirmacion_precio')
                 }
-            });
+            };
+
+            // Agregar fecha de expiración solo si requiere confirmación
+            if (fechaExpiracion) {
+                actualizacionData.expira_en = fechaExpiracion;
+            }
+
+            await actualizarPedidoCompleto(selectedPedido.id, actualizacionData);
             console.log(`Pedido actualizado a: ${nuevoEstado}`);
 
             if (nuevoEstado === 'esperando_confirmacion') {
