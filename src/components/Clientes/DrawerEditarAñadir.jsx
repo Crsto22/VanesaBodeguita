@@ -7,10 +7,13 @@ const DrawerEditarAñadir = ({ isOpen, onClose, isEditMode, initialData, onSubmi
     nombre: initialData?.nombre || '',
     telefono: initialData?.telefono || '',
     telefono2: initialData?.telefono2 || '',
+    nombre_yape: initialData?.nombre_yape || '',
+    nombres_yape_alternativos: initialData?.nombres_yape_alternativos || [],
     correo: initialData?.correo || '',
     descripcion: initialData?.descripcion || '',
     enviar_whatsapp: initialData?.enviar_whatsapp !== undefined ? initialData.enviar_whatsapp : true
   });
+  const [nuevoNombreYape, setNuevoNombreYape] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({ nombre: '' });
 
@@ -21,10 +24,13 @@ const DrawerEditarAñadir = ({ isOpen, onClose, isEditMode, initialData, onSubmi
         nombre: initialData?.nombre || '',
         telefono: initialData?.telefono || '',
         telefono2: initialData?.telefono2 || '',
+        nombre_yape: initialData?.nombre_yape || '',
+        nombres_yape_alternativos: initialData?.nombres_yape_alternativos || [],
         correo: initialData?.correo || '',
         descripcion: initialData?.descripcion || '',
         enviar_whatsapp: initialData?.enviar_whatsapp !== undefined ? initialData.enviar_whatsapp : true
       });
+      setNuevoNombreYape('');
       setErrors({ nombre: '' });
       setLoading(false);
     }
@@ -42,6 +48,27 @@ const DrawerEditarAñadir = ({ isOpen, onClose, isEditMode, initialData, onSubmi
     }
   };
 
+  // Handle adding alternative Yape name
+  const handleAddNombreYapeAlt = () => {
+    const trimmed = nuevoNombreYape.trim();
+    if (!trimmed) return;
+    if (trimmed.length > 50) return;
+    if (formData.nombres_yape_alternativos.length >= 5) return;
+    setFormData(prev => ({
+      ...prev,
+      nombres_yape_alternativos: [...prev.nombres_yape_alternativos, trimmed]
+    }));
+    setNuevoNombreYape('');
+  };
+
+  // Handle removing alternative Yape name
+  const handleRemoveNombreYapeAlt = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      nombres_yape_alternativos: prev.nombres_yape_alternativos.filter((_, i) => i !== index)
+    }));
+  };
+
   // Handle form submission with validation
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -53,7 +80,16 @@ const DrawerEditarAñadir = ({ isOpen, onClose, isEditMode, initialData, onSubmi
     setErrors({ nombre: '' });
     setLoading(true);
     try {
-      await onSubmit({ ...formData, nombre: trimmedNombre });
+      const nombreYape = formData.nombre_yape.trim() || null;
+      const nombresYapeAlt = formData.nombres_yape_alternativos.length > 0
+        ? formData.nombres_yape_alternativos
+        : [];
+      await onSubmit({
+        ...formData,
+        nombre: trimmedNombre,
+        nombre_yape: nombreYape,
+        nombres_yape_alternativos: nombresYapeAlt
+      });
     } finally {
       setLoading(false);
     }
@@ -141,6 +177,91 @@ const DrawerEditarAñadir = ({ isOpen, onClose, isEditMode, initialData, onSubmi
                 disabled={loading}
               />
             </div>
+            {/* Separador Datos de Pago Yape */}
+            <div className="flex items-center gap-3 pt-2">
+              <div className="flex-1 h-px bg-gray-200" />
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: colors.primary }}>Datos de Pago Yape</span>
+              <div className="flex-1 h-px bg-gray-200" />
+            </div>
+
+            {/* Nombre en Yape */}
+            <div>
+              <div className="flex items-center gap-1.5">
+                <label className="block text-sm font-medium" style={{ color: colors.primary }}>
+                  Nombre en Yape
+                </label>
+                <div className="group relative">
+                  <svg className="h-4 w-4 text-gray-400 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-56 px-3 py-2 text-xs text-white bg-gray-800 rounded-lg shadow-lg z-10">
+                    El nombre exacto como aparece en las notificaciones de Yape
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800" />
+                  </div>
+                </div>
+              </div>
+              <input
+                type="text"
+                name="nombre_yape"
+                value={formData.nombre_yape}
+                onChange={handleChange}
+                maxLength={50}
+                placeholder="Ej: Juan P***, Maria L***"
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-gray-700 outline-none"
+                disabled={loading}
+              />
+              <p className="mt-1 text-xs text-gray-400 text-right">{formData.nombre_yape.length}/50</p>
+            </div>
+
+            {/* Nombres Yape Alternativos */}
+            <div>
+              <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>
+                Nombres Yape Alternativos (opcional)
+              </label>
+              {formData.nombres_yape_alternativos.length > 0 && (
+                <div className="flex flex-col gap-2 mb-2">
+                  {formData.nombres_yape_alternativos.map((nombre, index) => (
+                    <div key={index} className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                      <span className="flex-1 text-sm text-gray-700 truncate">{nombre}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveNombreYapeAlt(index)}
+                        className="p-0.5 rounded-full hover:bg-gray-200 text-gray-400 hover:text-red-500 transition-colors"
+                        disabled={loading}
+                        aria-label={`Eliminar ${nombre}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {formData.nombres_yape_alternativos.length < 5 && (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={nuevoNombreYape}
+                    onChange={(e) => setNuevoNombreYape(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddNombreYapeAlt(); } }}
+                    maxLength={50}
+                    placeholder="Ej: Juan***, J. Perez***"
+                    className="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-gray-700 outline-none text-sm"
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddNombreYapeAlt}
+                    className="rounded-lg px-3 py-2.5 text-sm font-medium text-white shrink-0"
+                    style={{ backgroundColor: colors.primary }}
+                    disabled={loading || !nuevoNombreYape.trim()}
+                  >
+                    + Agregar
+                  </button>
+                </div>
+              )}
+              <p className="mt-1 text-xs text-gray-400">{formData.nombres_yape_alternativos.length}/5 nombres agregados</p>
+            </div>
+
             <div>
               <label className="block text-sm font-medium" style={{ color: colors.primary }}>
                 Correo (opcional)
