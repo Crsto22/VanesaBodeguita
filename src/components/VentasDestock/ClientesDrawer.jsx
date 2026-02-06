@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useClientes } from '../../context/ClientesContext';
 import { useVentas } from '../../context/VentasContext';
 import CrearClienteDrawer from './CrearClienteDrawer';
+import YapeLogo from '../../assets/yape-logo.png';
 
 const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
     const navigate = useNavigate();
@@ -277,9 +278,16 @@ const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
                                                 <User size={20} className="text-white" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h4 className="font-semibold text-gray-800 truncate">
-                                                    {cliente.nombre}
-                                                </h4>
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <h4 className="font-semibold text-gray-800 truncate">
+                                                        {cliente.nombre}
+                                                    </h4>
+                                                    {(cliente.nombre_yape || (cliente.nombres_yape_alternativos && cliente.nombres_yape_alternativos.length > 0)) && (
+                                                        <span className="inline-flex items-center gap-0.5 rounded-full bg-fuchsia-700 px-2 py-0.5 text-xs font-semibold text-white">
+                                                            <img src={YapeLogo} alt="Yape Logo" className="h-4 w-4 rounded-full" /> Auto Yape
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <div className="flex items-center gap-4 mt-1 flex-wrap">
                                                     {cliente.telefono && (
                                                         <div className="flex items-center gap-1">
