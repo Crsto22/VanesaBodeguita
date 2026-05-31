@@ -6,6 +6,7 @@ import {
     Trash2,
     Menu,
     Bell,
+    BellOff,
     Users,
     ShoppingBag,
     DollarSign,
@@ -29,6 +30,7 @@ import IconoClientes from '../assets/Clientes/IconoClientes.svg';
 import { useClientes } from '../context/ClientesContext';
 import Drawer from '../components/Clientes/DrawerEditarAñadir';
 import DeleteDrawer from '../components/Clientes/DeleteDrawer';
+import EditarTelefonoDrawer from '../components/Clientes/EditarTelefonoDrawer';
 import { motion, AnimatePresence } from "framer-motion";
 
 // Colores personalizados
@@ -50,6 +52,8 @@ const Clientes = () => {
     const [deleting, setDeleting] = useState(false);
     const [toast, setToast] = useState({ message: '', type: '', visible: false });
     const [appear, setAppear] = useState(false);
+    const [editarTelefonoOpen, setEditarTelefonoOpen] = useState(false);
+    const [clienteEditandoTelefono, setClienteEditandoTelefono] = useState(null);
     // Obtener datos del contexto
     const { clientes, loading, crearCliente, actualizarCliente, eliminarCliente } = useClientes();
 
@@ -162,6 +166,12 @@ const Clientes = () => {
     const handleDeleteClient = (client) => {
         setCurrentClient(client);
         setDeleteDrawerOpen(true);
+    };
+
+    // Función para abrir el drawer de editar teléfono
+    const handleEditarTelefono = (client) => {
+        setClienteEditandoTelefono(client);
+        setEditarTelefonoOpen(true);
     };
 
     // Función para confirmar la eliminación
@@ -349,6 +359,17 @@ const Clientes = () => {
                 loading={deleting}
             />
 
+            {/* Drawer para editar teléfono */}
+            <EditarTelefonoDrawer
+                isOpen={editarTelefonoOpen}
+                onClose={() => {
+                    setEditarTelefonoOpen(false);
+                    setClienteEditandoTelefono(null);
+                }}
+                client={clienteEditandoTelefono}
+                colors={COLORS}
+            />
+
             {/* Contenido principal */}
             <main className="px-3 pb-16 pt-3">
                 <div className={`transition-opacity duration-500 ${appear ? 'opacity-100' : 'opacity-0'}`}>
@@ -437,6 +458,12 @@ const Clientes = () => {
                                                                 {client.enviar_whatsapp ? 'WhatsApp activo' : 'WhatsApp inactivo'}
                                                             </p>
                                                         </div>
+                                                        {client.alertas_compras_whatsapp && (
+                                                            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100">
+                                                                <Bell className="h-3 w-3 text-blue-600" />
+                                                                <p className="text-xs text-blue-600">Alertas compras</p>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -465,6 +492,13 @@ const Clientes = () => {
                                                             <Phone className="h-4 w-4 text-gray-500" />
                                                         </div>
                                                         <span className="text-gray-700">{client.telefono}</span>
+                                                        <button
+                                                            onClick={() => handleEditarTelefono(client)}
+                                                            className="p-1 hover:bg-gray-200 rounded transition-colors"
+                                                            title="Editar teléfonos"
+                                                        >
+                                                            <Edit2 className="h-3 w-3 text-gray-400" />
+                                                        </button>
                                                     </div>
                                                 )}
                                                 {client.telefono2 && (
@@ -474,6 +508,15 @@ const Clientes = () => {
                                                         </div>
                                                         <span className="text-gray-700">{client.telefono2}</span>
                                                     </div>
+                                                )}
+                                                {!client.telefono && !client.telefono2 && (
+                                                    <button
+                                                        onClick={() => handleEditarTelefono(client)}
+                                                        className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors"
+                                                    >
+                                                        <Phone className="h-4 w-4" />
+                                                        Agregar teléfono
+                                                    </button>
                                                 )}
                                             </div>
                                             <div className="mt-4 flex justify-between border-t border-gray-100 pt-3">

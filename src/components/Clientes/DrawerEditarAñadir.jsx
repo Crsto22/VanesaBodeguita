@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Bell } from 'lucide-react';
 import IconoNewEditCliente from '../../assets/Clientes/IconoNewEditCliente.svg';
 
 const DrawerEditarAñadir = ({ isOpen, onClose, isEditMode, initialData, onSubmit, colors }) => {
@@ -11,7 +11,8 @@ const DrawerEditarAñadir = ({ isOpen, onClose, isEditMode, initialData, onSubmi
     nombres_yape_alternativos: initialData?.nombres_yape_alternativos || [],
     correo: initialData?.correo || '',
     descripcion: initialData?.descripcion || '',
-    enviar_whatsapp: initialData?.enviar_whatsapp !== undefined ? initialData.enviar_whatsapp : true
+    enviar_whatsapp: initialData?.enviar_whatsapp !== undefined ? initialData.enviar_whatsapp : true,
+    alertas_compras_whatsapp: initialData?.alertas_compras_whatsapp || false
   });
   const [nuevoNombreYape, setNuevoNombreYape] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,7 +29,8 @@ const DrawerEditarAñadir = ({ isOpen, onClose, isEditMode, initialData, onSubmi
         nombres_yape_alternativos: initialData?.nombres_yape_alternativos || [],
         correo: initialData?.correo || '',
         descripcion: initialData?.descripcion || '',
-        enviar_whatsapp: initialData?.enviar_whatsapp !== undefined ? initialData.enviar_whatsapp : true
+        enviar_whatsapp: initialData?.enviar_whatsapp !== undefined ? initialData.enviar_whatsapp : true,
+        alertas_compras_whatsapp: initialData?.alertas_compras_whatsapp || false
       });
       setNuevoNombreYape('');
       setErrors({ nombre: '' });
@@ -314,6 +316,31 @@ const DrawerEditarAñadir = ({ isOpen, onClose, isEditMode, initialData, onSubmi
                 checked={formData.enviar_whatsapp}
                 onChange={handleChange}
                 className="toggle toggle-success"
+                disabled={loading}
+              />
+            </div>
+            {/* Toggle para alertas de compras por WhatsApp */}
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-center gap-3">
+                <Bell 
+                  className="h-6 w-6" 
+                  style={{ color: formData.alertas_compras_whatsapp ? '#3b82f6' : '#9ca3af' }}
+                />
+                <div>
+                  <label className="text-sm font-medium" style={{ color: colors.primary }}>
+                    Enviar alertas de compras
+                  </label>
+                  <p className="text-xs text-gray-500">
+                    Notificar al cliente cada compra registrada
+                  </p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                name="alertas_compras_whatsapp"
+                checked={formData.alertas_compras_whatsapp}
+                onChange={handleChange}
+                className="toggle toggle-primary"
                 disabled={loading}
               />
             </div>

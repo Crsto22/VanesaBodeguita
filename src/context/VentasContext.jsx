@@ -175,6 +175,7 @@ export const VentasProvider = ({ children }) => {
           monto: formatToTwoDecimals(Number(pago.monto)),
         })),
         historial_retornables: [],
+        mandar_alerta: ventaData.mandar_alerta || false,
       };
 
       const docRef = await addDoc(ventasCollection, nuevaVenta);

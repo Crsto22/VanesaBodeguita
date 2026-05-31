@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Search, User, Mail, Phone, Plus, Eye, Filter } from 'lucide-react';
+import { X, Search, User, Mail, Phone, Plus, Eye, Filter, Bell, Edit2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useClientes } from '../../context/ClientesContext';
 import { useVentas } from '../../context/VentasContext';
 import CrearClienteDrawer from './CrearClienteDrawer';
+import EditarTelefonoModal from './EditarTelefonoModal';
 import YapeLogo from '../../assets/yape-logo.png';
 
 const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
@@ -16,6 +17,9 @@ const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
     const [isVisible, setIsVisible] = useState(false);
     const [drawerCrearClienteOpen, setDrawerCrearClienteOpen] = useState(false);
     const [filtroWhatsApp, setFiltroWhatsApp] = useState(false);
+    const [filtroAlertasCompras, setFiltroAlertasCompras] = useState(false);
+    const [editarTelefonoOpen, setEditarTelefonoOpen] = useState(false);
+    const [clienteEditandoTelefono, setClienteEditandoTelefono] = useState(null);
     const searchInputRef = useRef(null);
 
     // Manejar la visibilidad con animación
@@ -38,6 +42,11 @@ const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
                 filtered = filtered.filter((cliente) => cliente.enviar_whatsapp === true);
             }
             
+            // Aplicar filtro de alertas de compras si está activo
+            if (filtroAlertasCompras) {
+                filtered = filtered.filter((cliente) => cliente.alertas_compras_whatsapp === true);
+            }
+            
             // Aplicar búsqueda por texto
             if (searchTerm !== '') {
                 filtered = filtered.filter((cliente) =>
@@ -49,16 +58,23 @@ const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
             
             setFilteredClientes(filtered);
         }
-    }, [searchTerm, clientes, clientesLoading, filtroWhatsApp]);
+    }, [searchTerm, clientes, clientesLoading, filtroWhatsApp, filtroAlertasCompras]);
 
     // Resetear búsqueda y filtros cuando se abre el drawer
     useEffect(() => {
         if (isOpen) {
             setSearchTerm('');
             setFiltroWhatsApp(false);
+            setFiltroAlertasCompras(false);
             setFilteredClientes(clientes);
         }
     }, [isOpen, clientes]);
+
+    // Función para editar teléfono
+    const handleEditarTelefono = (cliente) => {
+        setClienteEditandoTelefono(cliente);
+        setEditarTelefonoOpen(true);
+    };
 
     // Enfocar el input de búsqueda cuando se abre el drawer
     useEffect(() => {
@@ -188,8 +204,29 @@ const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
                         />
                     </div>
 
-                    {/* Filtro de WhatsApp */}
-                    <div className="mt-3">
+                    {/* Filtros */}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        {/* Filtro de Alertas de Compras */}
+                        <button
+                            onClick={() => setFiltroAlertasCompras(!filtroAlertasCompras)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
+                                filtroAlertasCompras 
+                                    ? 'bg-white text-blue-600 shadow-md' 
+                                    : 'bg-white/20 text-white hover:bg-white/30'
+                            }`}
+                        >
+                            <Filter size={14} />
+                            <Bell className="h-4 w-4" />
+                            <span className="text-sm font-medium">
+                                {filtroAlertasCompras ? 'Solo Alertas' : 'Filtrar Alertas'}
+                            </span>
+                            {filtroAlertasCompras && (
+                                <span className="ml-1 bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
+                                    {filteredClientes.length}
+                                </span>
+                            )}
+                        </button>
+                        {/* Filtro de WhatsApp */}
                         <button
                             onClick={() => setFiltroWhatsApp(!filtroWhatsApp)}
                             className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
@@ -295,6 +332,16 @@ const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
                                                             <span className="text-xs text-gray-500">
                                                                 {cliente.telefono}
                                                             </span>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleEditarTelefono(cliente);
+                                                                }}
+                                                                className="p-0.5 hover:bg-gray-200 rounded transition-colors"
+                                                                title="Editar teléfonos"
+                                                            >
+                                                                <Edit2 size={12} className="text-gray-400" />
+                                                            </button>
                                                         </div>
                                                     )}
                                                     {cliente.correo && (
@@ -325,6 +372,26 @@ const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
                                                                 Se envía por WhatsApp
                                                             </span>
                                                         </div>
+                                                    )}
+                                                    {/* Badge de alertas de compras */}
+                                                    {cliente.alertas_compras_whatsapp && (
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 flex items-center gap-1">
+                                                                <Bell className="h-3 w-3" />
+                                                                Alertas compras
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    {!cliente.telefono && !cliente.telefono2 && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleEditarTelefono(cliente);
+                                                            }}
+                                                            className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                                                        >
+                                                            <Phone size={12} /> Agregar teléfono
+                                                        </button>
                                                     )}
                                                 </div>
                                                 {deudaTotal > 0 && (
@@ -385,6 +452,16 @@ const ClientesDrawer = ({ isOpen, onClose, onSelectCliente }) => {
                             onClose();
                         }
                     }}
+                />
+
+                {/* Modal para editar teléfono */}
+                <EditarTelefonoModal
+                    isOpen={editarTelefonoOpen}
+                    onClose={() => {
+                        setEditarTelefonoOpen(false);
+                        setClienteEditandoTelefono(null);
+                    }}
+                    client={clienteEditandoTelefono}
                 />
                 </div>
                 </motion.div>
